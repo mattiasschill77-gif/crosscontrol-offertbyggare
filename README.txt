@@ -1,50 +1,49 @@
-CrossControl Quote Builder — Offertbyggare
+CrossControl Quote Builder (Offertbyggare)
 ==========================================
+Updated July 2026 with the changes you suggested, Zak.
 
-Uppdaterad enligt CrossControl grafiska profil (juli 2026): Poppins för
-rubriker (Century Gothic-ersättning eftersom Decima Pro inte är
-webbtillgängligt), Arial för brödtext, exakta varumärkesfärger
-(orange #F7971C, grå #646363), och "less is more"-känslan från profilen
-rakt igenom — webbappen, "Download PDF"-knappen och generate_pdf.py.
+WHAT'S IN THIS FOLDER
+---------------------
+crosscontrol-offertbyggare.html   The app. Double-click to open in a browser (Chrome or Edge).
+generate_pdf.py                   Optional: makes a pixel-perfect PDF from an exported quote .json.
+cc-logo.svg                       Logo. Must sit next to generate_pdf.py.
+poppins-700-b64.txt               Heading font for generate_pdf.py. Must sit next to it.
+poppins-800-b64.txt               Heading font for generate_pdf.py. Must sit next to it.
+CrossControl_Standard_terms___conditions_2023.docx   The T&C doc to email with the quote.
 
-INNEHÅLL
---------
-crosscontrol-offertbyggare.html   Webbappen. Dubbelklicka för att öppna i webbläsaren.
-generate_pdf.py                   Genererar en exakt PDF från exporterad offert-JSON.
-cc-logo.svg                       CrossControl-loggan. MÅSTE ligga bredvid generate_pdf.py.
-poppins-700-b64.txt               Poppins Bold, för generate_pdf.py:s rubriker. MÅSTE ligga bredvid.
-poppins-800-b64.txt               Poppins ExtraBold, för generate_pdf.py:s rubriker. MÅSTE ligga bredvid.
-parse_pricelist.py                (Frivillig) Konverterar Excel-prislista lokalt.
-xlsx_parser.js                    Redan inbakad i HTML-filen. Behövs inte separat.
+Everything runs locally in your browser - no server, nothing to install to use it.
+Keep all files together in one folder.
 
-VIKTIGT: Lägg generate_pdf.py, cc-logo.svg och de två poppins-*.txt-filerna
-i SAMMA mapp. Saknas typsnittsfilerna faller PDF:en tillbaka på Arial för
-rubriker (fungerar, men matchar inte varumärkesprofilen lika exakt).
-
-ARBETSFLÖDE
+QUICK START
 -----------
-1. Öppna crosscontrol-offertbyggare.html i webbläsaren (Chrome/Edge).
-2. Bygg offerten: lägg till produkter, sätt kund, villkor, valuta osv.
-   - Allt sparas automatiskt med ett löpnummer (CC-2026-0001 osv).
-   - Klicka "Archive" för att hämta upp tidigare offerter.
-3. Två sätt att få PDF:
-   A) Snabbt: klicka "Download quote as PDF" — vektor-PDF direkt i webbläsaren,
-      med upprepad header/footer på varje sida. Inget Python behövs.
-   B) Exakt: klicka "Export quote data (.json)", lägg json-filen bredvid
-      generate_pdf.py, kör:  python3 generate_pdf.py quote-CC-2026-0001.json
-      PDF:en skapas i samma mapp.
+1. Double-click crosscontrol-offertbyggare.html.
+2. Add products, set the customer, terms, currency, etc. Everything autosaves under a
+   running quote number (CC-2026-0001, etc.). Use "Archive" to reopen past quotes.
+3. Get a PDF the fast way: click "Download quote as PDF" - a vector PDF is created right
+   in the browser, header/footer repeated on every page. No Python needed.
+   (Exact path if you prefer: "Export quote data (.json)" then
+    python3 generate_pdf.py quote-CC-2026-XXXX.json  - needs: pip install weasyprint)
 
-KRAV FÖR generate_pdf.py
-------------------------
-  pip install weasyprint
-  (cc-logo.svg och poppins-700-b64.txt / poppins-800-b64.txt måste finnas i samma mapp)
+WHAT'S NEW (your three suggestions)
+-----------------------------------
+1. Rename the quantity column.
+   Left panel, under "Terms": a "Quantity column heading" field. Type or pick MOQ, EAU,
+   Order Qty, etc. It changes the column header on the quote.
 
-UPPDATERA PRISLISTAN
---------------------
-Ladda upp ny Excel direkt i appen ("Upload updated price list"),
-eller kör parse_pricelist.py lokalt.
+2. Custom volume-based tier matrix (per product).
+   Every product now has a checkbox: "Custom volume tiers (price matrix)".
+   - Leave it UNCHECKED for the normal List / Unit / Qty / Total row.
+   - CHECK it and that product shows as its own price matrix, one column per tier
+     (e.g. "Samples / MOQ 1-5" and "EAU 100-249 / MOQ 20"), like your V1200 quote.
+   It pre-fills tier columns from the price list as a starting point - edit the labels,
+   sub-labels and prices, add or delete columns. Prices are typed EXACTLY as they should
+   appear (in the currency you've selected - no conversion), and matrix products are not
+   rolled into the quote total. Put specific quantities in the note field if you like.
 
-STANDARD TERMS & CONDITIONS
----------------------------
-T&C-dokumentet refereras automatiskt på varje offert och ska skickas
-med som separat fil till kunden. Uppdatera vid behov via appen.
+3. VAT / Tariff line.
+   Under "Terms": a "VAT / Tariff note" field with presets - EU ("Prices are given
+   excluding VAT") and US ("Prices are given without VAT or Tariff"). Shows as its own
+   line under Terms on the quote.
+
+Questions or anything off - let me know.
+Mattias

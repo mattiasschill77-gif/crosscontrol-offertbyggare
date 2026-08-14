@@ -26,9 +26,9 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Full quote archive: every quote auto-saves to `localStorage` under a sequential ID (`CC-2026-0001`, etc.), with a slide-in panel to browse/reopen past quotes, plus JSON export/import of the whole archive as a backup mechanism
 - Standard Terms & Conditions reference block shown on every quote (§ box), with an upload control to update which T&C document filename it references
 - Three ways to get a PDF out of a quote:
-  1. **"Download quote as PDF"** button — generates a real PDF client-side using pdfmake, no server/Python needed. **Currently broken — see §4.**
+  1. **"Download quote as PDF"** button — generates a real PDF client-side using pdfmake, no server/Python needed. **Working — fixed and click-verified, see §4.**
   2. **"Print via browser"** — just calls `window.print()`, uses the page's own print CSS.
-  3. **Export quote as `.json`**, then run `generate_pdf.py <file.json>` locally with Python — produces a pixel-precise PDF via WeasyPrint. **Fully working, this is the reliable fallback right now.**
+  3. **Export quote as `.json`**, then run `generate_pdf.py <file.json>` locally with Python — produces a pixel-precise PDF via WeasyPrint. **Fully working**; needed as the only route while §4 was broken, now a secondary path for when you want pixel-exact output.
 
 ---
 
@@ -67,14 +67,15 @@ So **`buildExportObj()`'s output shape is the contract** between the web app and
 
 | File | Role |
 |---|---|
-| `crosscontrol-offertbyggare.html` | The whole app. Structure: `<style>` (all CSS), body markup (topbar, left control panel, right live-preview pane, archive slide-in panel), then a big inline `<script>` at the end containing (in order) the Excel parser, the pdfmake PDF builder, and the main app logic. Also loads three external libraries via CDN `<script src>` tags near the top: SheetJS (`xlsx`), `pdfmake.min.js`, `vfs_fonts.js`. **See §4 — the pdfmake CDN version pinned here is the current bug.** |
+| `crosscontrol-offertbyggare.html` | The whole app. Structure: `<style>` (all CSS), body markup (topbar, left control panel, right live-preview pane, archive slide-in panel), then a big inline `<script>` at the end containing (in order) the Excel parser, the pdfmake PDF builder, and the main app logic. **No external dependencies:** SheetJS (`xlsx`), `pdfmake` 0.3.11 and `vfs_fonts` are all inlined into the file — there are no `<script src>` tags and the app needs no network at all. It used to load those three from cdnjs; see §4 for why that was removed. |
 | `generate_pdf.py` | Standalone Python script. Takes an exported quote JSON, renders an HTML string with the same CSS/layout logic as the web app (duplicated, not shared — see §6), and rasterizes it to PDF via WeasyPrint. Needs `cc-logo.svg`, `poppins-700-b64.txt`, `poppins-800-b64.txt` in the same folder (reads them by relative path). |
 | `cc-logo.svg` | CrossControl logo, vector, brand-correct colors baked in. Used by both the web app (inlined) and `generate_pdf.py` (read from disk). |
 | `poppins-700-b64.txt` / `poppins-800-b64.txt` | Base64-encoded Poppins TTF (Bold / ExtraBold), used to embed the brand's headline font into both the web app's CSS (`@font-face`) and the PDF outputs, so nothing depends on Google Fonts being reachable. |
 | `xlsx_parser.js` | Reference copy of the in-browser Excel-parsing logic. Already inlined into the HTML — this standalone file is just kept for reference/editing convenience, not loaded separately. |
 | `parse_pricelist.py` | Optional local script to regenerate the embedded `PRICE_DATA` JSON from a master Excel price list, for when you want to bake a new catalog into the HTML at build time rather than have the person upload it every session. |
 | `CrossControl_Standard_terms___conditions_2023.docx` | The actual T&C document referenced by every quote. Ships alongside the tool so it can be attached to customer emails. |
-| `README.txt` | End-user-facing instructions (in Swedish), for Mattias himself — what to double-click, how to get a PDF, what needs to sit next to `generate_pdf.py`. |
+| `README.txt` | End-user-facing instructions (English), written as the handoff note to Zak — what to double-click, how to get a PDF, and what the three new features in §9 do. This is the file that ships in the delivery folder. |
+| `README.sv.txt` | The earlier Swedish end-user instructions, kept because they document things the English rewrite dropped: `parse_pricelist.py`, `xlsx_parser.js`, how to refresh the price list, and the T&C update flow. |
 
 ---
 
@@ -99,9 +100,53 @@ If brand work needs to happen again, the source PDF was `CrossControl_Graphical_
 
 ---
 
-## 4. 🔴 Open bug — PDF download button ("Download quote as PDF")
+## 4. ✅ FIXED — PDF download button ("Download quote as PDF")
 
-**Status: broken. This is the single most important thing to fix next.**
+**Status: FIXED via Option A on 2026-07-17, verified by real click test on 2026-08-14.**
+The rest of this section is kept as the historical record of the bug and, more
+importantly, of how to test this properly — the testing discipline in it still applies.
+
+### What was actually done (2026-07-17, ~1h after commit `1aba3ee`)
+
+**Option A was taken: the CDN dependency was removed entirely.** The shipped
+`crosscontrol-offertbyggare.html` now has **zero `<script src>` tags** — pdfmake,
+`vfs_fonts` (Roboto) and SheetJS are all inlined directly into the file. The
+inlined pdfmake is **0.3.11**, i.e. the same version the calling code was written
+and tested against, so the version mismatch that caused the bug cannot recur.
+File size went 328 KB → 3.1 MB, in line with the estimate below.
+
+This work sat only in the OneDrive delivery folder and was **not committed until
+2026-08-14** — which is why this section said "broken" for four weeks after it
+was fixed. If you are reading a §4 that claims something is broken, check the
+shipped file before believing it.
+
+### Verification (2026-08-14, the §4 recipe, adapted)
+
+Served the shipped file over `http://localhost` (Playwright and the preview tool
+both refuse `file://`) and clicked `#downloadPdfBtn` for real, 4 times:
+
+- runtime check: `pdfMake.createPdf(...).download` is an **`AsyncFunction`** → returns
+  a Promise → the existing `.then()/.catch()` chain resolves correctly
+- 4/4 clicks produced a real download, `quote-CC-2026-0001.pdf`, valid `%PDF-1.3`,
+  59,457 bytes, `/Count 2` (two pages)
+- 0 alerts, 0 console errors (other than a `favicon.ico` 404, an artifact of
+  serving over http rather than `file://`)
+
+**The probe was proven able to fail**, which matters more than the pass: the same
+harness was pointed at the pre-fix build in this repo (`1aba3ee`, CDN pdfmake
+0.2.10, where `.download` is a plain `Function`) and it reproduced the original
+error exactly — `Could not generate the PDF: Cannot read properties of undefined
+(reading 'then')`, with no download event.
+
+⚠️ **One trap found while doing this:** "the button label was restored" is **NOT**
+a valid pass signal. The `.catch()` block also restores the button, so it reads as
+restored in the failing case too. The signals that actually discriminate are
+**(a) a download event firing** and **(b) no alert**. Do not build a future test
+harness on the button state alone.
+
+---
+
+### Historical record of the bug (kept for context)
 
 **Symptom (confirmed via the person's own screenshot of the real error):**
 ```
@@ -211,7 +256,7 @@ with open('crosscontrol-offertbyggare.html', 'w', encoding='utf-8') as f:
 
 ## 7. What's already in `/mnt/user-data/outputs/` from the last session (in case this sandbox resets again)
 
-- `crosscontrol-quote-builder-rebrand.zip` — the full package as currently shipped (includes the open bug from §4).
+- `crosscontrol-quote-builder-rebrand.zip` — the package as it stood at commit `1aba3ee`, i.e. it **still contains the §4 bug**. Superseded; do not ship it. A stale copy also sits in `OneDrive\WEB offert\files\` alongside a `files.zip` from 2026-07-07 — both predate the fix.
 - `crosscontrol-offertbyggare.html` — same file standalone.
 - A few PNG screenshots from testing (`brand_weasy_page-1.png`, `fixed_page-1.png`, `render_clean_full.png`) — visual proof-of-work from the brand rebuild, not needed for continuing the work.
 
@@ -221,4 +266,36 @@ with open('crosscontrol-offertbyggare.html', 'w', encoding='utf-8') as f:
 
 ## 8. Quick-reference: what to say to pick this up cleanly in a new session
 
-*"Continue work on the CrossControl Offertbyggare — read HANDOFF.md in the repo first. The one open item is the pdfmake CDN version mismatch described in §4; fix that, verify with the Playwright recipe in §4, then let me know."*
+*"Continue work on the CrossControl Offertbyggare — read HANDOFF.md in the repo first."*
+
+**Current status (2026-08-14): there is no known open bug.** The §4 PDF-download
+bug is fixed and click-verified, and the three features Zak asked for (§9) are
+shipped. The repo and the OneDrive delivery folder are in sync as of this commit.
+
+**The actual open item is not code — it is that Zak has not responded.** The
+package was handed to him on 2026-07-17 and there is no record of feedback since.
+
+---
+
+## 9. Zak's three requested features (shipped 2026-07-17)
+
+Delivered in both the web app and `generate_pdf.py`, so the WeasyPrint path stayed
+in sync with `buildExportObj()`'s contract (§2):
+
+1. **Renameable quantity column** — a "Quantity column heading" field under Terms
+   (`qtyHeading`, with presets MOQ / EAU / Order Qty). Flows through to `qty_heading`
+   in the export object and the PDF table header.
+2. **Per-product custom volume-tier matrix** (`custom_tiers` / `volume_tiers`) — a
+   per-product checkbox turns that line into its own price matrix, one column per
+   tier with label + sub-label, pre-filled from the price list and then freely
+   editable. **Prices are typed verbatim in the selected currency with no FX
+   conversion** (`fmtRaw` in the app, `fmt_raw()` in `generate_pdf.py`), and matrix
+   products are deliberately **excluded from the quote total**. Modelled on the
+   V1200 quote format.
+3. **VAT / Tariff note** (`vat_note`) — a Terms field with EU ("Prices are given
+   excluding VAT") and US ("Prices are given without VAT or Tariff") presets,
+   rendered as its own line under Terms.
+
+Note this means `generate_pdf.py` now splits lines into `standard_lines` (normal
+table, counted in the total) and `matrix_lines` (own matrix block, not counted) —
+if you touch either PDF path, keep that split consistent with the web app.

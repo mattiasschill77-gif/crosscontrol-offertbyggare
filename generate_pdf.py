@@ -73,6 +73,16 @@ def fmt_money(eur_amount, currency='EUR', rate_override=None):
     return f"{conf['symbol']}{formatted}"
 
 
+def fmt_raw(amount, currency='EUR'):
+    """Format a custom volume-tier price verbatim in the given currency (no fx conversion).
+    Mirrors fmtRaw / pdfFmtRaw in the web app: the KAM types the exact figure to show."""
+    conf = CURRENCY_RATES.get(currency, CURRENCY_RATES['EUR'])
+    formatted = f"{(amount or 0):,.2f}"
+    if currency == 'SEK':
+        return f"{formatted} {conf['symbol']}"
+    return f"{conf['symbol']}{formatted}"
+
+
 def build_html(offer, logo_path):
     cust = offer.get('customer', {})
     cust_name = cust.get('name') or '[Customer name not specified]'
@@ -91,9 +101,16 @@ def build_html(offer, logo_path):
 
     currency = offer.get('currency', 'EUR')
     currency_rate = offer.get('currency_rate')  # explicit rate from the app, if provided
+    price_currency = offer.get('price_currency', currency)  # verbatim currency for custom-tier prices
+    qty_heading = (offer.get('qty_heading') or 'Qty').strip() or 'Qty'
+
+    # Split: standard lines (normal table + counted in total) vs custom volume-tier lines (own matrix)
+    all_lines = offer.get('lines', [])
+    standard_lines = [l for l in all_lines if not l.get('custom_tiers')]
+    matrix_lines = [l for l in all_lines if l.get('custom_tiers')]
 
     rows_html = ""
-    for line in offer['lines']:
+    for line in standard_lines:
         is_custom = line.get('is_custom', False)
         tier_tag = ''
         if is_custom:
@@ -122,6 +139,35 @@ def build_html(offer, logo_path):
           <td class="num">{line['qty']}</td>
           <td class="num finalprice">{fmt_money(line['line_total_eur'], currency, currency_rate)}</td>
         </tr>"""
+
+    # Custom volume-tier matrix blocks (Zak-style) — one per custom-tier product
+    matrix_html = ""
+    for line in matrix_lines:
+        tiers = line.get('volume_tiers', []) or []
+        if tiers:
+            head_cells = "".join(
+                f'<th>{(vt.get("label") or "&nbsp;")}'
+                + (f'<span class="vm-sub">{vt["sublabel"]}</span>' if vt.get('sublabel') else '')
+                + '</th>'
+                for vt in tiers
+            )
+            price_cells = "".join(
+                f'<td>{fmt_raw(vt.get("price", 0), price_currency)}</td>' for vt in tiers
+            )
+        else:
+            head_cells = '<th style="color:#a8a39a;font-weight:400;">No tiers defined yet</th>'
+            price_cells = '<td style="color:#a8a39a;">—</td>'
+        sku_html = f'<span class="vm-sku">· {line["part_number"]}</span>' if line.get('part_number') else ''
+        note_html = f'<div class="vm-note">{line["note"]}</div>' if line.get('note') else ''
+        matrix_html += f"""
+      <div class="volume-matrix">
+        <div class="vm-head">{line['description'] or 'Product'} {sku_html}</div>
+        <table>
+          <thead><tr><th class="vm-rowlabel">&nbsp;</th>{head_cells}</tr></thead>
+          <tbody><tr><td class="vm-rowlabel">Unit price</td>{price_cells}</tr></tbody>
+        </table>
+        {note_html}
+      </div>"""
 
     appendix_html = ""
     for name in offer.get('appendices', []):
@@ -174,6 +220,31 @@ def build_html(offer, logo_path):
         logo_svg = svg_raw.split('?>', 1)[1].strip() if '?>' in svg_raw else svg_raw
 
     terms = offer.get('terms', {})
+    currency_label = CURRENCY_RATES.get(currency, CURRENCY_RATES['EUR'])['label']
+
+    # Standard product table + totals only render when there are standard (non custom-tier) lines
+    products_table_html = ""
+    if standard_lines:
+        products_table_html = f"""
+      <table class="quote-table">
+        <thead><tr>
+          <th>Product</th><th class="num">List Price</th><th class="num">Unit Price</th>
+          <th class="num">{qty_heading}</th><th class="num">Total</th>
+        </tr></thead>
+        <tbody>{rows_html}</tbody>
+      </table>
+
+      <div class="totals">
+        <div class="totals-box">
+          <div class="totals-row"><span>Subtotal</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate)}</span></div>
+          <div class="totals-row"><span>Shipping &amp; handling</span><span>Per terms</span></div>
+          <div class="totals-row final"><span>Total (excl. VAT)</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate)}</span></div>
+        </div>
+      </div>"""
+
+    vat_term_html = ""
+    if terms.get('vat_note'):
+        vat_term_html = f'<div class="term-item"><b>VAT / Tariff</b>{terms.get("vat_note")}</div>'
 
     build_footer_html = f"""
   <div class="doc-footer">
@@ -291,6 +362,16 @@ def build_html(offer, logo_path):
   .terms-grid {{ display:flex; flex-wrap:wrap; gap:16px; margin-bottom:22px; font-size:11px; color:{INK_DIM}; }}
   .term-item {{ width:45%; }}
   .term-item b {{ display:block; color:{INK}; font-size:10.5px; margin-bottom:2px; }}
+  .volume-matrix {{ border-left:3px solid {CC_ORANGE}; background:{BG_SOFT}; padding:11px 15px; margin:0 0 14px; }}
+  .volume-matrix .vm-head {{ font-family:'Poppins',Arial,sans-serif; font-weight:700; font-size:12.5px; color:{INK}; }}
+  .volume-matrix .vm-sku {{ font-size:10.5px; color:#8a8880; font-weight:400; }}
+  .volume-matrix table {{ width:100%; border-collapse:collapse; margin-top:8px; }}
+  .volume-matrix th, .volume-matrix td {{ padding:5px 10px; font-size:11.5px; }}
+  .volume-matrix thead th {{ border-bottom:1px solid #d8d5cc; color:#5f5e5a; font-weight:700; text-align:center; line-height:1.25; }}
+  .volume-matrix thead th .vm-sub {{ display:block; font-size:9.5px; color:#8a8880; font-weight:400; }}
+  .volume-matrix tbody .vm-rowlabel {{ text-align:left; color:#8a8880; font-weight:400; }}
+  .volume-matrix tbody td {{ text-align:center; font-weight:700; color:{INK}; }}
+  .volume-matrix .vm-note {{ margin-top:7px; font-size:10.5px; color:#6a6862; font-style:italic; }}
   .appendix-note {{
     background:{BG_SOFT}; border-left:3px solid {CC_ORANGE}; padding:8px 12px; font-size:10.5px;
     color:{INK_DIM}; margin-bottom:8px;
@@ -354,28 +435,17 @@ def build_html(offer, logo_path):
   <div class="doc-body">
     <div class="doc-content">
       <div class="section-eyebrow">Products &amp; Pricing</div>
-      <table class="quote-table">
-        <thead><tr>
-          <th>Product</th><th class="num">List Price</th><th class="num">Unit Price</th>
-          <th class="num">Qty</th><th class="num">Total</th>
-        </tr></thead>
-        <tbody>{rows_html}</tbody>
-      </table>
+      {products_table_html}
 
-      <div class="totals">
-        <div class="totals-box">
-          <div class="totals-row"><span>Subtotal</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate)}</span></div>
-          <div class="totals-row"><span>Shipping &amp; handling</span><span>Per terms</span></div>
-          <div class="totals-row final"><span>Total (excl. VAT)</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate)}</span></div>
-        </div>
-      </div>
+      {matrix_html}
 
       <div class="section-eyebrow">Terms</div>
       <div class="terms-grid">
         <div class="term-item"><b>Payment terms</b>{terms.get('payment','')}</div>
         <div class="term-item"><b>Delivery terms</b>{terms.get('delivery','')}</div>
         <div class="term-item"><b>Validity</b>This quote is valid until {offer['valid_until']}</div>
-        <div class="term-item"><b>Currency</b>{CURRENCY_RATES.get(currency, CURRENCY_RATES['EUR'])['label']} — prices excl. VAT</div>
+        <div class="term-item"><b>Currency</b>{currency_label}</div>
+        {vat_term_html}
       </div>
 
       {appendix_html}
