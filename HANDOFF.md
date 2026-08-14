@@ -272,8 +272,11 @@ with open('crosscontrol-offertbyggare.html', 'w', encoding='utf-8') as f:
 bug is fixed and click-verified, and the three features Zak asked for (§9) are
 shipped. The repo and the OneDrive delivery folder are in sync as of this commit.
 
-**The actual open item is not code — it is that Zak has not responded.** The
-package was handed to him on 2026-07-17 and there is no record of feedback since.
+**Zak reviewed the July 17 package and was happy with the changes** (confirmed by
+Mattias 2026-08-14). That loop is closed.
+
+**Next milestone: Mattias presents the builder to colleagues in the week of
+2026-08-17.** Which makes §10 worth reading before then.
 
 ---
 
@@ -299,3 +302,61 @@ in sync with `buildExportObj()`'s contract (§2):
 Note this means `generate_pdf.py` now splits lines into `standard_lines` (normal
 table, counted in the total) and `matrix_lines` (own matrix block, not counted) —
 if you touch either PDF path, keep that split consistent with the web app.
+
+---
+
+## 10. 🟠 UNRESOLVED — the "Price list" tab exists only outside git
+
+**Found 2026-08-14 while about to delete "stale duplicates". Nothing was deleted.
+Do not delete anything under `OneDrive\WEB offert\` until this is settled.**
+
+An **earlier build dated 2026-07-07** contains a whole second tab that the shipped
+July 17 build does not have, and that **no commit in this repo has ever contained**:
+
+| Marker | 2026-07-07 build | shipped build |
+|---|---|---|
+| `data-view="pricelist"` | 1 | **0** |
+| `tabPricelist` | 1 | **0** |
+| `End-of-life` / `Last-time-buy` | 2 / 2 | **0 / 0** |
+| `Artikelnr` (Swedish import header) | 2 | **0** |
+
+The three remaining "Price list" strings in the shipped build are just the upload
+control and a currency hint — the tab is **gone, not renamed**.
+
+### What the missing feature was
+
+Per its own README (preserved in the same zip): a customer-facing **fixed price
+list generator** alongside the quote builder — select individual products, whole
+families, or all; a default discount % with per-family overrides; a "show list
+price & discount" toggle so the customer can be shown net price only; toggleable
+MOQ and product-status columns (Active / New / End-of-life / Last-time-buy);
+customer/prepared-by/revision/valid-until fields; its own archive store
+(`cc_pricelist…`); **export to both PDF and Excel**.
+
+It also had a **substantially better Excel importer** than the shipped build:
+header-*name* matching with Swedish/English synonyms (Artikelnr / Part number /
+SKU, Benämning / Description, Listpris / List price…), sheet scoring to pick the
+best sheet, multi-sheet merge with US$/duplicate-part removal, specific repair for
+the 2024 workbook's V1090/V1290 block whose headers don't match its data, and a
+legacy positional parser as automatic fallback.
+
+### Where it survives (⚠️ unversioned, single point of failure)
+
+- `OneDrive\WEB offert\files\crosscontrol-offertbyggare.html`
+- the same file nested inside `files.zip` → `crosscontrol-quote-builder-rebrand.zip`
+
+That is **all**. It is in no commit and no other copy. If OneDrive loses those,
+the feature is gone.
+
+### What is NOT known
+
+**Whether the drop was deliberate.** Mattias does not remember (asked 2026-08-14).
+The July 17 build may have branched from a copy predating the price-list work, or
+the tab may have been cut on purpose. Both readings fit the evidence. **Do not
+"restore" it without asking him first** — and equally, do not delete the July 7
+copies on the assumption it was intentional.
+
+Note the July 7 build was **already fully inlined** (no CDN, no `<script src>`),
+which means the CDN regression in `1aba3ee` was itself a step backwards from it.
+So July 17 is not a strict successor of July 7 in any dimension except Zak's three
+features and the brand rebuild.
