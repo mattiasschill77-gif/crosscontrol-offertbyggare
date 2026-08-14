@@ -23,6 +23,16 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Custom/unique line items (free text description, optional part ref, manual price) — for things not in the catalog, e.g. bespoke engineering work
 - Toggleable signature block ("Acceptance") with editable signer name/title
 - Live A4 page-break indicator in the on-screen preview
+- **Resizable control panel** (added 2026-08-14) — the left panel was a hard-coded
+  420px and felt cramped. It is now a drag handle between panel and preview:
+  drag, double-click to reset, arrow keys to nudge (Shift = bigger steps). Width
+  is clamped to 340px–min(760px, 55vw) and remembered per machine in
+  `localStorage` under `cc_panel_width_v1`. Implemented as a CSS variable on the
+  existing grid (`grid-template-columns:var(--panel-w,420px) 6px 1fr`) — no
+  layout rewrite, no library. Hidden below 1000px and when printing.
+  ⚠️ The move/up listeners are bound on `window`, not on the handle — binding them
+  to the handle leaves the drag stuck on when the pointer leaves the 6px strip,
+  which is the normal case. This was caught in testing, not in review.
 - Full quote archive: every quote auto-saves to `localStorage` under a sequential ID (`CC-2026-0001`, etc.), with a slide-in panel to browse/reopen past quotes, plus JSON export/import of the whole archive as a backup mechanism
 - Standard Terms & Conditions reference block shown on every quote (§ box), with an upload control to update which T&C document filename it references
 - Three ways to get a PDF out of a quote:

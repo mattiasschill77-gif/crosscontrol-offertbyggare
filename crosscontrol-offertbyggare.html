@@ -203,12 +203,44 @@ var vfs = {
   /* ===== LAYOUT ===== */
   .workspace{
     display:grid;
-    grid-template-columns:420px 1fr;
+    grid-template-columns:var(--panel-w,420px) 6px 1fr;
     min-height:calc(100vh - 61px);
   }
   @media (max-width:1000px){
     .workspace{grid-template-columns:1fr;}
+    .resizer{display:none;}
   }
+
+  /* Drag handle between the control panel and the preview. The visible line is
+     1px (it replaces the panel's own right border); the grab area is the full
+     6px column, which is what makes it findable with a mouse. */
+  .resizer{
+    position:relative;
+    cursor:col-resize;
+    background:transparent;
+    max-height:calc(100vh - 61px);
+  }
+  .resizer::before{
+    content:'';
+    position:absolute;top:0;bottom:0;left:2px;
+    width:1px;background:var(--panel-line);
+    transition:background 0.12s,width 0.12s;
+  }
+  .resizer:hover::before,.resizer:focus-visible::before,.resizer.dragging::before{
+    background:var(--cc-orange);width:2px;left:2px;
+  }
+  .resizer:focus-visible{outline:none;}
+  /* Grip dots, so it reads as draggable rather than as a border. */
+  .resizer::after{
+    content:'';
+    position:absolute;top:50%;left:0;width:6px;height:26px;
+    transform:translateY(-50%);
+    background-image:radial-gradient(var(--panel-line) 1px,transparent 1px);
+    background-size:3px 5px;background-position:center;
+    opacity:0;transition:opacity 0.12s;
+  }
+  .resizer:hover::after,.resizer.dragging::after{opacity:1;}
+  body.resizing{user-select:none;cursor:col-resize;}
 
   /* ===== LEFT: CONTROL PANEL ===== */
   .panel{
@@ -685,7 +717,7 @@ var vfs = {
       margin:0;
     }
     html,body{background:#fff;margin:0;padding:0;}
-    .topbar,.panel{display:none !important;}
+    .topbar,.panel,.resizer{display:none !important;}
     .workspace{display:block !important;}
     .preview-wrap{background:#fff;padding:0;max-height:none;display:block;}
     .doc{box-shadow:none;border:none;width:100%;max-width:100%;}
@@ -957,6 +989,10 @@ var vfs = {
       <div class="print-hint">JSON is for generating a PDF locally with <code>generate_pdf.py</code></div>
     </div>
   </div>
+
+  <!-- DRAG HANDLE -->
+  <div class="resizer" id="panelResizer" role="separator" aria-orientation="vertical"
+       aria-label="Resize the control panel" tabindex="0" title="Drag to resize · double-click to reset"></div>
 
   <!-- RIGHT PREVIEW -->
   <div class="preview-wrap">
@@ -5626,6 +5662,86 @@ function seedDemoContent() {
 window.addEventListener('beforeunload', () => {
   if (QUOTE_ID) localStorage.setItem(LAST_OPEN_KEY, QUOTE_ID);
 });
+
+// ===== Resizable control panel =====
+// The left panel used to be a hard 420px. It is now a CSS variable the user can
+// drag, with the width remembered per machine. Kept deliberately small: no
+// library, no layout rewrite — the grid does the work.
+(function () {
+  var PANEL_WIDTH_KEY = 'cc_panel_width_v1';
+  var DEFAULT_W = 420;
+  var MIN_W = 340;   // below this the two-column fields inside the panel start to break
+  var resizer = document.getElementById('panelResizer');
+  var workspace = document.querySelector('.workspace');
+  if (!resizer || !workspace) return;
+
+  // Never let the panel eat the preview: cap at 55% of the window, and never
+  // report a max below the min (tiny windows would otherwise invert the clamp).
+  function maxW() { return Math.max(MIN_W, Math.min(760, Math.round(window.innerWidth * 0.55))); }
+  function clamp(w) { return Math.min(maxW(), Math.max(MIN_W, Math.round(w))); }
+
+  function apply(w, persist) {
+    var v = clamp(w);
+    workspace.style.setProperty('--panel-w', v + 'px');
+    resizer.setAttribute('aria-valuenow', String(v));
+    if (persist) { try { localStorage.setItem(PANEL_WIDTH_KEY, String(v)); } catch (e) {} }
+    return v;
+  }
+
+  var saved = parseInt((function () { try { return localStorage.getItem(PANEL_WIDTH_KEY); } catch (e) { return null; } })(), 10);
+  apply(isFinite(saved) && saved > 0 ? saved : DEFAULT_W, false);
+  resizer.setAttribute('aria-valuemin', String(MIN_W));
+
+  var dragging = false;
+  // Move/up are bound on window, NOT on the handle. During a drag the pointer is
+  // almost always off the 6px strip, and pointer capture is not reliable enough
+  // to lean on — without this the drag never ends and the panel stays glued to
+  // the cursor. (Found exactly that way in testing.)
+  function onMove(e) {
+    if (!dragging) return;
+    // Panel starts at the left edge of the workspace, so its width is simply
+    // the pointer's offset from that edge.
+    apply(e.clientX - workspace.getBoundingClientRect().left, false);
+  }
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.classList.remove('resizing');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', endDrag);
+    window.removeEventListener('pointercancel', endDrag);
+    // Persist once, on release — not on every mousemove.
+    apply(parseInt(workspace.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W, true);
+  }
+  resizer.addEventListener('pointerdown', function (e) {
+    dragging = true;
+    resizer.classList.add('dragging');
+    document.body.classList.add('resizing');
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    e.preventDefault();
+  });
+
+  // Double-click the handle to go back to the default width.
+  resizer.addEventListener('dblclick', function () { apply(DEFAULT_W, true); });
+
+  // Keyboard: arrows nudge, Home resets. Costs three lines and makes the
+  // handle usable without a mouse.
+  resizer.addEventListener('keydown', function (e) {
+    var cur = parseInt(workspace.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W;
+    var step = e.shiftKey ? 50 : 10;
+    if (e.key === 'ArrowLeft') { apply(cur - step, true); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { apply(cur + step, true); e.preventDefault(); }
+    else if (e.key === 'Home') { apply(DEFAULT_W, true); e.preventDefault(); }
+  });
+
+  // Re-clamp if the window shrinks, so a wide panel can't swallow the preview.
+  window.addEventListener('resize', function () {
+    apply(parseInt(workspace.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W, false);
+  });
+})();
 
 </script>
 
