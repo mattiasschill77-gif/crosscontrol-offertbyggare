@@ -23,6 +23,24 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Custom/unique line items (free text description, optional part ref, manual price) — for things not in the catalog, e.g. bespoke engineering work
 - Toggleable signature block ("Acceptance") with editable signer name/title
 - Live A4 page-break indicator in the on-screen preview
+- **Price list basis column** (2026-08-17) — "Calculate from" in the Discount
+  card chooses which price column the list is built on: List price (default) or
+  any volume tier found in the loaded catalogue. Options are derived from
+  `PRICE_DATA` at runtime, so an imported price list with different bands works
+  without a code change, and partial columns are flagged in the option text
+  ("1k-3k — 70/86 products").
+  Three decisions worth preserving, all Mattias's calls on 2026-08-17:
+  1. **The discount stacks on top of the chosen column**, with a visible warning
+     in the panel whenever it does — tier prices are already ~50% below list
+     (CCpilot VI: €526.76 list vs €256.96 at 100-249), so stacking silently
+     would give away margin.
+  2. **A product with no price in the chosen column falls back to its own list
+     price** rather than disappearing, and the panel reports how many did.
+  3. **The customer-facing document says nothing about which column was used.**
+     All basis feedback is panel-only — do not add it to `plRenderDoc`.
+  `line.listEur` still carries the TRUE list price so the "show list price &
+  discount" column keeps meaning what it always did; `line.basisEur` is the new
+  calculation base and `line.usedFallback` marks the fallbacks.
 - **Price list tab** (restored 2026-08-17, see §10) — a second tool alongside the
   quote builder, producing a customer-facing fixed price list: pick products,
   families or everything; default discount with per-family overrides; a
