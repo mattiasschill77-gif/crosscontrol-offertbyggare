@@ -30,6 +30,19 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
   optional MOQ and status columns (Active / New / End-of-life / Last-time-buy);
   revision, valid-until, prepared-by, price basis, VAT, lead time and
   confidentiality lines; its own archive. **Exports to both PDF and Excel.**
+- **UI polish pass "Tier A"** (2026-08-17, see §11) — app chrome only; the
+  customer-facing document is untouched. Left-panel sections are cards on a
+  tinted panel, headings carry an orange accent bar over a hairline rule, inputs
+  have consistent heights and a real focus ring, buttons have a hierarchy, the
+  emoji are inline SVG, and "saved to archive" is a toast rather than an alert.
+  ⚠️ **Implemented as an appended override block, not by editing the original
+  rules.** It is fenced with a `TIER A` banner comment and sits **before**
+  `@media print`, so print still wins. Deleting the block restores the previous
+  look exactly. The trade-off: a few properties (`.panel`, `.panel-label`,
+  `.archive-item`…) are now declared twice — once in the original rule, once in
+  the override. Deliberate; reversibility mattered more than tidiness three days
+  before a demo. To consolidate later, fold the overrides into the originals and
+  delete the block — do not keep both.
 - **Bill-to block** (2026-08-17) — the customer used to be a muted grey sub-line
   reading "To **Name**, attn: … · Issued …". It is now a proper addressee block:
   a small orange "TO" label, the customer name at 16px Poppins bold, contact and
@@ -413,3 +426,36 @@ Note the July 7 build was **already fully inlined** (no CDN, no `<script src>`),
 which means the CDN regression in `1aba3ee` was itself a step backwards from it.
 So July 17 is not a strict successor of July 7 in any dimension except Zak's three
 features and the brand rebuild.
+
+---
+
+## 11. Labelling / accessibility contract (2026-08-17)
+
+Every form control in both tabs and the archive drawer has an accessible name.
+It was 5 of 30 before this pass. **Three treatments, chosen per field — do not
+"simplify" this into one:**
+
+1. **`for=`** on labels that were already visible but never linked. The Price
+   list tab alone had 9 of these.
+2. **A new visible label** where the field had none and the section heading did
+   not disambiguate it — Payment terms, Named place and Quote validity were
+   three bare dropdowns stacked under "Terms". That one is a real on-screen
+   improvement, not just an accessibility fix.
+3. **`aria-label`** only where visible text already sits beside the control: the
+   sender office and currency selects, the FX rates (which read
+   "1 EUR = [ ] USD"), the search boxes, and every per-line generated control.
+   A second visible label there would only add clutter.
+
+⚠️ **Per-line controls carry the product name** —
+`aria-label="Quantity for ${escapeAttr(item.description)}"` — so a screen reader
+can tell one row's Qty box from another's. Preserve that when editing templates.
+
+⚠️ **The extra-discount input exists in TWO templates** (standard line and
+custom line). Patching one silently misses the other. This was caught only
+because the audit was re-run with a custom line on screen.
+
+⚠️ **Auditing needs the UI in a non-default state.** Controls that only exist
+after you add a line or enable custom volume tiers are invisible to a scan of
+the freshly-loaded page, so a naive audit reports "all labelled" and is wrong.
+Add a custom line and switch on volume tiers first: the control count goes from
+30 to 62.
