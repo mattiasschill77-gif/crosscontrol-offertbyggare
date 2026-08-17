@@ -796,6 +796,153 @@ var vfs = {
   .pl-doc-tc .sec{color:#c9760f;font-weight:700;font-size:16px;}
   .pl-doc-empty{font-family:Arial,sans-serif;color:#a8a39a;font-size:13px;text-align:center;padding:60px 20px;}
 
+
+  /* ==========================================================================
+     TIER A - UI polish prototype (2026-08-17)
+     Appended as overrides: no existing rule was edited, so deleting this block
+     restores the current build byte for byte.
+     Uses ONLY the existing CrossControl tokens - no new colours, no new fonts.
+     App chrome only: nothing here selects .doc* (the customer-facing document),
+     and it sits BEFORE @media print, so print/PDF output is untouched.
+     ========================================================================== */
+
+  :root{
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
+    --r-card:3px;
+    --focus-ring:0 0 0 3px rgba(247,151,28,0.15);
+    --ease:cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ---- 1. Cards ----------------------------------------------------------
+     The panel was white and every section floated on it with only margin to
+     separate them. Tinting the panel with the existing warm grey and lifting
+     each section onto white creates real grouping without inventing a colour. */
+  .panel{ background:var(--panel-bg-2); padding:var(--sp-5) var(--sp-4); }
+  .panel-section{
+    background:var(--panel-bg);
+    border:1px solid var(--panel-line);
+    border-radius:var(--r-card);
+    padding:var(--sp-4) var(--sp-4) var(--sp-3);
+    margin-bottom:var(--sp-3);
+    transition:border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+  }
+  /* The card you are working in lights up. Does more for "premium" than shadows. */
+  .panel-section:focus-within{ border-color:var(--cc-orange); box-shadow:var(--focus-ring); }
+
+  /* ---- 2. Section headings ------------------------------------------------
+     Every label sat at the same weight, so nothing led the eye. These now read
+     as level 2, separated from their content by a hairline, with a small brand
+     accent instead of a heavier font. */
+  .panel-label{
+    color:var(--ink-900);
+    font-size:10.5px;
+    letter-spacing:0.13em;
+    margin:0 0 var(--sp-3);
+    padding-bottom:9px;
+    border-bottom:1px solid var(--panel-line);
+  }
+  /* The accent bar hangs off .panel-label itself, NOT off an inner span: only
+     6 of the 13 headings in this file are wrapped in a span, so a span-based
+     rule gave half the panel a bar and left the other half bare. */
+  .panel-label{ position:relative; padding-left:11px; }
+  .panel-label::before{
+    content:''; position:absolute; left:0; top:1px; bottom:10px;
+    width:3px; background:var(--cc-orange); border-radius:1px;
+  }
+  .panel-label .count{ font-size:10.5px; letter-spacing:0; }
+
+  /* ---- 3. Inputs ----------------------------------------------------------
+     Consistent height and a real focus state. The file previously had exactly
+     two :focus rules in ~7,000 lines. */
+  .field input[type=text], .field select,
+  .pl-field input[type=text], .pl-field input[type=number],
+  .pl-field select, .pl-field textarea{
+    border-radius:var(--r-card);
+    transition:border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .field input[type=text], .field select{ min-height:36px; }
+  .field input[type=text]:hover, .pl-field input:hover, .pl-field select:hover{ border-color:#d3d0c8; }
+  .field input[type=text]:focus, .field select:focus,
+  .pl-field input:focus, .pl-field select:focus, .pl-field textarea:focus{
+    outline:none; border-color:var(--cc-orange); box-shadow:var(--focus-ring);
+  }
+
+  /* ---- 4. Button hierarchy ----------------------------------------------- */
+  .generate-btn{
+    border-radius:var(--r-card); letter-spacing:0.06em;
+    transition:background 140ms var(--ease), transform 90ms var(--ease);
+  }
+  .generate-btn:active{ transform:translateY(1px); }
+  .topbar-btn, .pl-btn{
+    border-radius:var(--r-card);
+    transition:background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
+  }
+  .pl-btn:active{ transform:translateY(1px); }
+
+  /* ---- 5. Keyboard focus -------------------------------------------------- */
+  button:focus-visible, select:focus-visible, input:focus-visible,
+  textarea:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--cc-orange); outline-offset:2px;
+  }
+
+  /* ---- 6. Product + archive rows: scannable, with feedback ---------------- */
+  .product-row{
+    border-radius:var(--r-card);
+    transition:border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .product-row:hover{ border-color:#d3d0c8; }
+  .archive-item{
+    background:var(--panel-bg); border-radius:var(--r-card); padding:13px 15px;
+    transition:border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .archive-item:hover{ border-color:var(--cc-orange); box-shadow:0 1px 2px rgba(43,43,42,0.06); }
+
+  /* ---- 7. Top bar: status reads as status, actions read as actions -------- */
+  .pill{ border-radius:20px; font-size:10px; letter-spacing:0.02em; }
+  .quote-id-badge{ font-size:11px; }
+  .topbar-tab{ transition:color 140ms var(--ease), border-color 140ms var(--ease); }
+
+  /* ---- 8. Icons: inline SVG replacing emoji ------------------------------- */
+  .cc-ico{
+    width:13px; height:13px; flex:0 0 auto;
+    vertical-align:-2px; margin-right:6px; stroke:currentColor;
+    fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+  }
+  .generate-btn .cc-ico{ width:14px; height:14px; stroke-width:2; vertical-align:-3px; }
+
+
+  /* ---- 10. Field labels ---------------------------------------------------
+     The customer inputs had no labels at all — only placeholders, which vanish
+     the moment you type, leaving three anonymous boxes on a filled-in form.
+     Matches the .pl-field label pattern already used on the Price list tab. */
+  .field label{
+    display:block;
+    font-family:Arial,sans-serif; font-size:11px;
+    color:var(--panel-text-dim);
+    margin-bottom:4px;
+  }
+  .field input[type=text]::placeholder{ color:#b9b6ae; }
+
+  /* ---- 9. Toast ----------------------------------------------------------
+     Routine confirmations only. Genuine warnings - a cleared cart, a failed
+     import, a failed PDF - stay as alert() on purpose. */
+  .cc-toast-wrap{
+    position:fixed; right:22px; bottom:22px; z-index:100000;
+    display:flex; flex-direction:column; gap:var(--sp-2); pointer-events:none;
+  }
+  .cc-toast{
+    display:flex; align-items:center; gap:9px;
+    background:var(--ink-900); color:#fff;
+    font-family:Arial,sans-serif; font-size:12.5px;
+    padding:11px 16px; border-radius:var(--r-card);
+    box-shadow:0 6px 22px rgba(43,43,42,0.20);
+    opacity:0; transform:translateY(8px);
+    transition:opacity 180ms var(--ease), transform 180ms var(--ease);
+  }
+  .cc-toast.show{ opacity:1; transform:none; }
+  .cc-toast .tick{ color:var(--cc-orange); font-weight:700; font-size:14px; line-height:1; }
+
+
   @media print{
     /* @page margin:0 removes the browser's own date/URL/page-number header and footer lines.
        All document margins and spacing are handled by our own CSS instead. */
@@ -867,7 +1014,7 @@ var vfs = {
   <div class="topbar-right">
     <span class="quote-id-badge">Quote <span id="currentQuoteId">—</span></span>
     <button class="topbar-btn" id="newQuoteBtn">+ New quote</button>
-    <button class="topbar-btn" id="openArchiveBtn">📁 Archive</button>
+    <button class="topbar-btn" id="openArchiveBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Archive</button>
     <span class="pill" id="productCountPill">0 products loaded</span>
   </div>
 </div>
@@ -882,7 +1029,7 @@ var vfs = {
     <div class="archive-panel-body">
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
-        <input type="text" id="archiveSearch" placeholder="Search by quote number or customer name…" autocomplete="off">
+        <input type="text" id="archiveSearch" aria-label="Search saved quotes by number or customer" placeholder="Search by quote number or customer name…" autocomplete="off">
       </div>
       <div class="archive-list" id="archiveList"></div>
 
@@ -890,9 +1037,9 @@ var vfs = {
         <div class="panel-label">Backup &amp; transfer</div>
         <div class="price-list-hint">Quotes are saved in this browser only. Export a backup to keep elsewhere, or import an archive from another computer.</div>
         <div class="archive-backup-buttons">
-          <button class="add-custom-btn" id="exportArchiveBtn">⬇ Export full archive (.json)</button>
+          <button class="add-custom-btn" id="exportArchiveBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Export full archive (.json)</button>
           <label class="add-custom-btn archive-import-label">
-            ⬆ Import archive (.json)
+            <svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 21V9m0 0 4 4m-4-4-4 4M4 5h16"/></svg>Import archive (.json)
             <input type="file" id="importArchiveInput" accept=".json" style="display:none;">
           </label>
         </div>
@@ -914,24 +1061,33 @@ var vfs = {
         </div>
         <label class="upload-zone">
           + Upload updated price list (.xlsx)
-          <input type="file" id="priceListUpload" accept=".xlsx,.xls,.csv">
+          <input type="file" id="priceListUpload" aria-label="Upload an updated price list" accept=".xlsx,.xls,.csv">
         </label>
         <div class="price-list-hint">Flexible import: columns are matched by header name (Swedish or English, e.g. Artikelnr/Part number, Listpris/List price), any sheet name, any number of quantity-tier columns, .xlsx or .csv. The original "Aktuell prislista" layout also still works. Replaces the loaded product catalog for this session.</div>
       </div>
 
       <div class="panel-section">
         <div class="panel-label">Customer</div>
-        <div class="field"><input type="text" id="custName" placeholder="Company name"></div>
+        <div class="field">
+          <label for="custName">Company</label>
+          <input type="text" id="custName" placeholder="e.g. Husco">
+        </div>
         <div class="field-row">
-          <div class="field"><input type="text" id="custContact" placeholder="Contact person"></div>
-          <div class="field"><input type="text" id="custCountry" placeholder="Country"></div>
+          <div class="field">
+            <label for="custContact">Contact person</label>
+            <input type="text" id="custContact" placeholder="e.g. John Doe">
+          </div>
+          <div class="field">
+            <label for="custCountry">Country</label>
+            <input type="text" id="custCountry" placeholder="e.g. USA">
+          </div>
         </div>
       </div>
 
       <div class="panel-section">
         <div class="panel-label">Sender office (shown in quote header)</div>
         <div class="term-row">
-          <select id="senderOffice">
+          <select id="senderOffice" aria-label="Sender office shown in the quote header">
             <option value="alfta">Alfta (HQ) — Box 83</option>
             <option value="vasteras">Västerås — Kopparlundsvägen 14</option>
             <option value="uppsala">Uppsala — Fyrisborgsgatan 4</option>
@@ -942,8 +1098,14 @@ var vfs = {
       <div class="panel-section">
         <div class="panel-label">Signature block (shown on quote)</div>
         <div class="field-row">
-          <div class="field"><input type="text" id="signerName" placeholder="Your name" value="Mattias Lindqvist"></div>
-          <div class="field"><input type="text" id="signerTitle" placeholder="Your title" value="Key Account Manager"></div>
+          <div class="field">
+            <label for="signerName">Name</label>
+            <input type="text" id="signerName" placeholder="Your name" value="Mattias Lindqvist">
+          </div>
+          <div class="field">
+            <label for="signerTitle">Title</label>
+            <input type="text" id="signerTitle" placeholder="Your title" value="Key Account Manager">
+          </div>
         </div>
         <label class="checkbox-row">
           <input type="checkbox" id="includeSignature" checked>
@@ -954,7 +1116,7 @@ var vfs = {
       <div class="panel-section">
         <div class="panel-label">Currency</div>
         <div class="term-row">
-          <select id="currencySelect">
+          <select id="currencySelect" aria-label="Quote currency">
             <option value="EUR">EUR (€)</option>
             <option value="USD">USD ($)</option>
             <option value="SEK">SEK (kr)</option>
@@ -963,12 +1125,12 @@ var vfs = {
         <div class="fx-rates-box">
           <div class="fx-rate-row">
             <span class="fx-rate-label">1 EUR =</span>
-            <input type="text" inputmode="decimal" id="fxRateUSD" value="1.08">
+            <input type="text" inputmode="decimal" id="fxRateUSD" aria-label="Exchange rate: 1 EUR in USD" value="1.08">
             <span class="fx-rate-currency">USD</span>
           </div>
           <div class="fx-rate-row">
             <span class="fx-rate-label">1 EUR =</span>
-            <input type="text" inputmode="decimal" id="fxRateSEK" value="11.4">
+            <input type="text" inputmode="decimal" id="fxRateSEK" aria-label="Exchange rate: 1 EUR in SEK" value="11.4">
             <span class="fx-rate-currency">SEK</span>
           </div>
         </div>
@@ -983,7 +1145,7 @@ var vfs = {
 
         <div class="search-wrap">
           <span class="search-icon">⌕</span>
-          <input type="text" id="productSearch" placeholder="Search product or part number…" autocomplete="off">
+          <input type="text" id="productSearch" aria-label="Search products by name or part number" placeholder="Search product or part number…" autocomplete="off">
           <div class="search-results" id="searchResults"></div>
         </div>
 
@@ -994,6 +1156,7 @@ var vfs = {
       <div class="panel-section">
         <div class="panel-label">Terms</div>
         <div class="term-row">
+          <label class="field-tiny-label" style="margin-top:0;" for="termPayment">Payment terms</label>
           <select id="termPayment">
             <option>30 days net</option>
             <option>14 days net</option>
@@ -1002,7 +1165,7 @@ var vfs = {
           </select>
         </div>
         <div class="term-row">
-          <label class="field-tiny-label" style="margin-top:0;">Delivery terms (Incoterms 2020)</label>
+          <label class="field-tiny-label" style="margin-top:0;" for="termIncoterm">Delivery terms (Incoterms 2020)</label>
           <select id="termIncoterm">
             <option value="EXW" title="Seller's minimal responsibility. Goods made available at seller's premises; buyer bears all costs and risk from pickup to destination.">EXW — Ex Works</option>
             <option value="FCA" title="Seller loads goods onto the carrier nominated by the buyer; risk transfers once goods are handed over.">FCA — Free Carrier</option>
@@ -1014,9 +1177,11 @@ var vfs = {
           <div id="incotermExplainer" class="price-list-hint" style="margin-top:5px;"></div>
         </div>
         <div class="term-row">
+          <label class="field-tiny-label" style="margin-top:0;" for="termIncotermLocation">Named place</label>
           <input type="text" id="termIncotermLocation" placeholder="Named place, e.g. Alfta, Sweden" value="Alfta, Sweden">
         </div>
         <div class="term-row">
+          <label class="field-tiny-label" style="margin-top:0;" for="termValidity">Quote validity</label>
           <select id="termValidity">
             <option value="30">Valid for 30 days</option>
             <option value="60">Valid for 60 days</option>
@@ -1024,7 +1189,7 @@ var vfs = {
           </select>
         </div>
         <div class="term-row">
-          <label class="field-tiny-label" style="margin-top:0;">Quantity column heading</label>
+          <label class="field-tiny-label" style="margin-top:0;" for="qtyHeading">Quantity column heading</label>
           <input type="text" id="qtyHeading" list="qtyHeadingPresets" value="Qty" placeholder="Qty">
           <datalist id="qtyHeadingPresets">
             <option value="Qty"></option>
@@ -1035,7 +1200,7 @@ var vfs = {
           <div class="price-list-hint" style="margin-top:5px;">Header of the quantity column in the quote table (e.g. MOQ, EAU, Order Qty).</div>
         </div>
         <div class="term-row">
-          <label class="field-tiny-label" style="margin-top:0;">VAT / Tariff note</label>
+          <label class="field-tiny-label" style="margin-top:0;" for="vatNote">VAT / Tariff note</label>
           <input type="text" id="vatNote" list="vatPresets" value="Prices are given excluding VAT">
           <datalist id="vatPresets">
             <option value="Prices are given excluding VAT"></option>
@@ -1073,7 +1238,7 @@ var vfs = {
 
     <div class="generate-bar">
       <div class="archive-status" id="archiveStatus">Not saved yet</div>
-      <button class="generate-btn" id="downloadPdfBtn">⬇ Download quote as PDF</button>
+      <button class="generate-btn" id="downloadPdfBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download quote as PDF</button>
       <div class="print-hint">Vector PDF with header &amp; footer on every page. No setup needed.</div>
       <button class="generate-btn" onclick="window.print()" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;">Print via browser (quick preview)</button>
       <button class="generate-btn" id="exportJsonBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:8px;">Export quote data (.json)</button>
@@ -1104,27 +1269,27 @@ var vfs = {
 
       <div class="panel-section">
         <div class="panel-label"><span>Customer &amp; document</span></div>
-        <div class="pl-field"><label>Customer name</label><input type="text" id="plCustName" placeholder="e.g. Caudwell Marine Ltd"></div>
-        <div class="pl-field"><label>Contact (optional)</label><input type="text" id="plCustContact" placeholder="attn: name"></div>
+        <div class="pl-field"><label for="plCustName">Customer name</label><input type="text" id="plCustName" placeholder="e.g. Caudwell Marine Ltd"></div>
+        <div class="pl-field"><label for="plCustContact">Contact (optional)</label><input type="text" id="plCustContact" placeholder="attn: name"></div>
         <div class="pl-two">
-          <div class="pl-field"><label>Prepared by</label><input type="text" id="plPreparedBy" placeholder="Your name"></div>
-          <div class="pl-field"><label>Title</label><input type="text" id="plPreparedTitle" placeholder="Key Account Manager"></div>
+          <div class="pl-field"><label for="plPreparedBy">Prepared by</label><input type="text" id="plPreparedBy" placeholder="Your name"></div>
+          <div class="pl-field"><label for="plPreparedTitle">Title</label><input type="text" id="plPreparedTitle" placeholder="Key Account Manager"></div>
         </div>
         <div class="pl-two">
-          <div class="pl-field"><label>Revision</label><input type="text" id="plRevision" placeholder="Rev. 2026-A"></div>
-          <div class="pl-field"><label>Valid until</label><input type="text" id="plValidUntil" placeholder="2026-12-31"></div>
+          <div class="pl-field"><label for="plRevision">Revision</label><input type="text" id="plRevision" placeholder="Rev. 2026-A"></div>
+          <div class="pl-field"><label for="plValidUntil">Valid until</label><input type="text" id="plValidUntil" placeholder="2026-12-31"></div>
         </div>
         <div class="pl-two">
-          <div class="pl-field"><label>Currency</label>
+          <div class="pl-field"><label for="plCurrency">Currency</label>
             <select id="plCurrency"><option value="EUR">EUR (€)</option><option value="USD">USD ($)</option><option value="SEK">SEK (kr)</option></select>
           </div>
-          <div class="pl-field"><label>FX rate (per EUR)</label><input type="number" step="0.0001" id="plFxRate" value="1" disabled></div>
+          <div class="pl-field"><label for="plFxRate">FX rate (per EUR)</label><input type="number" step="0.0001" id="plFxRate" value="1" disabled></div>
         </div>
       </div>
 
       <div class="panel-section">
         <div class="panel-label"><span>Discount</span></div>
-        <div class="pl-field"><label>Default discount % off list</label><input type="number" step="0.1" id="plDefaultDiscount" value="0" placeholder="0"></div>
+        <div class="pl-field"><label for="plDefaultDiscount">Default discount % off list</label><input type="number" step="0.1" id="plDefaultDiscount" value="0" placeholder="0"></div>
         <div class="price-list-hint">Set per-family overrides in the product picker below. Toggle whether the discount is shown to the customer under “Display options”.</div>
       </div>
 
@@ -1148,18 +1313,18 @@ var vfs = {
         <div class="panel-label"><span>Professional details</span></div>
         <label class="pl-toggle-row"><input type="checkbox" id="plShowRevision" checked> Show revision line</label>
         <label class="pl-toggle-row"><input type="checkbox" id="plShowPriceBasis" checked> Show price basis / Incoterms</label>
-        <div class="pl-field"><input type="text" id="plPriceBasis" placeholder="Ex-works Alfta (Incoterms 2020)"></div>
+        <div class="pl-field"><input type="text" id="plPriceBasis" aria-label="Price basis / Incoterms text" placeholder="Ex-works Alfta (Incoterms 2020)"></div>
         <label class="pl-toggle-row"><input type="checkbox" id="plShowVat" checked> Show VAT statement</label>
-        <div class="pl-field"><input type="text" id="plVatNote" placeholder="Prices exclude VAT"></div>
+        <div class="pl-field"><input type="text" id="plVatNote" aria-label="VAT statement text" placeholder="Prices exclude VAT"></div>
         <label class="pl-toggle-row"><input type="checkbox" id="plShowLeadTime" checked> Show lead time</label>
-        <div class="pl-field"><input type="text" id="plLeadTime" placeholder="Approx. 6 weeks from confirmed PO"></div>
+        <div class="pl-field"><input type="text" id="plLeadTime" aria-label="Lead time text" placeholder="Approx. 6 weeks from confirmed PO"></div>
         <label class="pl-toggle-row"><input type="checkbox" id="plShowConfidentiality" checked> Show confidentiality line</label>
-        <div class="pl-field"><input type="text" id="plConfidentiality" placeholder="Confidential — not for redistribution"></div>
+        <div class="pl-field"><input type="text" id="plConfidentiality" aria-label="Confidentiality line text" placeholder="Confidential — not for redistribution"></div>
       </div>
 
       <div class="panel-section">
         <div class="panel-label"><span>Terms &amp; conditions</span></div>
-        <div class="pl-field"><textarea id="plTermsText" placeholder="Free-text terms shown on the price list…"></textarea></div>
+        <div class="pl-field"><textarea id="plTermsText" aria-label="Free-text terms shown on the price list" placeholder="Free-text terms shown on the price list…"></textarea></div>
         <div class="price-list-hint">CrossControl Standard Terms &amp; Conditions 2023 are automatically referenced in the footer note.</div>
       </div>
 
@@ -5128,7 +5293,8 @@ function renderProductList() {
     const standardFields = `
       <div class="qty-row">
         <label>Qty</label>
-        <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty">
+        <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty"
+               aria-label="Quantity for ${escapeAttr(item.description)}">
         <label style="margin-left:auto;color:var(--panel-text-dim)" data-computed="tierprice">@ ${fmtEUR(tierPrice)}</label>
       </div>
 
@@ -5137,14 +5303,16 @@ function renderProductList() {
 
       <div class="extra-discount-row">
         <label>Extra discount</label>
-        <input type="text" inputmode="decimal" value="${item.extraDiscountPct}" data-line-id="${item.lineId}" data-action="discount">
+        <input type="text" inputmode="decimal" value="${item.extraDiscountPct}" data-line-id="${item.lineId}" data-action="discount"
+               aria-label="Extra discount percentage for ${escapeAttr(item.description)}">
         <span style="color:var(--panel-text-dim);font-size:11px;">%</span>
         <span class="extra-flag ${showFlag ? 'show' : ''}" data-computed="deviation">⚠ deviation</span>
       </div>
 
       <div class="mk-row">
         <label>Mfg. cost (MK)</label>
-        <input type="text" inputmode="decimal" placeholder="—" value="${mkFieldValue}" data-line-id="${item.lineId}" data-action="mk">
+        <input type="text" inputmode="decimal" placeholder="—" value="${mkFieldValue}" data-line-id="${item.lineId}" data-action="mk"
+               aria-label="Manufacturing cost in SEK for ${escapeAttr(item.description)}">
         <span style="color:var(--panel-text-dim);font-size:11px;">SEK</span>
         ${mkSourceTag}
       </div>
@@ -5157,9 +5325,12 @@ function renderProductList() {
       <div class="vtier-editor">
         ${(item.volumeTiers || []).map((vt, idx) => `
           <div class="vtier-row" data-line-id="${item.lineId}" data-idx="${idx}">
-            <input type="text" placeholder="Label, e.g. EAU 100-249" value="${escapeAttr(vt.label)}" data-line-id="${item.lineId}" data-idx="${idx}" data-vfield="label">
-            <input type="text" placeholder="Sub-label, e.g. MOQ 20" value="${escapeAttr(vt.sublabel)}" data-line-id="${item.lineId}" data-idx="${idx}" data-vfield="sublabel">
-            <input type="text" inputmode="decimal" class="vtier-price" placeholder="0" value="${vt.price}" data-line-id="${item.lineId}" data-idx="${idx}" data-vfield="price">
+            <input type="text" placeholder="Label, e.g. EAU 100-249" value="${escapeAttr(vt.label)}" data-line-id="${item.lineId}" data-idx="${idx}" data-vfield="label"
+                   aria-label="Tier ${idx + 1} label">
+            <input type="text" placeholder="Sub-label, e.g. MOQ 20" value="${escapeAttr(vt.sublabel)}" data-line-id="${item.lineId}" data-idx="${idx}" data-vfield="sublabel"
+                   aria-label="Tier ${idx + 1} sub-label">
+            <input type="text" inputmode="decimal" class="vtier-price" placeholder="0" value="${vt.price}" data-line-id="${item.lineId}" data-idx="${idx}" data-vfield="price"
+                   aria-label="Tier ${idx + 1} unit price">
             <span class="vtier-cur">${curSymbol}</span>
             <button class="vtier-del" data-line-id="${item.lineId}" data-idx="${idx}" data-action="vtier-del" title="Remove tier">×</button>
           </div>`).join('')}
@@ -5186,7 +5357,7 @@ function renderProductList() {
 
       <div class="note-row">
         <label class="field-tiny-label" style="margin-top:0;">Note (internal + shown on quote if filled in)</label>
-        <textarea rows="2" placeholder="e.g. lead time 6 weeks, requires confirmation from production…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
+        <textarea rows="2" aria-label="Note for ${escapeAttr(item.description)}" placeholder="e.g. lead time 6 weeks, requires confirmation from production…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
       </div>
     </div>`;
   }).join('');
@@ -5200,9 +5371,11 @@ function renderCustomLineRow(item) {
       <div class="product-row-top">
         <div style="flex:1;">
           <span class="custom-badge">Custom item</span>
-          <input type="text" class="custom-desc-input" placeholder="e.g. Software development, on-site installation, training…"
+          <input type="text" class="custom-desc-input" aria-label="Custom item description"
+                 placeholder="e.g. Software development, on-site installation, training…"
                  value="${escapeAttr(item.description)}" data-line-id="${item.lineId}" data-action="custom-desc">
-          <input type="text" class="custom-pn-input" placeholder="Reference / PO note (optional)"
+          <input type="text" class="custom-pn-input" aria-label="Custom item reference or PO note"
+                 placeholder="Reference / PO note (optional)"
                  value="${escapeAttr(item.partNumber)}" data-line-id="${item.lineId}" data-action="custom-pn">
         </div>
         <button class="remove-btn" data-line-id="${item.lineId}" data-action="remove">×</button>
@@ -5210,14 +5383,17 @@ function renderCustomLineRow(item) {
 
       <div class="qty-row">
         <label>Qty</label>
-        <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty">
+        <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty"
+               aria-label="Quantity for this custom item">
         <label style="margin-left:auto;color:var(--panel-text-dim)">Unit price</label>
-        <input type="text" inputmode="decimal" class="custom-price-input" value="${item.customUnitPrice}" data-line-id="${item.lineId}" data-action="custom-price">
+        <input type="text" inputmode="decimal" class="custom-price-input" value="${item.customUnitPrice}" data-line-id="${item.lineId}" data-action="custom-price"
+               aria-label="Unit price for this custom item">
       </div>
 
       <div class="extra-discount-row">
         <label>Extra discount</label>
-        <input type="text" inputmode="decimal" value="${item.extraDiscountPct}" data-line-id="${item.lineId}" data-action="discount">
+        <input type="text" inputmode="decimal" value="${item.extraDiscountPct}" data-line-id="${item.lineId}" data-action="discount"
+               aria-label="Extra discount percentage for this custom item">
         <span style="color:var(--panel-text-dim);font-size:11px;">%</span>
         <span class="extra-flag ${showFlag ? 'show' : ''}" data-computed="deviation">⚠ deviation</span>
         <span style="margin-left:auto;color:var(--panel-text-dim);font-size:11px;" data-computed="linetotal">= ${fmtEUR(lineTotal)}</span>
@@ -5225,7 +5401,7 @@ function renderCustomLineRow(item) {
 
       <div class="note-row">
         <label class="field-tiny-label" style="margin-top:0;">Note (internal + shown on quote if filled in)</label>
-        <textarea rows="2" placeholder="e.g. scope description, assumptions, timeline…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
+        <textarea rows="2" aria-label="Note for this custom item" placeholder="e.g. scope description, assumptions, timeline…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
       </div>
     </div>`;
 }
@@ -6780,7 +6956,7 @@ function plSaveToArchive(){
       defaultDiscountPct: plEl('plDefaultDiscount').value,
     };
     localStorage.setItem(PL_ARCHIVE_KEY, JSON.stringify(store));
-    alert('Saved as ' + id + '.');
+    ccToast('Price list saved as ' + id);
   } catch (err) { console.error('Pricelist save failed:', err); alert('Could not save: ' + (err && err.message ? err.message : err)); }
 }
 
@@ -6810,6 +6986,36 @@ plEl('plVatNote').value = 'Prices exclude VAT';
 plEl('plConfidentiality').value = 'Confidential — prepared for the named customer, not for redistribution.';
 
 
+
+
+// ===== Toast (Tier A prototype) =============================================
+// Routine confirmations only. Real warnings stay as alert() on purpose - a
+// self-dismissing toast is the wrong home for "your cart was cleared".
+function ccToast(msg) {
+  var wrap = document.getElementById('ccToastWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'ccToastWrap';
+    wrap.className = 'cc-toast-wrap';
+    document.body.appendChild(wrap);
+  }
+  var el = document.createElement('div');
+  el.className = 'cc-toast';
+  el.setAttribute('role', 'status');
+  var tick = document.createElement('span');
+  tick.className = 'tick';
+  tick.textContent = '\u2713';
+  var txt = document.createElement('span');
+  txt.textContent = msg;
+  el.appendChild(tick);
+  el.appendChild(txt);
+  wrap.appendChild(el);
+  requestAnimationFrame(function () { el.classList.add('show'); });
+  setTimeout(function () {
+    el.classList.remove('show');
+    setTimeout(function () { el.remove(); }, 240);
+  }, 2600);
+}
 
 // Remember which quote was open, so reloading the page resumes it instead of
 // silently minting a brand new number every time.
