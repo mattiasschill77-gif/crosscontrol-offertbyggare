@@ -923,6 +923,17 @@ var vfs = {
   }
   .field input[type=text]::placeholder{ color:#b9b6ae; }
 
+  /* Basis-column feedback. Lives in the PANEL only, never on the document:
+     the customer-facing price list deliberately says nothing about which
+     volume column was used. */
+  .pl-basis-note{ font-size:10.5px; line-height:1.5; margin-top:8px; }
+  .pl-basis-note .warn{
+    display:block; color:var(--warn); background:var(--warn-bg);
+    border:1px solid #f0dcb8; border-radius:var(--r-card);
+    padding:7px 9px; margin-bottom:6px;
+  }
+  .pl-basis-note .info{ display:block; color:var(--panel-text-dim); }
+
   /* ---- 9. Toast ----------------------------------------------------------
      Routine confirmations only. Genuine warnings - a cleared cart, a failed
      import, a failed PDF - stay as alert() on purpose. */
@@ -1289,7 +1300,15 @@ var vfs = {
 
       <div class="panel-section">
         <div class="panel-label"><span>Discount</span></div>
-        <div class="pl-field"><label for="plDefaultDiscount">Default discount % off list</label><input type="number" step="0.1" id="plDefaultDiscount" value="0" placeholder="0"></div>
+        <div class="pl-field">
+          <label for="plBasisColumn">Calculate from</label>
+          <select id="plBasisColumn"><option value="list">List price</option></select>
+        </div>
+        <div class="pl-field">
+          <label for="plDefaultDiscount" id="plDiscountLabel">Default discount % off list price</label>
+          <input type="number" step="0.1" id="plDefaultDiscount" value="0" placeholder="0">
+        </div>
+        <div class="pl-basis-note" id="plBasisNote"></div>
         <div class="price-list-hint">Set per-family overrides in the product picker below. Toggle whether the discount is shown to the customer under “Display options”.</div>
       </div>
 
@@ -6440,13 +6459,23 @@ function buildPricelistGroups(priceData, selection, config) {
     const chosen = (g.products || []).filter(p => selection[p.part_number]);
     if (chosen.length === 0) return;
     const discountPct = resolveDiscountPct(g.group, config);
+    const basis = config.basisColumn || 'list';
     const lines = chosen.map(p => {
       const listEur = p.list_price_eur || 0;
-      const netEur = Math.round(listEur * (1 - discountPct / 100) * 100) / 100;
+      // Which column the net price is calculated from. A product that has no
+      // price in the chosen column falls back to its own list price rather than
+      // vanishing from the customer's price list; the panel reports how many did.
+      const tier = (basis !== 'list' && p.tiers) ? p.tiers[basis] : null;
+      const hasTierPrice = !!(tier && typeof tier.price_eur === 'number');
+      const basisEur = hasTierPrice ? tier.price_eur : listEur;
+      const usedFallback = basis !== 'list' && !hasTierPrice;
+      const netEur = Math.round(basisEur * (1 - discountPct / 100) * 100) / 100;
       return {
         partNumber: p.part_number,
         description: p.description || '',
         listEur,
+        basisEur,
+        usedFallback,
         netEur,
         moq: (config.moqByPart && config.moqByPart[p.part_number] != null && config.moqByPart[p.part_number] !== '')
           ? config.moqByPart[p.part_number] : '',
@@ -6663,6 +6692,7 @@ const PL = {
   moqByPart: {},          // { part_number: value }
   statusByPart: {},       // { part_number: 'active'|'new'|'eol'|'ltb' }
   openFamilies: {},       // { group: bool }
+  basisColumn: 'list',    // 'list' | a tier label, e.g. '250-499'
 };
 const PL_STATUS_OPTS = [['','—'],['active','Active'],['new','New'],['eol','End-of-life'],['ltb','Last-time-buy']];
 
@@ -6792,6 +6822,7 @@ function plGatherMeta(){
 function plGatherConfig(){
   return {
     defaultDiscountPct: plEl('plDefaultDiscount').value || 0,
+    basisColumn: PL.basisColumn || 'list',
     familyDiscounts: PL.familyDiscounts,
     moqByPart: PL.moqByPart,
     statusByPart: PL.statusByPart,
@@ -6861,10 +6892,86 @@ function plRenderDoc(){
   root.innerHTML = h;
 }
 
+// ---- Basis column: which price column the list is calculated from ----
+// Options are derived from the loaded PRICE_DATA, so an imported price list with
+// different volume bands populates this correctly without a code change.
+function plTierSortKey(label){
+  const m = String(label).match(/^\s*(\d+(?:[.,]\d+)?)\s*([kK])?/);
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  let n = parseFloat(m[1].replace(',', '.'));
+  if (m[2]) n *= 1000;
+  return n;
+}
+
+function plTierLabels(){
+  const seen = new Map();   // label -> how many products carry it
+  (PRICE_DATA.groups || []).forEach(g => (g.products || []).forEach(pr => {
+    Object.keys(pr.tiers || {}).forEach(k => seen.set(k, (seen.get(k) || 0) + 1));
+  }));
+  return [...seen.entries()]
+    .sort((a, b) => plTierSortKey(a[0]) - plTierSortKey(b[0]))
+    .map(([label, count]) => ({ label, count }));
+}
+
+function plTotalProductCount(){
+  return (PRICE_DATA.groups || []).reduce((s, g) => s + (g.products || []).length, 0);
+}
+
+function plPopulateBasisOptions(){
+  const sel = plEl('plBasisColumn');
+  if (!sel) return;
+  const total = plTotalProductCount();
+  const opts = ['<option value="list">List price</option>'];
+  plTierLabels().forEach(t => {
+    // Flag partial columns in the option itself, so the gap is visible before
+    // it is chosen rather than after.
+    const partial = t.count < total ? ` \u2014 ${t.count}/${total} products` : '';
+    opts.push(`<option value="${escapeAttr(t.label)}">${escapeHtml(t.label)}${partial}</option>`);
+  });
+  sel.innerHTML = opts.join('');
+  // Keep the current choice if the new catalogue still has that column.
+  const wanted = PL.basisColumn || 'list';
+  sel.value = [...sel.options].some(o => o.value === wanted) ? wanted : 'list';
+  PL.basisColumn = sel.value;
+}
+
+// Panel-only feedback. Nothing here reaches the customer document.
+function plRenderBasisNote(){
+  const el = plEl('plBasisNote');
+  if (!el) return;
+  const basis = PL.basisColumn || 'list';
+  const disc = parseFloat(plEl('plDefaultDiscount').value);
+  const famDiscs = Object.values(PL.familyDiscounts || {})
+    .map(v => parseFloat(v)).filter(v => !isNaN(v) && v !== 0);
+  const anyDiscount = (!isNaN(disc) && disc !== 0) || famDiscs.length > 0;
+
+  const label = plEl('plDiscountLabel');
+  if (label) label.textContent = basis === 'list'
+    ? 'Default discount % off list price'
+    : `Default discount % off the ${basis} column`;
+
+  let html = '';
+  if (basis !== 'list' && anyDiscount) {
+    html += `<span class="warn"><b>Discount on top of a volume column.</b> `
+         +  `Prices start from the ${escapeHtml(basis)} column and then have the `
+         +  `discount applied \u2014 volume columns are already well below list price.</span>`;
+  }
+  if (basis !== 'list') {
+    const groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
+    const fell = groups.reduce((s, g) => s + g.lines.filter(l => l.usedFallback).length, 0);
+    if (fell > 0) {
+      html += `<span class="info">${fell} selected product${fell === 1 ? ' has' : 's have'} `
+           +  `no price in the ${escapeHtml(basis)} column and use their list price instead.</span>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
 function plRenderAll(){
   plSyncFxField();
   plRenderFamilyList();
   plRenderDoc();
+  plRenderBasisNote();
 }
 
 // ---- PDF download (reuses pdfmake + Poppins registration) ----
@@ -6964,7 +7071,12 @@ function plSaveToArchive(){
 document.querySelectorAll('.topbar-tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 plEl('plCurrency').addEventListener('change', () => { plSyncFxField(); plRenderDoc(); });
 plEl('plFxRate').addEventListener('input', plRenderDoc);
-plEl('plDefaultDiscount').addEventListener('input', plRenderDoc);
+plEl('plDefaultDiscount').addEventListener('input', () => { plRenderDoc(); plRenderBasisNote(); });
+plEl('plBasisColumn').addEventListener('change', (e) => {
+  PL.basisColumn = e.target.value;
+  plRenderAll();
+});
+plPopulateBasisOptions();
 [
   'plCustName','plCustContact','plPreparedBy','plPreparedTitle','plRevision','plValidUntil',
   'plPriceBasis','plVatNote','plLeadTime','plConfidentiality','plTermsText',
