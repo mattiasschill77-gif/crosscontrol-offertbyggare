@@ -589,6 +589,21 @@ var vfs = {
   .doc-title-bar .meta{font-size:12.5px;color:var(--ink-700);font-family:Arial,sans-serif;}
   .doc-title-bar .meta b{color:var(--ink-900);}
 
+  /* Bill-to block: the customer is who the quote is FOR, so it reads as a
+     proper addressee rather than a muted sub-line. */
+  .doc-title-bar .billto{margin:0 0 10px;}
+  .doc-title-bar .billto .lbl{
+    font-family:'Poppins',Arial,sans-serif;font-size:9.5px;font-weight:700;
+    text-transform:uppercase;letter-spacing:0.14em;color:var(--cc-orange-dark);margin-bottom:3px;
+  }
+  .doc-title-bar .billto .name{
+    font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:16px;
+    color:var(--ink-900);line-height:1.25;
+  }
+  .doc-title-bar .billto .sub{
+    font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);margin-top:2px;
+  }
+
   .doc-body{padding:0 48px 6px;}
 
   .section-eyebrow{
@@ -709,6 +724,78 @@ var vfs = {
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--panel-line);border-radius:4px;}
 
+  /* ===== Tab navigation ===== */
+  .topbar-tabs{display:flex;gap:4px;margin-left:20px;}
+  .topbar-tab{
+    background:none;border:none;padding:8px 14px;border-radius:8px 8px 0 0;
+    font-family:'Poppins',Arial,sans-serif;font-weight:700;text-transform:uppercase;
+    letter-spacing:0.04em;font-size:11px;color:var(--panel-text-dim);cursor:pointer;
+    border-bottom:3px solid transparent;
+  }
+  .topbar-tab:hover{color:var(--cc-orange-dark);}
+  .topbar-tab.active{color:var(--cc-orange-dark);border-bottom-color:var(--cc-orange);}
+  .view{display:none;}
+  .view.active{display:grid;}
+  /* ===== Pricelist panel ===== */
+  .pl-fam-list{display:flex;flex-direction:column;gap:2px;margin-top:6px;}
+  .pl-fam{border:1px solid var(--panel-line);border-radius:8px;overflow:hidden;}
+  .pl-fam-head{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel-alt,#faf9f6);cursor:pointer;}
+  .pl-fam-head:hover{background:var(--cc-orange-dim);}
+  .pl-fam-head input[type=checkbox]{width:15px;height:15px;accent-color:var(--cc-orange);}
+  .pl-fam-name{font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:12px;color:var(--panel-text);flex:1;}
+  .pl-fam-count{font-size:10.5px;color:var(--panel-text-dim);font-family:Arial,sans-serif;}
+  .pl-fam-caret{font-size:10px;color:var(--panel-text-dim);transition:transform .15s;}
+  .pl-fam.open .pl-fam-caret{transform:rotate(90deg);}
+  .pl-fam-disc{width:56px;padding:3px 6px;border:1px solid var(--panel-line);border-radius:6px;font-family:Arial,sans-serif;font-size:11px;text-align:right;}
+  .pl-fam-disc::placeholder{color:#bbb;}
+  .pl-prod-list{display:none;padding:2px 10px 8px 30px;flex-direction:column;gap:1px;}
+  .pl-fam.open .pl-prod-list{display:flex;}
+  .pl-prod{display:flex;align-items:center;gap:8px;padding:4px 0;font-family:Arial,sans-serif;font-size:11.5px;}
+  .pl-prod input[type=checkbox]{width:14px;height:14px;accent-color:var(--cc-orange);}
+  .pl-prod-name{flex:1;color:var(--panel-text);}
+  .pl-prod-sku{color:var(--panel-text-dim);font-size:10px;}
+  .pl-prod-extra{display:flex;gap:4px;align-items:center;}
+  .pl-prod-moq{width:48px;padding:2px 4px;border:1px solid var(--panel-line);border-radius:5px;font-size:10.5px;text-align:right;font-family:Arial,sans-serif;}
+  .pl-prod-status{padding:2px 4px;border:1px solid var(--panel-line);border-radius:5px;font-size:10.5px;font-family:Arial,sans-serif;}
+  .pl-field{margin-bottom:10px;}
+  .pl-field label{display:block;font-size:11px;color:var(--panel-text-dim);font-family:Arial,sans-serif;margin-bottom:3px;}
+  .pl-field input[type=text],.pl-field input[type=number],.pl-field textarea,.pl-field select{
+    width:100%;padding:7px 9px;border:1px solid var(--panel-line);border-radius:7px;font-family:Arial,sans-serif;font-size:12.5px;box-sizing:border-box;}
+  .pl-field textarea{resize:vertical;min-height:52px;}
+  .pl-toggle-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-family:Arial,sans-serif;font-size:12px;color:var(--panel-text);}
+  .pl-toggle-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--cc-orange);}
+  .pl-two{display:flex;gap:8px;}
+  .pl-two > div{flex:1;}
+  .pl-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+  .pl-btn{padding:10px;border:none;border-radius:8px;background:var(--cc-orange);color:#fff;font-family:'Poppins',Arial,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;font-size:12px;cursor:pointer;}
+  .pl-btn:hover{background:var(--cc-orange-dark);}
+  .pl-btn.secondary{background:#fff;color:var(--cc-orange-dark);border:1px solid var(--cc-orange);}
+  .pl-btn:disabled{opacity:.55;cursor:default;}
+  /* ===== Pricelist preview document ===== */
+  #plDocRoot{background:#fff;}
+  .pl-doc-title{font-family:'Poppins',Arial,sans-serif;font-weight:800;text-transform:uppercase;font-size:26px;color:#2b2b2a;letter-spacing:0.5px;margin:0 0 4px;}
+  .pl-doc-sub{font-family:Arial,sans-serif;font-size:13px;color:#646363;margin-bottom:16px;}
+  .pl-doc-meta{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-family:Arial,sans-serif;font-size:12.5px;margin-bottom:18px;}
+  .pl-doc-meta .k{font-family:'Poppins',Arial,sans-serif;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.06em;color:#c9760f;align-self:center;}
+  .pl-doc-meta .v{color:#2b2b2a;}
+  .pl-doc-fam{font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:14px;color:#2b2b2a;background:#f7f6f2;padding:7px 10px;border-radius:4px;margin:16px 0 0;display:flex;justify-content:space-between;}
+  .pl-doc-fam .disc{color:#c9760f;}
+  table.pl-doc-table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;margin-top:2px;}
+  table.pl-doc-table th{font-family:'Poppins',Arial,sans-serif;font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.05em;color:#646363;text-align:right;padding:7px 8px;border-bottom:2px solid #F7971C;}
+  table.pl-doc-table th.l{text-align:left;}
+  table.pl-doc-table td{padding:8px;border-bottom:1px solid #e4e2dc;font-size:12.5px;color:#2b2b2a;text-align:right;vertical-align:top;}
+  table.pl-doc-table td.l{text-align:left;}
+  .pl-doc-pname{font-size:12.5px;color:#2b2b2a;}
+  .pl-doc-psku{font-size:10.5px;color:#646363;margin-top:1px;}
+  .pl-doc-list{color:#646363;text-decoration:line-through;}
+  .pl-doc-disc{color:#c9760f;}
+  .pl-doc-net{font-weight:700;color:#2b2b2a;}
+  .pl-doc-section{font-family:'Poppins',Arial,sans-serif;font-weight:700;text-transform:uppercase;font-size:13px;color:#c9760f;margin:18px 0 6px;letter-spacing:.04em;}
+  .pl-doc-terms{font-family:Arial,sans-serif;font-size:12px;color:#646363;line-height:1.4;white-space:pre-wrap;}
+  .pl-doc-tc{background:#f7f6f2;border-radius:4px;padding:12px 14px;margin-top:16px;font-family:Arial,sans-serif;font-size:12px;color:#646363;line-height:1.35;display:flex;gap:10px;}
+  .pl-doc-tc .sec{color:#c9760f;font-weight:700;font-size:16px;}
+  .pl-doc-empty{font-family:Arial,sans-serif;color:#a8a39a;font-size:13px;text-align:center;padding:60px 20px;}
+
   @media print{
     /* @page margin:0 removes the browser's own date/URL/page-number header and footer lines.
        All document margins and spacing are handled by our own CSS instead. */
@@ -769,8 +856,12 @@ var vfs = {
     <span class="doc-logo-mark" id="topbarLogo"></span>
     <div class="topbar-divider"></div>
     <div>
-      <div class="topbar-title">Quote Builder</div>
+      <div class="topbar-title">CrossControl Tools</div>
       <div class="topbar-sub">Internal KAM tool · price list synced from Excel</div>
+    </div>
+    <div class="topbar-tabs">
+      <button class="topbar-tab active" id="tabQuote" data-view="quote">Quote builder</button>
+      <button class="topbar-tab" id="tabPricelist" data-view="pricelist">Price list</button>
     </div>
   </div>
   <div class="topbar-right">
@@ -810,7 +901,7 @@ var vfs = {
   </div>
 </div>
 
-<div class="workspace">
+<div class="workspace view quote active" id="viewQuote">
 
   <!-- LEFT CONTROL PANEL -->
   <div class="panel">
@@ -823,9 +914,9 @@ var vfs = {
         </div>
         <label class="upload-zone">
           + Upload updated price list (.xlsx)
-          <input type="file" id="priceListUpload" accept=".xlsx,.xls">
+          <input type="file" id="priceListUpload" accept=".xlsx,.xls,.csv">
         </label>
-        <div class="price-list-hint">Expects the same sheet structure: "Aktuell prislista" + "TG-kalkyl". Replaces the loaded product catalog for this session.</div>
+        <div class="price-list-hint">Flexible import: columns are matched by header name (Swedish or English, e.g. Artikelnr/Part number, Listpris/List price), any sheet name, any number of quantity-tier columns, .xlsx or .csv. The original "Aktuell prislista" layout also still works. Replaces the loaded product catalog for this session.</div>
       </div>
 
       <div class="panel-section">
@@ -1005,6 +1096,92 @@ var vfs = {
     </div>
   </div>
 
+</div>
+
+<div class="workspace view pricelist" id="viewPricelist">
+  <div class="panel">
+    <div class="panel-scroll">
+
+      <div class="panel-section">
+        <div class="panel-label"><span>Customer &amp; document</span></div>
+        <div class="pl-field"><label>Customer name</label><input type="text" id="plCustName" placeholder="e.g. Caudwell Marine Ltd"></div>
+        <div class="pl-field"><label>Contact (optional)</label><input type="text" id="plCustContact" placeholder="attn: name"></div>
+        <div class="pl-two">
+          <div class="pl-field"><label>Prepared by</label><input type="text" id="plPreparedBy" placeholder="Your name"></div>
+          <div class="pl-field"><label>Title</label><input type="text" id="plPreparedTitle" placeholder="Key Account Manager"></div>
+        </div>
+        <div class="pl-two">
+          <div class="pl-field"><label>Revision</label><input type="text" id="plRevision" placeholder="Rev. 2026-A"></div>
+          <div class="pl-field"><label>Valid until</label><input type="text" id="plValidUntil" placeholder="2026-12-31"></div>
+        </div>
+        <div class="pl-two">
+          <div class="pl-field"><label>Currency</label>
+            <select id="plCurrency"><option value="EUR">EUR (€)</option><option value="USD">USD ($)</option><option value="SEK">SEK (kr)</option></select>
+          </div>
+          <div class="pl-field"><label>FX rate (per EUR)</label><input type="number" step="0.0001" id="plFxRate" value="1" disabled></div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label"><span>Discount</span></div>
+        <div class="pl-field"><label>Default discount % off list</label><input type="number" step="0.1" id="plDefaultDiscount" value="0" placeholder="0"></div>
+        <div class="price-list-hint">Set per-family overrides in the product picker below. Toggle whether the discount is shown to the customer under “Display options”.</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label"><span>Products</span><span class="count" id="plSelCount">0 selected</span></div>
+        <div class="pl-actions" style="flex-direction:row;gap:6px;margin-bottom:8px;">
+          <button class="pl-btn secondary" id="plSelectAll" style="flex:1;padding:6px;font-size:10.5px;">Select all</button>
+          <button class="pl-btn secondary" id="plClearAll" style="flex:1;padding:6px;font-size:10.5px;">Clear</button>
+        </div>
+        <div class="pl-fam-list" id="plFamList"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label"><span>Display options</span></div>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowDiscount"> Show list price &amp; discount (off = net price only)</label>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowMoq" checked> Show MOQ column</label>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowStatus"> Show product status column</label>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label"><span>Professional details</span></div>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowRevision" checked> Show revision line</label>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowPriceBasis" checked> Show price basis / Incoterms</label>
+        <div class="pl-field"><input type="text" id="plPriceBasis" placeholder="Ex-works Alfta (Incoterms 2020)"></div>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowVat" checked> Show VAT statement</label>
+        <div class="pl-field"><input type="text" id="plVatNote" placeholder="Prices exclude VAT"></div>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowLeadTime" checked> Show lead time</label>
+        <div class="pl-field"><input type="text" id="plLeadTime" placeholder="Approx. 6 weeks from confirmed PO"></div>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowConfidentiality" checked> Show confidentiality line</label>
+        <div class="pl-field"><input type="text" id="plConfidentiality" placeholder="Confidential — not for redistribution"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-label"><span>Terms &amp; conditions</span></div>
+        <div class="pl-field"><textarea id="plTermsText" placeholder="Free-text terms shown on the price list…"></textarea></div>
+        <div class="price-list-hint">CrossControl Standard Terms &amp; Conditions 2023 are automatically referenced in the footer note.</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="pl-actions">
+          <button class="pl-btn" id="plDownloadPdfBtn">Download price list (PDF)</button>
+          <button class="pl-btn secondary" id="plDownloadXlsxBtn">Download price list (Excel)</button>
+          <button class="pl-btn secondary" id="plSaveBtn">Save to archive</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="resizer" role="separator" aria-orientation="vertical"
+       aria-label="Resize the control panel" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
+  <div class="preview-wrap">
+    <div class="doc-wrap">
+      <div class="doc" id="plDocRoot"></div>
+    </div>
+  </div>
 </div>
 
 <script id="logo-template" type="text/template"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 666.35 215.87">
@@ -3871,10 +4048,10 @@ function buildPdfDocDefinition(offer) {
     : 'Roboto';
 
   // ----- Customer line -----
-  let custLine = `To ${custName}`;
-  if (cust.contact) custLine += `, attn: ${cust.contact}`;
-  if (cust.country) custLine += ` (${cust.country})`;
-  custLine += `  ·  Issued ${offer.issued_date}`;
+  const custSubParts = [];
+  if (cust.contact) custSubParts.push(`attn: ${cust.contact}`);
+  if (cust.country) custSubParts.push(cust.country);
+  const custSub = custSubParts.join('  ·  ');
 
   // Split lines: standard (normal table + counted in total) vs custom volume-tier (own matrix)
   const priceCurrency = offer.price_currency || currency;
@@ -4022,7 +4199,10 @@ function buildPdfDocDefinition(offer) {
   // ----- Content assembly -----
   const content = [
     { text: 'PRICE QUOTE', style: 'h1', margin: [0, 0, 0, 6] },
-    { text: custLine, style: 'meta', margin: [0, 0, 0, 16] },
+    { text: 'TO', font: HEAD_FONT, fontSize: 8, bold: true, color: PDF_ORANGE_DARK, characterSpacing: 1.2, margin: [0, 0, 0, 3] },
+    { text: custName, font: HEAD_FONT, fontSize: 14, bold: true, color: PDF_INK, margin: [0, 0, 0, 2] },
+    ...(custSub ? [{ text: custSub, style: 'meta', margin: [0, 0, 0, 2] }] : []),
+    { text: `Issued ${offer.issued_date}`, style: 'meta', margin: [0, 0, 0, 16] },
 
     { text: 'PRODUCTS & PRICING', style: 'eyebrow', margin: [0, 0, 0, 8] },
   ];
@@ -5254,9 +5434,14 @@ function renderDoc() {
       </div>`;
   }).join('');
 
-  const custLine = custName
-    ? `To <b>${escapeHtml(custName)}</b>${custContact ? ', attn: ' + escapeHtml(custContact) : ''}${custCountry ? ' (' + escapeHtml(custCountry) + ')' : ''}`
-    : 'To <b>[Customer name not specified]</b>';
+  const custSubParts = [];
+  if (custContact) custSubParts.push('attn: ' + escapeHtml(custContact));
+  if (custCountry) custSubParts.push(escapeHtml(custCountry));
+  const custBlock = `<div class="billto">
+        <div class="lbl">To</div>
+        <div class="name">${custName ? escapeHtml(custName) : '[Customer name not specified]'}</div>
+        ${custSubParts.length ? `<div class="sub">${custSubParts.join(' &nbsp;·&nbsp; ')}</div>` : ''}
+      </div>`;
 
   const appendixHtml = appendices.length
     ? appendices.map(a => `<div class="appendix-note">📎 ${escapeHtml(a.name)}</div>`).join('')
@@ -5315,7 +5500,8 @@ function renderDoc() {
 
     <div class="doc-title-bar">
       <h1>Price Quote</h1>
-      <div class="meta">${custLine} &nbsp;·&nbsp; Issued ${fmtDate(TODAY)}</div>
+      ${custBlock}
+      <div class="meta">Issued ${fmtDate(TODAY)}</div>
     </div>
 
     <div class="doc-body">
@@ -5574,8 +5760,14 @@ document.getElementById('priceListUpload').addEventListener('change', (e) => {
   reader.onload = (evt) => {
     try {
       const data = new Uint8Array(evt.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const parsed = parsePriceListWorkbook(workbook);
+      const isCsv = /\.csv$/i.test(file.name);
+      // raw:true keeps CSV cells as text so European decimals ("526,76") are
+      // parsed correctly by the flexible parser; xlsx numbers are natively typed.
+      const workbook = XLSX.read(data, isCsv ? { type: 'array', raw: true } : { type: 'array' });
+      // Flexible header-driven parser first (tolerates renamed/reordered columns,
+      // Swedish/English headers, any sheet name, any tier count); falls back to the
+      // original position-based parser so the current master pricelist keeps working.
+      const parsed = parsePriceListFlexible(workbook, { legacyFallback: parsePriceListWorkbook });
       const totalProducts = parsed.groups.reduce((s, g) => s + g.products.length, 0);
       const totalAccessories = parsed.accessories.reduce((s, a) => s + a.items.length, 0);
 
@@ -5587,7 +5779,9 @@ document.getElementById('priceListUpload').addEventListener('change', (e) => {
 
       PRICE_DATA = parsed;
       rebuildFlatIndex();
-      statusEl.textContent = `${file.name} (${totalProducts + totalAccessories} items)`;
+      const modeNote = parsed.meta && parsed.meta.import_mode === 'flexible' && parsed.meta.detected_sheet
+        ? ` · sheet "${parsed.meta.detected_sheet}"` : '';
+      statusEl.textContent = `${file.name} (${totalProducts + totalAccessories} items)${modeNote}`;
       statusEl.title = file.name;
 
       // Cart references the old product objects — clear it since prices/tiers may have changed.
@@ -5657,6 +5851,966 @@ function seedDemoContent() {
   }
 })();
 
+// ============================================================================
+// FLEXIBLE PRICELIST PARSER (v2)
+// Header-driven and tolerant:
+//   - columns matched by header NAME (Swedish/English synonyms), any order
+//   - single-row headers OR split two-row headers (family + tier labels on
+//     one row, "Part number"/"Description" + MOQ numbers on the next — the
+//     layout of the CrossControl Standard Product Price List 2024)
+//   - family name may live in the header row itself, or on standalone rows
+//   - any number of tier columns, refreshed per family block
+//   - multi-sheet: parses the best (Euro-preferred) sheet, then merges other
+//     qualifying sheets (e.g. "V1x90"), skipping currency duplicates
+//     (US$/USD) and condition sheets; products deduped by part number
+//   - part-number/description swap repair for blocks whose headers are
+//     inconsistent with their own data
+//   - CSV and European decimals ("526,76")
+// Falls back to the original position-based parser when nothing qualifies.
+// Output schema identical to parsePriceListWorkbook: { meta, groups, accessories }.
+// ============================================================================
+
+const PL_HEADER_SYNONYMS = {
+  part_number: ['part number', 'part no', 'part no.', 'partno', 'partnr', 'part nr', 'artikelnr', 'artikelnummer', 'artikel nr', 'art nr', 'artnr', 'sku', 'item', 'item number', 'article', 'article number', 'e-nr', 'p n', 'pn', 'p/n'],
+  description: ['description', 'desc', 'beskrivning', 'benämning', 'benamning', 'product', 'produkt', 'name', 'namn', 'artikeltext', 'part description', 'product name'],
+  list_price: ['list price', 'listprice', 'listpris', 'list pris', 'price', 'pris', 'unit price', 'á-pris', 'a-pris', 'apris', 'styckpris', 'grundpris', 'base price', 'rrp', 'msrp', 'price euro', 'price eur', 'price usd', 'price us', 'price us$'],
+  negotiation_margin: ['negotiation margin', 'neg margin', 'margin', 'marginal', 'förhandlingsmarginal', 'neg. margin'],
+  lifecycle: ['lifecycle', 'lifecycle comment', 'life cycle', 'life cycle comment', 'livscykel', 'status', 'kommentar', 'comment', 'note', 'anmärkning', 'anmarkning'],
+  moq: ['moq', 'min order qty', 'minimum order quantity', 'minsta order', 'min qty', 'eau', 'eau moq'],
+};
+
+const PL_TIER_RE = /(\d[\d\s.,]*)\s*[-–—to]+\s*(\d[\d\s.,]*)|(\d[\d\s.,]*)\s*\+|(?:>=?|≥)\s*(\d[\d\s.,]*)|^\s*(\d+\s*k)\s*[-–—]\s*(\d+\s*k)\s*$/i;
+
+const PL_SKIP_PN = ['part number', 'part no', 'part no.', 'artikelnr', 'moq', 'product', 'p/n', 'p n', 'pn', 'part nr', 'description', 'benämning'];
+
+function plNormHeader(s) {
+  return String(s == null ? '' : s)
+    .toLowerCase()
+    .replace(/[._/\\():;]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function plClassifyHeader(raw) {
+  const n = plNormHeader(raw);
+  if (!n) return null;
+  for (const field in PL_HEADER_SYNONYMS) {
+    if (PL_HEADER_SYNONYMS[field].some(syn => n === syn || n.replace(/[^a-z0-9åäö ]/g, '') === syn)) {
+      return { type: field };
+    }
+  }
+  if (typeof raw !== 'number' && PL_TIER_RE.test(String(raw).trim())) return { type: 'tier', label: String(raw).trim() };
+  return null;
+}
+
+function plSheetToRows(sheet) {
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: true, defval: null });
+}
+
+function plParseNum(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/\s/g, '').replace(/[€$kr]/gi, '').replace(',', '.');
+  if (!/^-?\d/.test(s)) return null;
+  const f = parseFloat(s);
+  return isNaN(f) ? null : f;
+}
+
+function plLooksLikePartNumber(s) {
+  const t = String(s == null ? '' : s).trim();
+  if (!t) return false;
+  // compact code containing digits and a dash, at most one internal space
+  return /\d/.test(t) && /-/.test(t) && t.split(/\s+/).length <= 2 && t.length <= 20;
+}
+
+// ---------------------------------------------------------------------------
+// Header detection at row r: try the single row, and the pair (r, r+1) merged
+// column-by-column. A header qualifies with >=1 part-number column AND
+// (>=1 price column OR >=1 tier column).
+// ---------------------------------------------------------------------------
+function plDetectHeaderAt(rows, r) {
+  const r1 = rows[r] || [];
+  const r2 = rows[r + 1] || [];
+
+  function classifyRow(row) {
+    const out = [];
+    (row || []).forEach((cell, idx) => {
+      const c = plClassifyHeader(cell);
+      if (c) out.push({ idx, c });
+    });
+    return out;
+  }
+
+  function buildMap(cl) {
+    const map = { part_number: -1, description: -1, list_price: -1, negotiation_margin: -1, lifecycle: -1, moq: -1, tiers: [] };
+    cl.forEach(({ idx, c }) => {
+      if (c.type === 'tier') { if (!map.tiers.some(t => t.idx === idx)) map.tiers.push({ idx, label: c.label }); }
+      else if (map[c.type] === -1) map[c.type] = idx;
+    });
+    map.tiers.sort((a, b) => a.idx - b.idx);
+    return map;
+  }
+
+  function scoreMap(m) {
+    return (m.part_number >= 0 ? 3 : 0) + (m.list_price >= 0 ? 2 : 0) + m.tiers.length +
+           (m.description >= 0 ? 1 : 0) + (m.negotiation_margin >= 0 ? 1 : 0) + (m.lifecycle >= 0 ? 1 : 0);
+  }
+  function qualifies(m) { return m.part_number >= 0 && (m.list_price >= 0 || m.tiers.length > 0); }
+
+  const cl1 = classifyRow(r1);
+  const single = buildMap(cl1);
+  const singleOk = qualifies(single);
+  const singleScore = scoreMap(single);
+
+  const cl2 = classifyRow(r2);
+  const seen = new Set(cl1.map(x => x.idx));
+  const merged = buildMap(cl1.concat(cl2.filter(x => !seen.has(x.idx))));
+  const mergedOk = qualifies(merged);
+  const mergedScore = scoreMap(merged);
+
+  let span, map;
+  if (mergedOk && mergedScore > singleScore) { span = 2; map = merged; }
+  else if (singleOk) { span = 1; map = single; }
+  else return null;
+
+  // family name: non-classifying text in column 0 of either header row
+  let famName = null;
+  const hdrRows = span === 2 ? [r1, r2] : [r1];
+  for (const row of hdrRows) {
+    const c0 = row[0];
+    if (c0 != null && typeof c0 === 'string' && c0.trim() && !plClassifyHeader(c0)) { famName = c0.trim(); break; }
+  }
+
+  // tier MOQs: a row within the span containing a 'moq' cell — numbers in
+  // tier columns. Cells that are themselves tier labels ("100-249") must not
+  // be misread as MOQ values.
+  let moqs = null;
+  for (const row of hdrRows) {
+    if ((row || []).some(c => { const k = plClassifyHeader(c); return k && k.type === 'moq'; })) {
+      const vals = map.tiers.map(t => {
+        const cell = row[t.idx];
+        const k = plClassifyHeader(cell);
+        if (k && k.type === 'tier') return null;
+        return plParseNum(cell);
+      });
+      if (vals.some(v => v != null)) { moqs = vals; break; }
+    }
+  }
+
+  return { span, map, famName, moqs, score: span === 2 ? mergedScore : singleScore };
+}
+
+function plIsGroupHeading(row) {
+  if (!row) return false;
+  const first = row[0];
+  if (!(first && typeof first === 'string' && first.trim())) return false;
+  if (/^(accessories|cables|tillbehör|kablar|kabel)$/i.test(first.trim())) return false;
+  for (let i = 1; i < row.length; i++) {
+    if (row[i] != null && String(row[i]).trim() !== '') return false;
+  }
+  return true;
+}
+
+function plIsAccessoryHeading(row) {
+  const first = row && row[0];
+  return !!(first && typeof first === 'string' && /^(accessories|cables|tillbehör|kablar|kabel)$/i.test(first.trim()));
+}
+
+// ---------------------------------------------------------------------------
+// Parse ONE sheet given its initial header. Returns { groups, accessories }.
+// ---------------------------------------------------------------------------
+function plParseSheetRows(rows, firstHeader) {
+  let colMap = firstHeader.map;
+  let tierMoqs = firstHeader.moqs || colMap.tiers.map(() => null);
+  const groups = [];
+  const accessories = [];
+  let currentGroup = firstHeader.famName ? { group: firstHeader.famName, products: [] } : null;
+  if (currentGroup) groups.push(currentGroup);
+  let currentAccessory = null;
+  let mode = 'group';
+  let r = firstHeader.rowIdx + firstHeader.span;
+
+  for (; r < rows.length; r++) {
+    const row = rows[r] || [];
+
+    // accessory section headings take priority over header detection, since
+    // an "Accessories" row directly above its header row would otherwise be
+    // consumed as a product group
+    if (plIsAccessoryHeading(row)) {
+      mode = 'accessory';
+      currentAccessory = { section: String(row[0]).trim(), items: [] };
+      accessories.push(currentAccessory);
+      continue;
+    }
+
+    // (re)header detection — family blocks repeat their header pair
+    const hd = plDetectHeaderAt(rows, r);
+    if (hd) {
+      colMap = hd.map;
+      tierMoqs = hd.moqs || colMap.tiers.map(() => null);
+      if (mode === 'group' && hd.famName) {
+        currentGroup = { group: hd.famName, products: [] };
+        groups.push(currentGroup);
+      }
+      r += hd.span - 1;
+      continue;
+    }
+
+    // standalone MOQ marker row (separate from headers, e.g. legacy layouts)
+    if (colMap.tiers.length &&
+        row.some(c => { const k = plClassifyHeader(c); return k && k.type === 'moq'; }) &&
+        colMap.tiers.some(t => { const k = plClassifyHeader(row[t.idx]); return !k && plParseNum(row[t.idx]) != null; }) &&
+        (colMap.part_number < 0 || row[colMap.part_number] == null || !!plClassifyHeader(row[colMap.part_number]))) {
+      tierMoqs = colMap.tiers.map(t => { const k = plClassifyHeader(row[t.idx]); return (k && k.type === 'tier') ? null : plParseNum(row[t.idx]); });
+      continue;
+    }
+
+    if (mode === 'group' && plIsGroupHeading(row)) {
+      currentGroup = { group: String(row[0]).trim(), products: [] };
+      groups.push(currentGroup);
+      continue;
+    }
+
+    // data row
+    const pnIdx = colMap.part_number >= 0 ? colMap.part_number : 0;
+    const pn = row[pnIdx];
+    if (pn == null || String(pn).trim() === '') continue;
+    const pnStr = String(pn).trim();
+    if (PL_SKIP_PN.includes(plNormHeader(pnStr))) continue;
+
+    if (mode === 'accessory' && currentAccessory) {
+      const price = plParseNum(colMap.list_price >= 0 ? row[colMap.list_price] : row[2]);
+      if (price == null) continue;
+      currentAccessory.items.push({
+        part_number: pnStr,
+        description: colMap.description >= 0 ? String(row[colMap.description] || '').trim() : '',
+        price_eur: Math.round(price * 100) / 100,
+      });
+      continue;
+    }
+
+    const listPrice = plParseNum(colMap.list_price >= 0 ? row[colMap.list_price] : null);
+    const tiers = {};
+    colMap.tiers.forEach((t, i) => {
+      const v = plParseNum(row[t.idx]);
+      if (v != null) tiers[t.label] = { moq: tierMoqs[i] != null ? tierMoqs[i] : null, price_eur: Math.round(v * 100) / 100 };
+    });
+    if (listPrice == null && Object.keys(tiers).length === 0) continue;
+    if (!currentGroup) { currentGroup = { group: 'Products', products: [] }; groups.push(currentGroup); }
+
+    const neg = colMap.negotiation_margin >= 0 ? plParseNum(row[colMap.negotiation_margin]) : null;
+    const life = colMap.lifecycle >= 0 ? row[colMap.lifecycle] : null;
+
+    currentGroup.products.push({
+      part_number: pnStr,
+      description: colMap.description >= 0 ? String(row[colMap.description] || '').trim() : '',
+      list_price_eur: listPrice != null ? Math.round(listPrice * 100) / 100 : null,
+      tiers,
+      negotiation_margin: neg,
+      lifecycle_comment: life != null && String(life).trim() !== '' ? String(life).trim() : null,
+      mk_sek: null,
+    });
+  }
+
+  // repair blocks whose headers are inconsistent with their own data:
+  // if the "description" column holds part-number-looking codes and the
+  // "part number" column doesn't, swap the two fields.
+  groups.forEach(g => {
+    if (!g.products.length) return;
+    const pnLooks = g.products.filter(p => plLooksLikePartNumber(p.part_number)).length;
+    const descLooks = g.products.filter(p => plLooksLikePartNumber(p.description)).length;
+    if (descLooks > pnLooks && descLooks >= g.products.length / 2) {
+      g.products.forEach(p => { const t = p.part_number; p.part_number = p.description; p.description = t; });
+    }
+  });
+
+  return {
+    groups: groups.filter(g => g.products.length > 0),
+    accessories: accessories.filter(a => a.items.length > 0),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main entry: pick the best sheet, parse it, merge other qualifying sheets.
+// ---------------------------------------------------------------------------
+function parsePriceListFlexible(workbook, opts) {
+  opts = opts || {};
+  const names = workbook.SheetNames || [];
+  const candidates = [];
+
+  names.forEach(nm => {
+    const rows = plSheetToRows(workbook.Sheets[nm]);
+    let bestHeader = null;
+    for (let r = 0; r < Math.min(rows.length, 15); r++) {
+      const hd = plDetectHeaderAt(rows, r);
+      if (hd && (!bestHeader || hd.score > bestHeader.score)) bestHeader = Object.assign({ rowIdx: r }, hd);
+    }
+    if (!bestHeader) return;
+    let bonus = 0;
+    if (/euro|\beur\b/i.test(nm)) bonus += 8;
+    if (/us\s?\$|usd|dollar/i.test(nm)) bonus -= 8;
+    if (/prislist|price\s*list|aktuell/i.test(nm)) bonus += 5;
+    if (/condition|villkor/i.test(nm)) bonus -= 10;
+    candidates.push({ name: nm, rows, header: bestHeader, total: bestHeader.score + bonus });
+  });
+
+  if (!candidates.length) {
+    if (opts.legacyFallback) return opts.legacyFallback(workbook);
+    throw new Error('No recognisable price-list header found. Expected columns like Part number / Description / List price.');
+  }
+
+  candidates.sort((a, b) => b.total - a.total);
+  const primary = candidates[0];
+  const parsed = plParseSheetRows(primary.rows, primary.header);
+  const usedSheets = [primary.name];
+
+  // merge other qualifying sheets (skip currency duplicates & condition sheets)
+  const seenPn = new Set();
+  parsed.groups.forEach(g => g.products.forEach(p => seenPn.add(p.part_number.replace(/\s+/g, ''))));
+  parsed.accessories.forEach(a => a.items.forEach(i => seenPn.add(i.part_number.replace(/\s+/g, ''))));
+
+  candidates.slice(1).forEach(c => {
+    if (/us\s?\$|usd|dollar|condition|villkor/i.test(c.name)) return;
+    const extra = plParseSheetRows(c.rows, c.header);
+    let added = 0;
+    extra.groups.forEach(g => {
+      const fresh = g.products.filter(p => !seenPn.has(p.part_number.replace(/\s+/g, '')));
+      if (!fresh.length) return;
+      fresh.forEach(p => seenPn.add(p.part_number.replace(/\s+/g, '')));
+      const existing = parsed.groups.find(x => x.group === g.group);
+      if (existing) existing.products.push(...fresh);
+      else parsed.groups.push({ group: g.group, products: fresh });
+      added += fresh.length;
+    });
+    extra.accessories.forEach(a => {
+      const fresh = a.items.filter(i => !seenPn.has(i.part_number.replace(/\s+/g, '')));
+      if (!fresh.length) return;
+      fresh.forEach(i => seenPn.add(i.part_number.replace(/\s+/g, '')));
+      const existing = parsed.accessories.find(x => x.section === a.section);
+      if (existing) existing.items.push(...fresh);
+      else parsed.accessories.push({ section: a.section, items: fresh });
+      added += fresh.length;
+    });
+    if (added > 0) usedSheets.push(c.name);
+  });
+
+  if (!parsed.groups.length) {
+    if (opts.legacyFallback) return opts.legacyFallback(workbook);
+    throw new Error('No products found once the header was identified.');
+  }
+
+  return {
+    meta: {
+      currency: 'EUR',
+      source_file: 'uploaded (flexible import)',
+      import_mode: 'flexible',
+      detected_sheet: usedSheets.join(' + '),
+      detected_columns: {
+        part_number: primary.header.map.part_number,
+        description: primary.header.map.description,
+        list_price: primary.header.map.list_price,
+        tiers: primary.header.map.tiers.map(t => t.label),
+      },
+      tg_assumptions: { target_tg: 0.35, vat: 0.25, fx_sek_eur: 0.0949, note: 'Flexible import — TG/MK not read; margin display appears only where MK is entered manually.' },
+    },
+    groups: parsed.groups,
+    accessories: parsed.accessories,
+  };
+}
+
+// ============================================================================
+// PRICELIST TOOL — core logic (pricing engine + pdfmake docDefinition + xlsx)
+// Self-contained; reused verbatim inside the HTML. No DOM dependencies here so
+// it can be unit-tested in Node against the real PRICE_DATA.
+// ============================================================================
+
+// ---- Brand colours (mirror pdf_export.js) ----
+const PL_ORANGE = '#F7971C';
+const PL_ORANGE_DARK = '#c9760f';
+const PL_INK = '#2b2b2a';
+const PL_INK_DIM = '#646363';
+const PL_LINE = '#e4e2dc';
+const PL_GREY_BG = '#f7f6f2';
+
+// ---- Money formatting (mirror pdfFmtMoney) ----
+function plFmtMoney(eurAmount, currency, rate) {
+  const symbols = { EUR: '€', USD: '$', SEK: 'kr' };
+  const sym = symbols[currency] || '€';
+  const converted = (eurAmount || 0) * (rate || 1);
+  const formatted = converted.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return currency === 'SEK' ? `${formatted} ${sym}` : `${sym}${formatted}`;
+}
+
+// ---- Discount resolution: overall default + optional per-family override ----
+// config = { defaultDiscountPct: Number, familyDiscounts: { [group]: Number } }
+function resolveDiscountPct(group, config) {
+  const fam = config.familyDiscounts || {};
+  if (Object.prototype.hasOwnProperty.call(fam, group) && fam[group] !== '' && fam[group] != null) {
+    const v = parseFloat(fam[group]);
+    if (!isNaN(v)) return v;
+  }
+  const d = parseFloat(config.defaultDiscountPct);
+  return isNaN(d) ? 0 : d;
+}
+
+// ---- Build a normalised list of selected line items grouped by family ----
+// priceData: the PRICE_DATA object (groups[].products[])
+// selection: { [part_number]: true } of chosen products
+// config: discount config + { moqByPart: {}, statusByPart: {} }
+// Returns: [ { group, discountPct, lines: [ {partNumber, description, listEur, netEur, moq, status} ] } ]
+function buildPricelistGroups(priceData, selection, config) {
+  const out = [];
+  (priceData.groups || []).forEach(g => {
+    const chosen = (g.products || []).filter(p => selection[p.part_number]);
+    if (chosen.length === 0) return;
+    const discountPct = resolveDiscountPct(g.group, config);
+    const lines = chosen.map(p => {
+      const listEur = p.list_price_eur || 0;
+      const netEur = Math.round(listEur * (1 - discountPct / 100) * 100) / 100;
+      return {
+        partNumber: p.part_number,
+        description: p.description || '',
+        listEur,
+        netEur,
+        moq: (config.moqByPart && config.moqByPart[p.part_number] != null && config.moqByPart[p.part_number] !== '')
+          ? config.moqByPart[p.part_number] : '',
+        status: (config.statusByPart && config.statusByPart[p.part_number]) || '',
+      };
+    });
+    out.push({ group: g.group, discountPct, lines });
+  });
+  return out;
+}
+
+// ---- Status label map ----
+const PL_STATUS_LABELS = {
+  active: 'Active',
+  new: 'New',
+  eol: 'End-of-life',
+  ltb: 'Last-time-buy',
+};
+
+// ============================================================================
+// pdfmake document definition
+// meta = {
+//   customerName, customerContact, preparedBy, preparedByTitle,
+//   revision, validUntil, currency, currencyRate,
+//   priceBasis, vatNote, leadTime, confidentialityNote, termsText,
+//   showDiscount (bool), showMoq (bool), showStatus (bool),
+//   showRevision, showPriceBasis, showVat, showLeadTime, showConfidentiality,
+//   docId
+// }
+// groups = output of buildPricelistGroups
+// opts = { logoDataUri (for images), officeLine1 }
+// ============================================================================
+function buildPricelistDocDefinition(meta, groups, opts) {
+  const currency = meta.currency || 'EUR';
+  const rate = meta.currencyRate || 1;
+  const showDiscount = !!meta.showDiscount;
+  const showMoq = !!meta.showMoq;
+  const showStatus = !!meta.showStatus;
+
+  const content = [];
+
+  // ---- Title block ----
+  content.push({ text: 'CUSTOMER PRICE LIST', style: 'title', margin: [0, 0, 0, 2] });
+  const sub = [];
+  if (meta.customerName) sub.push(`Prepared for ${meta.customerName}`);
+  if (meta.customerContact) sub.push(`attn: ${meta.customerContact}`);
+  content.push({ text: sub.join('  ·  ') || ' ', style: 'subtitle', margin: [0, 0, 0, 10] });
+
+  // ---- Meta strip (price basis / vat / lead time / currency) ----
+  const metaRows = [];
+  if (meta.showRevision && meta.revision) metaRows.push(['Revision', meta.revision]);
+  if (meta.validUntil) metaRows.push(['Valid until', meta.validUntil]);
+  metaRows.push(['Currency', `${currency}${currency !== 'EUR' ? `  (1 EUR = ${rate} ${currency})` : ''}`]);
+  if (meta.showPriceBasis && meta.priceBasis) metaRows.push(['Price basis', meta.priceBasis]);
+  if (meta.showVat && meta.vatNote) metaRows.push(['Tax', meta.vatNote]);
+  if (meta.showLeadTime && meta.leadTime) metaRows.push(['Lead time', meta.leadTime]);
+
+  if (metaRows.length) {
+    content.push({
+      table: {
+        widths: ['auto', '*'],
+        body: metaRows.map(r => ([
+          { text: r[0].toUpperCase(), style: 'metaKey' },
+          { text: r[1], style: 'metaVal' },
+        ])),
+      },
+      layout: {
+        hLineWidth: () => 0, vLineWidth: () => 0,
+        paddingLeft: () => 0, paddingRight: () => 12,
+        paddingTop: () => 1.5, paddingBottom: () => 1.5,
+      },
+      margin: [0, 0, 0, 12],
+    });
+  }
+
+  // ---- Column layout for product tables ----
+  // PRODUCT | [LIST] | [DISC%] | NET | [MOQ] | [STATUS]
+  const cols = [];
+  const widths = [];
+  cols.push({ text: 'PRODUCT', style: 'th' }); widths.push('*');
+  if (showDiscount) { cols.push({ text: 'LIST PRICE', style: 'thRight' }); widths.push('auto'); }
+  if (showDiscount) { cols.push({ text: 'DISCOUNT', style: 'thRight' }); widths.push('auto'); }
+  cols.push({ text: 'NET PRICE', style: 'thRight' }); widths.push('auto');
+  if (showMoq) { cols.push({ text: 'MOQ', style: 'thRight' }); widths.push('auto'); }
+  if (showStatus) { cols.push({ text: 'STATUS', style: 'thRight' }); widths.push('auto'); }
+
+  groups.forEach(grp => {
+    // Family heading band
+    const headParts = [{ text: grp.group, style: 'famName' }];
+    if (showDiscount && grp.discountPct) {
+      headParts.push({ text: `  −${grp.discountPct}%`, style: 'famDisc' });
+    }
+    content.push({
+      table: { widths: ['*'], body: [[{ text: headParts, fillColor: PL_GREY_BG, margin: [8, 5, 8, 5], border: [false, false, false, false] }]] },
+      layout: { defaultBorder: false },
+      margin: [0, 8, 0, 0],
+    });
+
+    // Product rows
+    const body = [cols];
+    grp.lines.forEach(line => {
+      const row = [];
+      const nameStack = [{ text: line.description || line.partNumber, style: 'pname' }];
+      if (line.partNumber) nameStack.push({ text: line.partNumber, style: 'psku' });
+      row.push({ stack: nameStack });
+      if (showDiscount) row.push({ text: plFmtMoney(line.listEur, currency, rate), style: 'listCell' });
+      if (showDiscount) row.push({ text: grp.discountPct ? `−${grp.discountPct}%` : '—', style: 'discCell' });
+      row.push({ text: plFmtMoney(line.netEur, currency, rate), style: 'netCell' });
+      if (showMoq) row.push({ text: line.moq !== '' ? String(line.moq) : '—', style: 'moqCell' });
+      if (showStatus) row.push({ text: PL_STATUS_LABELS[line.status] || '—', style: 'statusCell' });
+      body.push(row);
+    });
+
+    content.push({
+      table: { headerRows: 1, widths, body },
+      layout: {
+        hLineWidth: (i) => (i === 1 ? 1 : (i === 0 ? 0 : 0.5)),
+        vLineWidth: () => 0,
+        hLineColor: (i) => (i === 1 ? PL_ORANGE : PL_LINE),
+        paddingLeft: () => 6, paddingRight: () => 6,
+        paddingTop: () => 5, paddingBottom: () => 5,
+      },
+      margin: [0, 0, 0, 4],
+    });
+  });
+
+  // ---- Terms & Conditions ----
+  if (meta.termsText && meta.termsText.trim()) {
+    content.push({ text: 'TERMS & CONDITIONS', style: 'sectionHead', margin: [0, 14, 0, 4] });
+    content.push({ text: meta.termsText.trim(), style: 'terms' });
+  }
+
+  // ---- Standard T&C reference ----
+  content.push({
+    table: { widths: ['auto', '*'], body: [[
+      { text: '§', color: PL_ORANGE_DARK, bold: true, fontSize: 14, border: [false, false, false, false], margin: [0, 2, 8, 0] },
+      { text: [
+        { text: 'Prices are subject to CrossControl\u2019s ' },
+        { text: 'Standard Terms & Conditions', bold: true },
+        { text: ' (CrossControl Standard Terms & Conditions 2023). This price list supersedes all previous versions.' },
+      ], style: 'tcText', border: [false, false, false, false] },
+    ]] },
+    layout: { defaultBorder: false, fillColor: () => PL_GREY_BG, paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 8, paddingBottom: () => 8 },
+    margin: [0, 14, 0, 0],
+  });
+
+  // ---- Header / footer ----
+  const headerFn = () => ({
+    margin: [42, 28, 42, 0],
+    stack: [
+      {
+        columns: [
+          { image: 'ccLogo', width: 150 },
+          { width: '*', stack: [
+            { text: 'CrossControl', alignment: 'right', fontSize: 10, color: PL_INK_DIM },
+            { text: `${opts.officeLine1 || 'Box 83, SE-822 22 Alfta'}, Sweden`, alignment: 'right', fontSize: 10, color: PL_INK_DIM },
+            { text: meta.showRevision && meta.revision ? meta.revision : 'PRICE LIST', alignment: 'right', fontSize: 10, bold: true, color: PL_ORANGE_DARK, margin: [0, 1, 0, 0] },
+          ] },
+        ],
+      },
+      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 511, y2: 0, lineWidth: 4, lineColor: PL_ORANGE }], margin: [0, 8, 0, 0] },
+    ],
+  });
+
+  const footerFn = (currentPage, pageCount) => {
+    const stack = [];
+    if (meta.showConfidentiality && meta.confidentialityNote) {
+      stack.push({ text: meta.confidentialityNote, alignment: 'center', color: PL_ORANGE_DARK, bold: true, fontSize: 8, margin: [0, 0, 0, 4] });
+    }
+    stack.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 511, y2: 0, lineWidth: 0.5, lineColor: PL_LINE }], margin: [0, 0, 0, 5] });
+    stack.push({ text: 'info@crosscontrol.com · www.crosscontrol.com', alignment: 'center', fontSize: 8.5, color: PL_INK_DIM });
+    const revLine = [];
+    if (meta.showRevision && meta.revision) revLine.push(meta.revision);
+    if (meta.validUntil) revLine.push(`valid until ${meta.validUntil}`);
+    stack.push({ text: `${revLine.join(' · ')}${revLine.length ? '  ·  ' : ''}Page ${currentPage} of ${pageCount}`, alignment: 'center', fontSize: 7.5, color: '#a8a39a', margin: [0, 4, 0, 0] });
+    return { margin: [42, 6, 42, 0], stack };
+  };
+
+  return {
+    pageSize: 'A4',
+    pageMargins: [42, 92, 42, meta.showConfidentiality && meta.confidentialityNote ? 78 : 66],
+    header: headerFn,
+    footer: footerFn,
+    content,
+    images: { ccLogo: opts.logoDataUri },
+    defaultStyle: { font: 'Roboto', fontSize: 11, color: PL_INK },
+    styles: {
+      title: { font: 'Poppins', fontSize: 22, bold: true, color: PL_INK, characterSpacing: 0.5 },
+      subtitle: { fontSize: 11, color: PL_INK_DIM },
+      metaKey: { font: 'Poppins', fontSize: 8, bold: true, color: PL_ORANGE_DARK, characterSpacing: 0.8 },
+      metaVal: { fontSize: 10, color: PL_INK },
+      famName: { font: 'Poppins', fontSize: 11, bold: true, color: PL_INK, characterSpacing: 0.4 },
+      famDisc: { font: 'Poppins', fontSize: 10, bold: true, color: PL_ORANGE_DARK },
+      th: { font: 'Poppins', fontSize: 8, bold: true, color: PL_INK_DIM, characterSpacing: 0.6 },
+      thRight: { font: 'Poppins', fontSize: 8, bold: true, color: PL_INK_DIM, characterSpacing: 0.6, alignment: 'right' },
+      pname: { fontSize: 11, color: PL_INK },
+      psku: { fontSize: 9, color: PL_INK_DIM, margin: [0, 1, 0, 0] },
+      listCell: { fontSize: 10.5, color: PL_INK_DIM, alignment: 'right', decoration: 'lineThrough' },
+      discCell: { fontSize: 10.5, color: PL_ORANGE_DARK, alignment: 'right' },
+      netCell: { fontSize: 11, bold: true, color: PL_INK, alignment: 'right' },
+      moqCell: { fontSize: 10.5, color: PL_INK, alignment: 'right' },
+      statusCell: { fontSize: 9.5, color: PL_INK_DIM, alignment: 'right' },
+      sectionHead: { font: 'Poppins', fontSize: 11, bold: true, color: PL_ORANGE_DARK, characterSpacing: 0.4 },
+      terms: { fontSize: 10, color: PL_INK_DIM, lineHeight: 1.35 },
+      tcText: { fontSize: 10, color: PL_INK_DIM, lineHeight: 1.3 },
+    },
+  };
+}
+
+// ---- State ----
+const PL = {
+  selection: {},          // { part_number: true }
+  familyDiscounts: {},    // { group: pct }
+  moqByPart: {},          // { part_number: value }
+  statusByPart: {},       // { part_number: 'active'|'new'|'eol'|'ltb' }
+  openFamilies: {},       // { group: bool }
+};
+const PL_STATUS_OPTS = [['','—'],['active','Active'],['new','New'],['eol','End-of-life'],['ltb','Last-time-buy']];
+
+function plEl(id){ return document.getElementById(id); }
+
+// ---- Tab switching ----
+function switchView(view){
+  document.querySelectorAll('.topbar-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  document.getElementById('viewQuote').classList.toggle('active', view === 'quote');
+  document.getElementById('viewPricelist').classList.toggle('active', view === 'pricelist');
+  if (view === 'pricelist') plRenderAll();
+}
+
+// ---- Currency handling (independent from the quote tool) ----
+function plCurrentRate(){
+  const cur = plEl('plCurrency').value;
+  if (cur === 'EUR') return 1;
+  const v = parseFloat(plEl('plFxRate').value);
+  return (isNaN(v) || v <= 0) ? 1 : v;
+}
+function plSyncFxField(){
+  const cur = plEl('plCurrency').value;
+  const fx = plEl('plFxRate');
+  if (cur === 'EUR'){ fx.value = 1; fx.disabled = true; }
+  else { fx.disabled = false; if (parseFloat(fx.value) === 1 || !fx.value){ fx.value = (CURRENCY_RATES[cur] && CURRENCY_RATES[cur].rate) || 1; } }
+}
+
+// ---- Family / product picker ----
+function plRenderFamilyList(){
+  const wrap = plEl('plFamList');
+  wrap.innerHTML = '';
+  (PRICE_DATA.groups || []).forEach(g => {
+    const fam = document.createElement('div');
+    fam.className = 'pl-fam' + (PL.openFamilies[g.group] ? ' open' : '');
+    const total = g.products.length;
+    const chosen = g.products.filter(p => PL.selection[p.part_number]).length;
+    const allChecked = chosen === total && total > 0;
+
+    const head = document.createElement('div');
+    head.className = 'pl-fam-head';
+    head.innerHTML =
+      '<input type="checkbox" ' + (allChecked ? 'checked' : '') + (chosen > 0 && !allChecked ? ' data-indet="1"' : '') + '>' +
+      '<span class="pl-fam-name">' + escapeHtml(g.group) + '</span>' +
+      '<span class="pl-fam-count">' + chosen + '/' + total + '</span>' +
+      '<input type="number" step="0.1" class="pl-fam-disc" placeholder="def%" ' +
+        'value="' + (PL.familyDiscounts[g.group] != null ? PL.familyDiscounts[g.group] : '') + '" title="Per-family discount % (blank = use default)">' +
+      '<span class="pl-fam-caret">▶</span>';
+
+    const famCb = head.querySelector('input[type=checkbox]');
+    if (chosen > 0 && !allChecked) famCb.indeterminate = true;
+    famCb.addEventListener('click', e => {
+      e.stopPropagation();
+      const on = famCb.checked;
+      g.products.forEach(p => { if (on) PL.selection[p.part_number] = true; else delete PL.selection[p.part_number]; });
+      plRenderAll();
+    });
+    const discInput = head.querySelector('.pl-fam-disc');
+    discInput.addEventListener('click', e => e.stopPropagation());
+    discInput.addEventListener('input', () => {
+      const v = discInput.value.trim();
+      if (v === '') delete PL.familyDiscounts[g.group]; else PL.familyDiscounts[g.group] = v;
+      plRenderDoc();
+    });
+    // caret / name toggles open
+    head.addEventListener('click', () => { PL.openFamilies[g.group] = !PL.openFamilies[g.group]; plRenderFamilyList(); });
+
+    const list = document.createElement('div');
+    list.className = 'pl-prod-list';
+    g.products.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'pl-prod';
+      const statusSel = PL_STATUS_OPTS.map(o => '<option value="' + o[0] + '"' + (PL.statusByPart[p.part_number] === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+      row.innerHTML =
+        '<input type="checkbox" ' + (PL.selection[p.part_number] ? 'checked' : '') + '>' +
+        '<span class="pl-prod-name">' + escapeHtml(p.description || p.part_number) +
+          '<span class="pl-prod-sku"> · ' + escapeHtml(p.part_number) + '</span></span>' +
+        '<span class="pl-prod-extra">' +
+          '<input type="text" class="pl-prod-moq" placeholder="MOQ" value="' + escapeAttr(PL.moqByPart[p.part_number] != null ? PL.moqByPart[p.part_number] : '') + '">' +
+          '<select class="pl-prod-status">' + statusSel + '</select>' +
+        '</span>';
+      const cb = row.querySelector('input[type=checkbox]');
+      cb.addEventListener('change', () => { if (cb.checked) PL.selection[p.part_number] = true; else delete PL.selection[p.part_number]; plRenderAll(); });
+      const moq = row.querySelector('.pl-prod-moq');
+      moq.addEventListener('click', e => e.stopPropagation());
+      moq.addEventListener('input', () => { const v = moq.value.trim(); if (v === '') delete PL.moqByPart[p.part_number]; else PL.moqByPart[p.part_number] = v; plRenderDoc(); });
+      const st = row.querySelector('.pl-prod-status');
+      st.addEventListener('click', e => e.stopPropagation());
+      st.addEventListener('change', () => { if (!st.value) delete PL.statusByPart[p.part_number]; else PL.statusByPart[p.part_number] = st.value; plRenderDoc(); });
+      list.appendChild(row);
+    });
+
+    fam.appendChild(head);
+    fam.appendChild(list);
+    wrap.appendChild(fam);
+  });
+  const count = Object.keys(PL.selection).length;
+  plEl('plSelCount').textContent = count + ' selected';
+}
+
+// ---- Gather meta from the form ----
+function plGatherMeta(){
+  const cur = plEl('plCurrency').value;
+  return {
+    customerName: plEl('plCustName').value.trim(),
+    customerContact: plEl('plCustContact').value.trim(),
+    preparedBy: plEl('plPreparedBy').value.trim(),
+    preparedByTitle: plEl('plPreparedTitle').value.trim(),
+    revision: plEl('plRevision').value.trim(),
+    validUntil: plEl('plValidUntil').value.trim(),
+    currency: cur,
+    currencyRate: plCurrentRate(),
+    priceBasis: plEl('plPriceBasis').value.trim(),
+    vatNote: plEl('plVatNote').value.trim(),
+    leadTime: plEl('plLeadTime').value.trim(),
+    confidentialityNote: plEl('plConfidentiality').value.trim(),
+    termsText: plEl('plTermsText').value,
+    showDiscount: plEl('plShowDiscount').checked,
+    showMoq: plEl('plShowMoq').checked,
+    showStatus: plEl('plShowStatus').checked,
+    showRevision: plEl('plShowRevision').checked,
+    showPriceBasis: plEl('plShowPriceBasis').checked,
+    showVat: plEl('plShowVat').checked,
+    showLeadTime: plEl('plShowLeadTime').checked,
+    showConfidentiality: plEl('plShowConfidentiality').checked,
+  };
+}
+function plGatherConfig(){
+  return {
+    defaultDiscountPct: plEl('plDefaultDiscount').value || 0,
+    familyDiscounts: PL.familyDiscounts,
+    moqByPart: PL.moqByPart,
+    statusByPart: PL.statusByPart,
+  };
+}
+
+// ---- HTML preview render (mirrors the PDF layout) ----
+function plRenderDoc(){
+  const root = plEl('plDocRoot');
+  const meta = plGatherMeta();
+  const groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
+  const cur = meta.currency, rate = meta.currencyRate;
+
+  if (groups.length === 0){
+    root.innerHTML = '<div class="pl-doc-empty">Select one or more products in the left panel to build the price list.</div>';
+    return;
+  }
+
+  const showD = meta.showDiscount, showM = meta.showMoq, showS = meta.showStatus;
+  let h = '';
+  h += '<h1 class="pl-doc-title">Customer Price List</h1>';
+  const sub = [];
+  if (meta.customerName) sub.push('Prepared for ' + escapeHtml(meta.customerName));
+  if (meta.customerContact) sub.push('attn: ' + escapeHtml(meta.customerContact));
+  h += '<div class="pl-doc-sub">' + (sub.join('&nbsp; · &nbsp;') || '&nbsp;') + '</div>';
+
+  const metaRows = [];
+  if (meta.showRevision && meta.revision) metaRows.push(['Revision', meta.revision]);
+  if (meta.validUntil) metaRows.push(['Valid until', meta.validUntil]);
+  metaRows.push(['Currency', cur + (cur !== 'EUR' ? '  (1 EUR = ' + rate + ' ' + cur + ')' : '')]);
+  if (meta.showPriceBasis && meta.priceBasis) metaRows.push(['Price basis', meta.priceBasis]);
+  if (meta.showVat && meta.vatNote) metaRows.push(['Tax', meta.vatNote]);
+  if (meta.showLeadTime && meta.leadTime) metaRows.push(['Lead time', meta.leadTime]);
+  if (metaRows.length){
+    h += '<div class="pl-doc-meta">' + metaRows.map(r => '<div class="k">' + escapeHtml(r[0]) + '</div><div class="v">' + escapeHtml(r[1]) + '</div>').join('') + '</div>';
+  }
+
+  groups.forEach(g => {
+    h += '<div class="pl-doc-fam"><span>' + escapeHtml(g.group) + '</span>' + (showD && g.discountPct ? '<span class="disc">−' + g.discountPct + '%</span>' : '') + '</div>';
+    h += '<table class="pl-doc-table"><thead><tr>';
+    h += '<th class="l">Product</th>';
+    if (showD) h += '<th>List price</th><th>Discount</th>';
+    h += '<th>Net price</th>';
+    if (showM) h += '<th>MOQ</th>';
+    if (showS) h += '<th>Status</th>';
+    h += '</tr></thead><tbody>';
+    g.lines.forEach(line => {
+      h += '<tr>';
+      h += '<td class="l"><div class="pl-doc-pname">' + escapeHtml(line.description || line.partNumber) + '</div>' +
+           (line.partNumber ? '<div class="pl-doc-psku">' + escapeHtml(line.partNumber) + '</div>' : '') + '</td>';
+      if (showD) h += '<td class="pl-doc-list">' + plFmtMoney(line.listEur, cur, rate) + '</td>' +
+                      '<td class="pl-doc-disc">' + (g.discountPct ? '−' + g.discountPct + '%' : '—') + '</td>';
+      h += '<td class="pl-doc-net">' + plFmtMoney(line.netEur, cur, rate) + '</td>';
+      if (showM) h += '<td>' + (line.moq !== '' ? escapeHtml(line.moq) : '—') + '</td>';
+      if (showS) h += '<td>' + (PL_STATUS_LABELS[line.status] || '—') + '</td>';
+      h += '</tr>';
+    });
+    h += '</tbody></table>';
+  });
+
+  if (meta.termsText && meta.termsText.trim()){
+    h += '<div class="pl-doc-section">Terms &amp; Conditions</div><div class="pl-doc-terms">' + escapeHtml(meta.termsText.trim()) + '</div>';
+  }
+  h += '<div class="pl-doc-tc"><span class="sec">§</span><span>Prices are subject to CrossControl’s <b>Standard Terms &amp; Conditions</b> ' +
+       '(CrossControl Standard Terms &amp; Conditions 2023). This price list supersedes all previous versions.</span></div>';
+
+  root.innerHTML = h;
+}
+
+function plRenderAll(){
+  plSyncFxField();
+  plRenderFamilyList();
+  plRenderDoc();
+}
+
+// ---- PDF download (reuses pdfmake + Poppins registration) ----
+function plDownloadPdf(){
+  const btn = plEl('plDownloadPdfBtn');
+  const label = btn.textContent;
+  const setBusy = (b) => { btn.disabled = b; btn.textContent = b ? 'Generating…' : label; };
+  const fail = (err) => { console.error('Pricelist PDF failed:', err); setBusy(false); alert('Could not generate the PDF: ' + (err && err.message ? err.message : err)); };
+  try {
+    if (typeof pdfMake === 'undefined'){ alert('PDF library is still loading — please try again in a moment.'); return; }
+    const groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
+    if (groups.length === 0){ alert('Select at least one product before generating a PDF.'); return; }
+    if (!registerPdfFonts()){ alert('PDF fonts could not be registered — please reload the page and try again.'); return; }
+    const meta = plGatherMeta();
+    const dd = buildPricelistDocDefinition(meta, groups, { logoDataUri: window._ccLogoDataUri, officeLine1: 'Box 83, SE-822 22 Alfta' });
+    setBusy(true);
+    const fname = 'pricelist-' + (meta.customerName ? meta.customerName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() : 'crosscontrol') + '.pdf';
+    const result = pdfMake.createPdf(dd).download(fname);
+    if (result && typeof result.then === 'function') result.then(() => setBusy(false)).catch(fail);
+    else setBusy(false);
+  } catch (err) { fail(err); }
+}
+
+// ---- Excel download (SheetJS) ----
+function plDownloadXlsx(){
+  try {
+    const meta = plGatherMeta();
+    const groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
+    if (groups.length === 0){ alert('Select at least one product before generating an Excel file.'); return; }
+    const cur = meta.currency, rate = meta.currencyRate;
+    const aoa = [];
+    aoa.push(['CrossControl — Customer Price List']);
+    if (meta.customerName) aoa.push(['Prepared for', meta.customerName + (meta.customerContact ? '  (attn: ' + meta.customerContact + ')' : '')]);
+    if (meta.showRevision && meta.revision) aoa.push(['Revision', meta.revision]);
+    if (meta.validUntil) aoa.push(['Valid until', meta.validUntil]);
+    aoa.push(['Currency', cur + (cur !== 'EUR' ? ' (1 EUR = ' + rate + ' ' + cur + ')' : '')]);
+    if (meta.showPriceBasis && meta.priceBasis) aoa.push(['Price basis', meta.priceBasis]);
+    if (meta.showVat && meta.vatNote) aoa.push(['Tax', meta.vatNote]);
+    if (meta.showLeadTime && meta.leadTime) aoa.push(['Lead time', meta.leadTime]);
+    aoa.push([]);
+
+    const header = ['Family', 'Product', 'Part number'];
+    if (meta.showDiscount) header.push('List price (' + cur + ')', 'Discount %');
+    header.push('Net price (' + cur + ')');
+    if (meta.showMoq) header.push('MOQ');
+    if (meta.showStatus) header.push('Status');
+    aoa.push(header);
+
+    groups.forEach(g => {
+      g.lines.forEach(line => {
+        const row = [g.group, line.description || '', line.partNumber];
+        const listC = Math.round(line.listEur * rate * 100) / 100;
+        const netC = Math.round(line.netEur * rate * 100) / 100;
+        if (meta.showDiscount) row.push(listC, g.discountPct || 0);
+        row.push(netC);
+        if (meta.showMoq) row.push(line.moq !== '' ? line.moq : '');
+        if (meta.showStatus) row.push(PL_STATUS_LABELS[line.status] || '');
+        aoa.push(row);
+      });
+    });
+    aoa.push([]);
+    aoa.push(['Prices are subject to CrossControl Standard Terms & Conditions 2023. This price list supersedes all previous versions.']);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = header.map((h, i) => ({ wch: i === 1 ? 34 : (i === 0 ? 16 : 14) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Price list');
+    const fname = 'pricelist-' + (meta.customerName ? meta.customerName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() : 'crosscontrol') + '.xlsx';
+    XLSX.writeFile(wb, fname);
+  } catch (err) { console.error('Pricelist Excel failed:', err); alert('Could not generate the Excel file: ' + (err && err.message ? err.message : err)); }
+}
+
+// ---- Save to archive (reuses the localStorage archive store) ----
+const PL_ARCHIVE_KEY = 'cc_pricelist_archive_v1';
+function plSaveToArchive(){
+  try {
+    const meta = plGatherMeta();
+    const groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
+    if (groups.length === 0){ alert('Select at least one product before saving.'); return; }
+    let store = {};
+    try { const raw = localStorage.getItem(PL_ARCHIVE_KEY); store = raw ? JSON.parse(raw) : {}; } catch (e) { store = {}; }
+    const year = new Date().getFullYear();
+    let n = 1; Object.keys(store).forEach(k => { const m = k.match(/^PL-(\d+)-(\d+)$/); if (m && +m[1] === year) n = Math.max(n, +m[2] + 1); });
+    const id = 'PL-' + year + '-' + String(n).padStart(4, '0');
+    store[id] = {
+      id, saved_at: new Date().toISOString(),
+      meta, selection: PL.selection, familyDiscounts: PL.familyDiscounts,
+      moqByPart: PL.moqByPart, statusByPart: PL.statusByPart,
+      defaultDiscountPct: plEl('plDefaultDiscount').value,
+    };
+    localStorage.setItem(PL_ARCHIVE_KEY, JSON.stringify(store));
+    alert('Saved as ' + id + '.');
+  } catch (err) { console.error('Pricelist save failed:', err); alert('Could not save: ' + (err && err.message ? err.message : err)); }
+}
+
+// ---- Wiring ----
+document.querySelectorAll('.topbar-tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+plEl('plCurrency').addEventListener('change', () => { plSyncFxField(); plRenderDoc(); });
+plEl('plFxRate').addEventListener('input', plRenderDoc);
+plEl('plDefaultDiscount').addEventListener('input', plRenderDoc);
+[
+  'plCustName','plCustContact','plPreparedBy','plPreparedTitle','plRevision','plValidUntil',
+  'plPriceBasis','plVatNote','plLeadTime','plConfidentiality','plTermsText',
+].forEach(id => plEl(id).addEventListener('input', plRenderDoc));
+[
+  'plShowDiscount','plShowMoq','plShowStatus','plShowRevision','plShowPriceBasis',
+  'plShowVat','plShowLeadTime','plShowConfidentiality',
+].forEach(id => plEl(id).addEventListener('change', plRenderDoc));
+plEl('plSelectAll').addEventListener('click', () => { (PRICE_DATA.groups||[]).forEach(g => g.products.forEach(p => PL.selection[p.part_number] = true)); plRenderAll(); });
+plEl('plClearAll').addEventListener('click', () => { PL.selection = {}; plRenderAll(); });
+plEl('plDownloadPdfBtn').addEventListener('click', plDownloadPdf);
+plEl('plDownloadXlsxBtn').addEventListener('click', plDownloadXlsx);
+plEl('plSaveBtn').addEventListener('click', plSaveToArchive);
+
+// prefill sensible defaults
+plEl('plRevision').value = 'Rev. ' + new Date().getFullYear() + '-A';
+plEl('plPriceBasis').value = 'Ex-works Alfta (Incoterms 2020)';
+plEl('plVatNote').value = 'Prices exclude VAT';
+plEl('plConfidentiality').value = 'Confidential — prepared for the named customer, not for redistribution.';
+
+
+
 // Remember which quote was open, so reloading the page resumes it instead of
 // silently minting a brand new number every time.
 window.addEventListener('beforeunload', () => {
@@ -5671,9 +6825,11 @@ window.addEventListener('beforeunload', () => {
   var PANEL_WIDTH_KEY = 'cc_panel_width_v1';
   var DEFAULT_W = 420;
   var MIN_W = 340;   // below this the two-column fields inside the panel start to break
-  var resizer = document.getElementById('panelResizer');
+  // One handle per view (quote + price list). The width lives on :root so both
+  // tabs stay the same width — switching tabs must not change the layout.
+  var handles = Array.prototype.slice.call(document.querySelectorAll('.resizer'));
   var workspace = document.querySelector('.workspace');
-  if (!resizer || !workspace) return;
+  if (!handles.length || !workspace) return;
 
   // Never let the panel eat the preview: cap at 55% of the window, and never
   // report a max below the min (tiny windows would otherwise invert the clamp).
@@ -5682,65 +6838,73 @@ window.addEventListener('beforeunload', () => {
 
   function apply(w, persist) {
     var v = clamp(w);
-    workspace.style.setProperty('--panel-w', v + 'px');
-    resizer.setAttribute('aria-valuenow', String(v));
+    document.documentElement.style.setProperty('--panel-w', v + 'px');
+    handles.forEach(function (h) { h.setAttribute('aria-valuenow', String(v)); });
     if (persist) { try { localStorage.setItem(PANEL_WIDTH_KEY, String(v)); } catch (e) {} }
     return v;
+  }
+  function currentW() {
+    return parseInt(document.documentElement.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W;
   }
 
   var saved = parseInt((function () { try { return localStorage.getItem(PANEL_WIDTH_KEY); } catch (e) { return null; } })(), 10);
   apply(isFinite(saved) && saved > 0 ? saved : DEFAULT_W, false);
-  resizer.setAttribute('aria-valuemin', String(MIN_W));
+  handles.forEach(function (h) { h.setAttribute('aria-valuemin', String(MIN_W)); });
 
   var dragging = false;
+  var activeHandle = null;
   // Move/up are bound on window, NOT on the handle. During a drag the pointer is
   // almost always off the 6px strip, and pointer capture is not reliable enough
   // to lean on — without this the drag never ends and the panel stays glued to
   // the cursor. (Found exactly that way in testing.)
   function onMove(e) {
     if (!dragging) return;
-    // Panel starts at the left edge of the workspace, so its width is simply
-    // the pointer's offset from that edge.
-    apply(e.clientX - workspace.getBoundingClientRect().left, false);
+    // The panel starts at the left edge of its own view, so its width is simply
+    // the pointer's offset from that edge. Measure the view the handle is in,
+    // not a global one — the hidden view reports a zero-width rect.
+    var view = (activeHandle && activeHandle.closest('.workspace')) || workspace;
+    apply(e.clientX - view.getBoundingClientRect().left, false);
   }
   function endDrag() {
     if (!dragging) return;
     dragging = false;
-    resizer.classList.remove('dragging');
+    if (activeHandle) activeHandle.classList.remove('dragging');
+    activeHandle = null;
     document.body.classList.remove('resizing');
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', endDrag);
     window.removeEventListener('pointercancel', endDrag);
     // Persist once, on release — not on every mousemove.
-    apply(parseInt(workspace.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W, true);
+    apply(currentW(), true);
   }
-  resizer.addEventListener('pointerdown', function (e) {
-    dragging = true;
-    resizer.classList.add('dragging');
-    document.body.classList.add('resizing');
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', endDrag);
-    window.addEventListener('pointercancel', endDrag);
-    e.preventDefault();
-  });
+  handles.forEach(function (h) {
+    h.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      activeHandle = h;
+      h.classList.add('dragging');
+      document.body.classList.add('resizing');
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+      e.preventDefault();
+    });
 
-  // Double-click the handle to go back to the default width.
-  resizer.addEventListener('dblclick', function () { apply(DEFAULT_W, true); });
+    // Double-click the handle to go back to the default width.
+    h.addEventListener('dblclick', function () { apply(DEFAULT_W, true); });
 
-  // Keyboard: arrows nudge, Home resets. Costs three lines and makes the
-  // handle usable without a mouse.
-  resizer.addEventListener('keydown', function (e) {
-    var cur = parseInt(workspace.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W;
-    var step = e.shiftKey ? 50 : 10;
-    if (e.key === 'ArrowLeft') { apply(cur - step, true); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { apply(cur + step, true); e.preventDefault(); }
-    else if (e.key === 'Home') { apply(DEFAULT_W, true); e.preventDefault(); }
+    // Keyboard: arrows nudge, Home resets. Costs three lines and makes the
+    // handle usable without a mouse.
+    h.addEventListener('keydown', function (e) {
+      var cur = currentW();
+      var step = e.shiftKey ? 50 : 10;
+      if (e.key === 'ArrowLeft') { apply(cur - step, true); e.preventDefault(); }
+      else if (e.key === 'ArrowRight') { apply(cur + step, true); e.preventDefault(); }
+      else if (e.key === 'Home') { apply(DEFAULT_W, true); e.preventDefault(); }
+    });
   });
 
   // Re-clamp if the window shrinks, so a wide panel can't swallow the preview.
-  window.addEventListener('resize', function () {
-    apply(parseInt(workspace.style.getPropertyValue('--panel-w'), 10) || DEFAULT_W, false);
-  });
+  window.addEventListener('resize', function () { apply(currentW(), false); });
 })();
 
 </script>
