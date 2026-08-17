@@ -93,11 +93,20 @@ def build_html(offer, logo_path):
     office = OFFICES.get(office_key, OFFICES['alfta'])
     header_address_html = f"{office['name']}<br>{office['line1']}, Sweden<br>"
 
-    cust_line = f"To <b>{cust_name}</b>"
+    # Bill-to block — mirrors the web app's .billto markup so the two PDFs match.
+    _sub_parts = []
     if cust_contact:
-        cust_line += f", attn: {cust_contact}"
+        _sub_parts.append(f"attn: {cust_contact}")
     if cust_country:
-        cust_line += f" ({cust_country})"
+        _sub_parts.append(cust_country)
+    _sub = " &nbsp;·&nbsp; ".join(_sub_parts)
+    cust_line = (
+        '<div class="billto">'
+        '<div class="lbl">To</div>'
+        f'<div class="name">{cust_name}</div>'
+        + (f'<div class="sub">{_sub}</div>' if _sub else '')
+        + '</div>'
+    )
 
     currency = offer.get('currency', 'EUR')
     currency_rate = offer.get('currency_rate')  # explicit rate from the app, if provided
@@ -319,6 +328,15 @@ def build_html(offer, logo_path):
     font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; letter-spacing:0.01em;
   }}
   .doc-title-bar .meta {{ font-size:11.5px; color:{INK_DIM}; }}
+  .doc-title-bar .billto {{ margin: 0 0 9px; }}
+  .doc-title-bar .billto .lbl {{
+    font-family:'Poppins',Arial,sans-serif; font-size:8.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.14em; color:{CC_ORANGE_DARK}; margin-bottom:3px;
+  }}
+  .doc-title-bar .billto .name {{
+    font-family:'Poppins',Arial,sans-serif; font-weight:700; font-size:15px; color:{INK}; line-height:1.25;
+  }}
+  .doc-title-bar .billto .sub {{ font-size:11px; color:{INK_DIM}; margin-top:2px; }}
   .doc-body {{ padding: 0; }}
   .section-eyebrow {{
     font-family:'Poppins',Arial,sans-serif;
@@ -429,7 +447,8 @@ def build_html(offer, logo_path):
 
   <div class="doc-title-bar">
     <h1>Price Quote</h1>
-    <div class="meta">{cust_line} &nbsp;·&nbsp; Issued {offer['issued_date']}</div>
+    {cust_line}
+    <div class="meta">Issued {offer['issued_date']}</div>
   </div>
 
   <div class="doc-body">

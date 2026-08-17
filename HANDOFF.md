@@ -23,6 +23,18 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Custom/unique line items (free text description, optional part ref, manual price) — for things not in the catalog, e.g. bespoke engineering work
 - Toggleable signature block ("Acceptance") with editable signer name/title
 - Live A4 page-break indicator in the on-screen preview
+- **Price list tab** (restored 2026-08-17, see §10) — a second tool alongside the
+  quote builder, producing a customer-facing fixed price list: pick products,
+  families or everything; default discount with per-family overrides; a
+  "show list price & discount" toggle (off = the customer sees net price only);
+  optional MOQ and status columns (Active / New / End-of-life / Last-time-buy);
+  revision, valid-until, prepared-by, price basis, VAT, lead time and
+  confidentiality lines; its own archive. **Exports to both PDF and Excel.**
+- **Bill-to block** (2026-08-17) — the customer used to be a muted grey sub-line
+  reading "To **Name**, attn: … · Issued …". It is now a proper addressee block:
+  a small orange "TO" label, the customer name at 16px Poppins bold, contact and
+  country beneath, and the issue date on its own line. Changed in all three
+  surfaces (screen, pdfmake, `generate_pdf.py`) so the outputs still match.
 - **Resizable control panel** (added 2026-08-14) — the left panel was a hard-coded
   420px and felt cramped. It is now a drag handle between panel and preview:
   drag, double-click to reset, arrow keys to nudge (Shift = bigger steps). Width
@@ -315,10 +327,41 @@ if you touch either PDF path, keep that split consistent with the web app.
 
 ---
 
-## 10. 🟠 UNRESOLVED — the "Price list" tab exists only outside git
+## 10. ✅ RESOLVED — the "Price list" tab is back, and now in git
 
-**Found 2026-08-14 while about to delete "stale duplicates". Nothing was deleted.
-Do not delete anything under `OneDrive\WEB offert\` until this is settled.**
+**Found 2026-08-14 while about to delete "stale duplicates" — the feature existed
+only in files that were minutes from being deleted. Ported back into the shipped
+build on 2026-08-17 at Mattias's request, and it is now committed, so the
+OneDrive copies are no longer load-bearing.**
+
+### Restored 2026-08-17
+
+Ported from the 2026-07-07 build into the current one, ~1,115 lines: the tab bar,
+the price list panel and preview, the pricelist CSS, the pdfmake + xlsx export,
+and the flexible Excel parser. Nothing was removed — Zak's three features (§9),
+the §4 PDF fix and the resizer all survive, verified after the port.
+
+Merge notes worth keeping:
+- The two views are sibling `.workspace.view` blocks toggled by `switchView()`.
+  `.view.active` is **`display:grid`**, not the old build's `display:flex` — the
+  resizer lives in a grid column, so flex would break the layout.
+- **Each view has its own drag handle**, and `--panel-w` is set on `:root` rather
+  than on one workspace, so both tabs stay the same width. Switching tabs must
+  never change the layout.
+- `onMove` measures the workspace **the active handle is in** — the hidden view
+  reports a zero-width rect, which would make the panel jump.
+- The importer now calls `parsePriceListFlexible(workbook, { legacyFallback:
+  parsePriceListWorkbook })`, so the old "Aktuell prislista" layout still imports.
+  `.csv` is accepted and read with `raw:true` for European decimals.
+- Zero identifier collisions between the two builds (checked before porting) —
+  every price list symbol is `pl`/`PL`-prefixed.
+
+Verified: both tabs render, 86 products across 16 families, price list PDF
+(7 pages) and Excel (94 rows, discount correctly applied: 526.76 − 12% = 463.55),
+quote PDF still 2 pages with no alerts, drag handle works on both views, no
+console errors.
+
+### The original finding, kept for the record
 
 An **earlier build dated 2026-07-07** contains a whole second tab that the shipped
 July 17 build does not have, and that **no commit in this repo has ever contained**:
