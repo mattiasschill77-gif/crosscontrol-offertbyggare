@@ -23,6 +23,20 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Custom/unique line items (free text description, optional part ref, manual price) — for things not in the catalog, e.g. bespoke engineering work
 - Toggleable signature block ("Acceptance") with editable signer name/title
 - Live A4 page-break indicator in the on-screen preview
+- **Accessories in the price list** (2026-08-18) — the two accessory sections
+  ("Accessories", "Cables" — 43 items) now appear in the price list picker below
+  a divider and can be included or excluded per section or per item, so a
+  customer who orders accessories gets them on the same document.
+  ⚠️ **Accessories are stored in a different shape from products**: they live in
+  `PRICE_DATA.accessories[].items` as `{part_number, description, price_eur}`
+  with **no `tiers` and no `list_price_eur`**. `plSections(priceData)` is the one
+  adapter that normalises both into the product shape — picker, pricing engine,
+  preview, PDF and Excel all go through it, so none of them needs to know
+  accessories exist. Add accessory handling there, not in five places.
+  Because accessories have no volume tiers they always price from `price_eur`,
+  whatever basis column is chosen; the panel note counts them separately so a
+  volume column does not look broken. "Select all" now covers accessories too
+  (86 products → 129 items).
 - **Price list basis column** (2026-08-17) — "Calculate from" in the Discount
   card chooses which price column the list is built on: List price (default) or
   any volume tier found in the loaded catalogue. Options are derived from
@@ -477,3 +491,32 @@ after you add a line or enable custom volume tiers are invisible to a scan of
 the freshly-loaded page, so a naive audit reports "all labelled" and is wrong.
 Add a custom line and switch on volume tiers first: the control count goes from
 30 to 62.
+
+---
+
+## 12. ⚠️ Known data defect in the 2024 price list: duplicate part number
+
+`C000082-26` appears **twice in the Cables section** of
+*CrossControl Standard product price list 2024*, as two different products at
+two different prices:
+
+| Source row | Description | Price |
+|---|---|---|
+| "Price list - Euro" row 159 | Straight M12 to RJ45 male, 2m | €61.00 |
+| "Price list - Euro" row 180 | Ethernet cable adapter V700. DIN M12 to RJ45 male. | €45.00 |
+
+**This is in the source workbook, not a parser bug** — verified by reading the
+xlsx directly. It surfaced on 2026-08-18 when accessories became selectable,
+because the row can now reach a customer-facing document.
+
+Consequences:
+- A price list including Cables shows the same part number twice at two prices.
+- Selection is keyed by part number, so the two **cannot be selected apart**.
+
+**The app deliberately does not dedupe.** Silently dropping one would mean
+picking a price at random and hiding a real commercial problem. Instead
+`plRenderBasisNote()` raises a panel warning naming the part and both prices
+whenever a duplicate is among the selected items — which also catches any future
+duplicate introduced by an imported price list.
+
+**The fix belongs in the workbook**, not in the code.

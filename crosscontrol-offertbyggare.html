@@ -934,6 +934,12 @@ var vfs = {
   }
   .pl-basis-note .info{ display:block; color:var(--panel-text-dim); }
 
+  .pl-acc-divider{
+    font-family:'Poppins',Arial,sans-serif; font-size:9.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.12em; color:var(--panel-text-dim);
+    margin:14px 0 6px; padding-top:10px; border-top:1px solid var(--panel-line);
+  }
+
   /* ---- 9. Toast ----------------------------------------------------------
      Routine confirmations only. Genuine warnings - a cleared cart, a failed
      import, a failed PDF - stay as alert() on purpose. */
@@ -6448,6 +6454,29 @@ function resolveDiscountPct(group, config) {
   return isNaN(d) ? 0 : d;
 }
 
+// ---- Sections = product families + accessory sections, in one shape ----
+// Accessories carry `price_eur` and no tiers; products carry `list_price_eur`
+// and a `tiers` map. Everything downstream expects the product shape, so the
+// mapping happens here and nowhere else.
+function plSections(priceData) {
+  const groups = (priceData.groups || []).map(g => ({
+    group: g.group,
+    isAccessory: false,
+    products: g.products || [],
+  }));
+  const accessories = (priceData.accessories || []).map(a => ({
+    group: a.section,
+    isAccessory: true,
+    products: (a.items || []).map(it => ({
+      part_number: it.part_number,
+      description: it.description,
+      list_price_eur: (typeof it.price_eur === 'number') ? it.price_eur : (it.list_price_eur || 0),
+      tiers: it.tiers || {},
+    })),
+  }));
+  return groups.concat(accessories);
+}
+
 // ---- Build a normalised list of selected line items grouped by family ----
 // priceData: the PRICE_DATA object (groups[].products[])
 // selection: { [part_number]: true } of chosen products
@@ -6455,7 +6484,7 @@ function resolveDiscountPct(group, config) {
 // Returns: [ { group, discountPct, lines: [ {partNumber, description, listEur, netEur, moq, status} ] } ]
 function buildPricelistGroups(priceData, selection, config) {
   const out = [];
-  (priceData.groups || []).forEach(g => {
+  plSections(priceData).forEach(g => {
     const chosen = (g.products || []).filter(p => selection[p.part_number]);
     if (chosen.length === 0) return;
     const discountPct = resolveDiscountPct(g.group, config);
@@ -6482,7 +6511,7 @@ function buildPricelistGroups(priceData, selection, config) {
         status: (config.statusByPart && config.statusByPart[p.part_number]) || '',
       };
     });
-    out.push({ group: g.group, discountPct, lines });
+    out.push({ group: g.group, discountPct, lines, isAccessory: !!g.isAccessory });
   });
   return out;
 }
@@ -6724,7 +6753,15 @@ function plSyncFxField(){
 function plRenderFamilyList(){
   const wrap = plEl('plFamList');
   wrap.innerHTML = '';
-  (PRICE_DATA.groups || []).forEach(g => {
+  plSections(PRICE_DATA).forEach((g, gi, arr) => {
+    // A divider before the first accessory section, so it is obvious these
+    // are a different class of thing from the product families above.
+    if (g.isAccessory && (gi === 0 || !arr[gi - 1].isAccessory)) {
+      const div = document.createElement('div');
+      div.className = 'pl-acc-divider';
+      div.textContent = 'Accessories & cables';
+      wrap.appendChild(div);
+    }
     const fam = document.createElement('div');
     fam.className = 'pl-fam' + (PL.openFamilies[g.group] ? ' open' : '');
     const total = g.products.length;
@@ -6951,6 +6988,30 @@ function plRenderBasisNote(){
     : `Default discount % off the ${basis} column`;
 
   let html = '';
+
+  // Duplicate part numbers. The 2024 source workbook ships C000082-26 twice in
+  // Cables with different descriptions AND different prices (61.00 / 45.00), so
+  // a customer price list can show one part number at two prices. Deduping here
+  // would mean silently picking one of them, so instead: show both, and say so.
+  // Selection is keyed by part number, so the two cannot be picked apart.
+  const dupes = {};
+  buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig())
+    .forEach(g => g.lines.forEach(l => {
+      (dupes[l.partNumber] = dupes[l.partNumber] || []).push(l);
+    }));
+  const clashing = Object.entries(dupes).filter(([, ls]) => ls.length > 1);
+  if (clashing.length) {
+    const detail = clashing.slice(0, 3).map(([pn, ls]) => {
+      const prices = [...new Set(ls.map(l => l.netEur))];
+      return `<b>${escapeHtml(pn)}</b> ×${ls.length}` +
+             (prices.length > 1 ? ` at ${prices.map(v => plFmtMoney(v, 'EUR', 1)).join(' / ')}` : '');
+    }).join(', ');
+    html += `<span class="warn"><b>Duplicate part number${clashing.length > 1 ? 's' : ''} in the price list.</b> ` +
+            `${detail}${clashing.length > 3 ? `, +${clashing.length - 3} more` : ''}. ` +
+            `They appear more than once in the document and cannot be selected separately — ` +
+            `fix the source workbook.</span>`;
+  }
+
   if (basis !== 'list' && anyDiscount) {
     html += `<span class="warn"><b>Discount on top of a volume column.</b> `
          +  `Prices start from the ${escapeHtml(basis)} column and then have the `
@@ -6958,10 +7019,20 @@ function plRenderBasisNote(){
   }
   if (basis !== 'list') {
     const groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
-    const fell = groups.reduce((s, g) => s + g.lines.filter(l => l.usedFallback).length, 0);
-    if (fell > 0) {
-      html += `<span class="info">${fell} selected product${fell === 1 ? ' has' : 's have'} `
-           +  `no price in the ${escapeHtml(basis)} column and use their list price instead.</span>`;
+    const fellProducts = groups.filter(g => !g.isAccessory)
+      .reduce((s, g) => s + g.lines.filter(l => l.usedFallback).length, 0);
+    const fellAcc = groups.filter(g => g.isAccessory)
+      .reduce((s, g) => s + g.lines.length, 0);
+    const bits = [];
+    if (fellProducts > 0) {
+      bits.push(`${fellProducts} selected product${fellProducts === 1 ? '' : 's'} ` +
+                `ha${fellProducts === 1 ? 's' : 've'} no price in the ${escapeHtml(basis)} column`);
+    }
+    if (fellAcc > 0) {
+      bits.push(`${fellAcc} accessor${fellAcc === 1 ? 'y' : 'ies'} (accessories have no volume pricing)`);
+    }
+    if (bits.length) {
+      html += `<span class="info">${bits.join(' and ')} — these use their list price instead.</span>`;
     }
   }
   el.innerHTML = html;
@@ -7085,7 +7156,7 @@ plPopulateBasisOptions();
   'plShowDiscount','plShowMoq','plShowStatus','plShowRevision','plShowPriceBasis',
   'plShowVat','plShowLeadTime','plShowConfidentiality',
 ].forEach(id => plEl(id).addEventListener('change', plRenderDoc));
-plEl('plSelectAll').addEventListener('click', () => { (PRICE_DATA.groups||[]).forEach(g => g.products.forEach(p => PL.selection[p.part_number] = true)); plRenderAll(); });
+plEl('plSelectAll').addEventListener('click', () => { plSections(PRICE_DATA).forEach(g => g.products.forEach(p => PL.selection[p.part_number] = true)); plRenderAll(); });
 plEl('plClearAll').addEventListener('click', () => { PL.selection = {}; plRenderAll(); });
 plEl('plDownloadPdfBtn').addEventListener('click', plDownloadPdf);
 plEl('plDownloadXlsxBtn').addEventListener('click', plDownloadXlsx);
