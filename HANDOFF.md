@@ -520,3 +520,41 @@ whenever a duplicate is among the selected items — which also catches any futu
 duplicate introduced by an imported price list.
 
 **The fix belongs in the workbook**, not in the code.
+
+---
+
+## 13. Archive: the row is clickable (fixed 2026-08-18)
+
+**Reported as "opening a file from the Archive fails and doesn't open".**
+
+Root cause: `#archiveList`'s click handler only matched `.archive-open-btn`, so
+clicking anywhere else on a quote row did nothing. That gap was harmless while
+the row was visually inert — but the Tier A pass added
+`.archive-item:hover{border-color:var(--cc-orange)}`, which makes the row light
+up and advertise itself as clickable. The polish turned a dormant gap into an
+active trap: the row looks clickable, so people click it, and nothing happens.
+
+Fix: the handler now falls through to `e.target.closest('.archive-item')` and
+opens that quote, while ignoring clicks that land on a real control
+(`button, input, select, textarea, a, label`). `.archive-item` also gets
+`cursor:pointer` so the affordance matches the behaviour.
+
+⚠️ **Lesson worth keeping:** adding hover feedback to something makes a promise.
+If you give an element a hover state, wire its click — or don't give it one.
+
+## 14. ⚠️ OPEN BUG — the price list archive is write-only
+
+`plSaveToArchive()` writes to `localStorage` under `cc_pricelist_archive_v1`,
+mints an id (`PL-2026-0001`) and confirms with a toast. **Nothing ever reads it
+back.** All three references to `PL_ARCHIVE_KEY` are inside that one function
+(a read-modify-write of its own store), and there is no list, no loader and no
+UI anywhere for saved price lists — grep for any price list archive UI returns
+zero matches.
+
+So "Save to archive" on the Price list tab looks like it works and the data is
+unreachable forever. The Archive drawer in the top bar is the QUOTE archive only.
+
+Fixing it needs a price list archive UI (list + open + delete), mirroring
+`renderArchiveList` / `openQuote`. Note the saved record also does **not**
+include `basisColumn`, so that field has to be added to the record before a
+loader would restore the price list correctly.
