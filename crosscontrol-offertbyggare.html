@@ -5149,7 +5149,7 @@ function addProductToCart(partNumber) {
     qty: (tierLabels.length && p.tiers[tierLabels[0]] && p.tiers[tierLabels[0]].moq) || 1,
     extraDiscountPct: 0,
     negotiationMargin: p.negotiation_margin,
-    mkSek: p.mk_sek,
+    mkSek: productMkSek(p),
     mkSekOverride: null,
     isAccessory: p.isAccessory,
     note: '',
@@ -6074,11 +6074,31 @@ document.getElementById('priceListUpload').addEventListener('change', (e) => {
         return;
       }
 
+      // Manufacturing cost: measure before and after so a price list that
+      // arrives without MK cannot silently wipe every margin.
+      const countMk = (data) => (data.groups || []).reduce((s, g) =>
+        s + (g.products || []).filter(pr => pr.mk_sek != null || pr.mk_eur != null).length, 0);
+      const mkBefore = countMk(PRICE_DATA);
+      const mkAfter = countMk(parsed);
+
       PRICE_DATA = parsed;
       rebuildFlatIndex();
       const modeNote = parsed.meta && parsed.meta.import_mode === 'flexible' && parsed.meta.detected_sheet
         ? ` · sheet "${parsed.meta.detected_sheet}"` : '';
-      statusEl.textContent = `${file.name} (${totalProducts + totalAccessories} items)${modeNote}`;
+      const mkCol = parsed.meta && parsed.meta.mk_column;
+      const mkNote = mkCol
+        ? ` · cost from "${mkCol}" (${parsed.meta.mk_currency}) for ${mkAfter}/${totalProducts}`
+        : ' · no cost column';
+      statusEl.textContent = `${file.name} (${totalProducts + totalAccessories} items)${modeNote}${mkNote}`;
+
+      // Losing costs you previously had is worth interrupting for.
+      if (mkBefore > 0 && mkAfter === 0) {
+        alert('This price list has no manufacturing cost column, so the ' + mkBefore +
+              ' cost(s) from the previous list are gone and margins can no longer be calculated.' +
+              '\n\nIf it should contain cost, check the column header. The importer looks for ' +
+              '"Tillverkningskostnad", "MK", "Manufacturing cost", "Standardkostnad" or "Cost", ' +
+              'optionally with (SEK) or (EUR).');
+      }
       statusEl.title = file.name;
 
       // Cart references the old product objects — clear it since prices/tiers may have changed.
@@ -6176,6 +6196,21 @@ const PL_HEADER_SYNONYMS = {
   moq: ['moq', 'min order qty', 'minimum order quantity', 'minsta order', 'min qty', 'eau', 'eau moq'],
 };
 
+// Manufacturing cost (MK). Matched on the START of the normalised header so
+// qualifiers survive: "MK (SEK)" -> "mk sek", "Cost (CMBF ONLY)" -> "cost cmbf only".
+const PL_MK_RE = /^(mk|tillverkningskostnad|tillverknings kostnad|tillv kostnad|manufacturing cost|mfg cost|production cost|standardkostnad|standard cost|sjalvkostnad|sj\u00e4lvkostnad|kostpris|unit cost|cost price|cost)\b/;
+// ...but these are not costs, they just start with the same word.
+const PL_MK_NOT = /^(cost (center|centre|code|type|group)|mk (nr|no|number|id))\b/;
+
+// SEK unless the header says otherwise. CrossControl quotes MK in SEK while the
+// price list is in EUR, so guessing wrong here silently corrupts every margin.
+function plMkCurrency(rawHeader) {
+  const n = plNormHeader(rawHeader);
+  if (/\beur\b|\u20ac/.test(n)) return 'EUR';
+  if (/\bsek\b|\bkr\b/.test(n)) return 'SEK';
+  return 'SEK';
+}
+
 const PL_TIER_RE = /(\d[\d\s.,]*)\s*[-–—to]+\s*(\d[\d\s.,]*)|(\d[\d\s.,]*)\s*\+|(?:>=?|≥)\s*(\d[\d\s.,]*)|^\s*(\d+\s*k)\s*[-–—]\s*(\d+\s*k)\s*$/i;
 
 const PL_SKIP_PN = ['part number', 'part no', 'part no.', 'artikelnr', 'moq', 'product', 'p/n', 'p n', 'pn', 'part nr', 'description', 'benämning'];
@@ -6196,6 +6231,7 @@ function plClassifyHeader(raw) {
       return { type: field };
     }
   }
+  if (PL_MK_RE.test(n) && !PL_MK_NOT.test(n)) return { type: 'mk', currency: plMkCurrency(raw), header: String(raw).trim() };
   if (typeof raw !== 'number' && PL_TIER_RE.test(String(raw).trim())) return { type: 'tier', label: String(raw).trim() };
   return null;
 }
@@ -6239,9 +6275,12 @@ function plDetectHeaderAt(rows, r) {
   }
 
   function buildMap(cl) {
-    const map = { part_number: -1, description: -1, list_price: -1, negotiation_margin: -1, lifecycle: -1, moq: -1, tiers: [] };
+    const map = { part_number: -1, description: -1, list_price: -1, negotiation_margin: -1, lifecycle: -1, moq: -1, mk: -1, mkCurrency: 'SEK', mkHeader: null, tiers: [] };
     cl.forEach(({ idx, c }) => {
       if (c.type === 'tier') { if (!map.tiers.some(t => t.idx === idx)) map.tiers.push({ idx, label: c.label }); }
+      else if (c.type === 'mk') {
+        if (map.mk === -1) { map.mk = idx; map.mkCurrency = c.currency; map.mkHeader = c.header; }
+      }
       else if (map[c.type] === -1) map[c.type] = idx;
     });
     map.tiers.sort((a, b) => a.idx - b.idx);
@@ -6250,7 +6289,8 @@ function plDetectHeaderAt(rows, r) {
 
   function scoreMap(m) {
     return (m.part_number >= 0 ? 3 : 0) + (m.list_price >= 0 ? 2 : 0) + m.tiers.length +
-           (m.description >= 0 ? 1 : 0) + (m.negotiation_margin >= 0 ? 1 : 0) + (m.lifecycle >= 0 ? 1 : 0);
+           (m.description >= 0 ? 1 : 0) + (m.negotiation_margin >= 0 ? 1 : 0) + (m.lifecycle >= 0 ? 1 : 0) +
+           (m.mk >= 0 ? 1 : 0);
   }
   function qualifies(m) { return m.part_number >= 0 && (m.list_price >= 0 || m.tiers.length > 0); }
 
@@ -6397,6 +6437,8 @@ function plParseSheetRows(rows, firstHeader) {
 
     const neg = colMap.negotiation_margin >= 0 ? plParseNum(row[colMap.negotiation_margin]) : null;
     const life = colMap.lifecycle >= 0 ? row[colMap.lifecycle] : null;
+    const mkRaw = colMap.mk >= 0 ? plParseNum(row[colMap.mk]) : null;
+    const mkIsEur = colMap.mkCurrency === 'EUR';
 
     currentGroup.products.push({
       part_number: pnStr,
@@ -6405,7 +6447,8 @@ function plParseSheetRows(rows, firstHeader) {
       tiers,
       negotiation_margin: neg,
       lifecycle_comment: life != null && String(life).trim() !== '' ? String(life).trim() : null,
-      mk_sek: null,
+      mk_sek: (mkRaw != null && !mkIsEur) ? mkRaw : null,
+      mk_eur: (mkRaw != null && mkIsEur) ? mkRaw : null,
     });
   }
 
@@ -6502,6 +6545,8 @@ function parsePriceListFlexible(workbook, opts) {
       source_file: 'uploaded (flexible import)',
       import_mode: 'flexible',
       detected_sheet: usedSheets.join(' + '),
+      mk_column: primary.header.map.mkHeader || null,
+      mk_currency: primary.header.map.mk >= 0 ? primary.header.map.mkCurrency : null,
       detected_columns: {
         part_number: primary.header.map.part_number,
         description: primary.header.map.description,
@@ -7051,11 +7096,20 @@ function plRenderDoc(){
 // INTERNAL ONLY: none of this may ever reach plRenderDoc() or an export.
 // ============================================================================
 
+// Manufacturing cost of a product, in SEK, whatever unit the price list used.
+// A EUR column is converted at the live rate rather than frozen at import.
+function productMkSek(p) {
+  if (!p) return null;
+  if (p.mk_sek != null && isFinite(p.mk_sek)) return p.mk_sek;
+  if (p.mk_eur != null && isFinite(p.mk_eur)) return p.mk_eur * sekPerEur();
+  return null;
+}
+
 // Manufacturing cost for a product: a typed value beats the price list value.
 function plMkFor(p) {
   var typed = PL.mkByPart[p.part_number];
   if (typed != null && isFinite(typed)) return typed;
-  return (p.mk_sek != null && isFinite(p.mk_sek)) ? p.mk_sek : null;
+  return productMkSek(p);
 }
 
 // One line's margin, or null when no cost is known.
