@@ -23,6 +23,19 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Custom/unique line items (free text description, optional part ref, manual price) — for things not in the catalog, e.g. bespoke engineering work
 - Toggleable signature block ("Acceptance") with editable signer name/title
 - Live A4 page-break indicator in the on-screen preview
+- **Manufacturing cost is imported** (2026-08-20) — the flexible parser now
+  recognises a cost column so margins work the moment the price list carries
+  one. Before this, BOTH parsers hardcoded `mk_sek: null`, so importing any
+  price list silently wiped the only cost in the file.
+  Matched by `PL_MK_RE` on the **start** of the normalised header, not by exact
+  synonym, because real cost headers carry qualifiers ("Cost (CMBF ONLY)",
+  "MK (SEK)"). `PL_MK_NOT` excludes look-alikes such as "Cost center".
+  Currency comes from the header: EUR if it says so, otherwise **SEK**, which
+  matches TG-kalkyl. A SEK column lands in `mk_sek`, a EUR column in `mk_eur`,
+  and `productMkSek()` converts EUR at the **live** rate — never frozen at
+  import (see §15 for why that matters).
+  The import status names the column and the coverage, and an import that
+  arrives with no cost column **alerts** rather than quietly zeroing margins.
 - **Gross margin (TG) on the price list** (2026-08-20) — a "Margin (TG)" card in
   the price list panel, implementing TG_kalkyl_och_valuta.xlsx exactly:
   `TG = (SP-MK)/SP` (B12), `TB = SP-MK` (B13) and `SP* = MK/(1-target)` (B14,
@@ -612,3 +625,29 @@ audited with every family expanded, everything selected, and a custom line added
 
 ⚠️ Same trap as §11: a control that has not been rendered yet audits as absent,
 and the audit then reports success. Expand everything first.
+
+---
+
+## 17. Adding a cost column to the price list — what the importer accepts
+
+Written up for Mattias to take into a meeting requesting the column:
+`Desktop\CC Quote Builder (QB)\Price list - manufacturing cost column (spec for the meeting).txt`
+
+Recognised headers (start-of-header match, case and punctuation insensitive):
+`Tillverkningskostnad`, `Tillverkningskostnad (MK)`, `MK`, `MK (SEK)`,
+`MK (EUR)`, `Manufacturing cost`, `Mfg. cost`, `Production cost`,
+`Standardkostnad`, `Självkostnad`, `Kostpris`, `Unit cost`, `Cost price`, `Cost`.
+
+Deliberately NOT matched: `Cost center` / `Cost centre` / `Cost code` /
+`Cost type` / `Cost group`, and `MK nr` / `MK no` / `MK id`. Also note
+`Margin` / `Marginal` already belong to `negotiation_margin` — do not add cost
+synonyms that collide with them.
+
+Verified against ten header spellings plus two decoys by building workbooks
+in-browser with SheetJS and running the real `parsePriceListFlexible` over them,
+then end-to-end through the actual file input with a semicolon CSV using
+European decimals (`2043,50` → 2043.5).
+
+⚠️ The **legacy** positional parser still hardcodes `mk_sek: null`. It only runs
+when no header row is recognisable, so the flexible path covers the real file —
+but a cost column added to a headerless sheet would not be read.
