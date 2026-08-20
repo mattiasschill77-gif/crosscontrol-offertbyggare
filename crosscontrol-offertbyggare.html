@@ -941,6 +941,60 @@ var vfs = {
     margin:14px 0 6px; padding-top:10px; border-top:1px solid var(--panel-line);
   }
 
+  /* ===== Margin (TG) mockup - internal only ===================== */
+  .pl-margin-card{ border-color:#d9d5cb; background:#fffdf9; }
+  .pl-internal-badge{
+    font-family:Arial,sans-serif; font-size:9px; font-weight:700; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--warn); background:var(--warn-bg);
+    border:1px solid #f0dcb8; border-radius:2px; padding:2px 6px;
+  }
+  .pl-mk-hint-field label{ display:block; }
+  .pl-mk-hint{ font-size:10px; color:var(--panel-text-dim); line-height:1.35; padding-top:6px; }
+  .pl-prod-mk{
+    width:52px; padding:2px 4px; border:1px solid var(--panel-line); border-radius:5px;
+    font-size:10.5px; text-align:right; font-family:Arial,sans-serif;
+  }
+  .pl-prod-mk:focus{ outline:none; border-color:var(--cc-orange); box-shadow:var(--focus-ring); }
+  .pl-margin-summary{
+    display:flex; gap:14px; flex-wrap:wrap; margin:2px 0 10px;
+    padding:9px 10px; background:var(--panel-bg-2); border-radius:var(--r-card);
+  }
+  .pl-margin-summary .k{
+    display:block; font-size:9px; text-transform:uppercase; letter-spacing:0.1em;
+    color:var(--panel-text-dim); font-family:'Poppins',Arial,sans-serif; font-weight:700;
+  }
+  .pl-margin-summary .v{ font-size:14px; color:var(--ink-900); font-family:'Poppins',Arial,sans-serif; font-weight:700; }
+  .pl-margin-summary .v.good{ color:var(--cc-green-text); }
+  .pl-margin-summary .v.bad{ color:var(--warn); }
+  .pl-margin-empty{
+    font-size:11px; color:var(--panel-text-dim); line-height:1.5;
+    background:var(--panel-bg-2); border-radius:var(--r-card); padding:10px;
+  }
+  table.pl-margin-table{ width:100%; border-collapse:collapse; font-family:Arial,sans-serif; }
+  table.pl-margin-table th{
+    font-family:'Poppins',Arial,sans-serif; font-size:8.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--panel-text-dim); text-align:right;
+    padding:0 4px 5px; border-bottom:1px solid var(--panel-line);
+  }
+  table.pl-margin-table th.l{ text-align:left; }
+  table.pl-margin-table th span{ display:block; font-size:7.5px; font-weight:400; letter-spacing:0.04em; }
+  table.pl-margin-table td{
+    padding:6px 4px; border-bottom:1px solid var(--panel-line);
+    font-size:11px; text-align:right; color:var(--ink-900); vertical-align:top;
+  }
+  table.pl-margin-table td.l{ text-align:left; }
+  table.pl-margin-table .nm{ font-size:11px; line-height:1.3; }
+  table.pl-margin-table .sku{ font-size:9.5px; color:var(--panel-text-dim); }
+  table.pl-margin-table td.good{ color:var(--cc-green-text); }
+  table.pl-margin-table td.bad{ color:var(--warn); }
+  table.pl-margin-table td.need{ color:var(--cc-orange-dark); font-weight:700; }
+  table.pl-margin-table td.ok{ color:var(--cc-green-text); }
+  .pl-margin-fx{ font-size:10px; color:var(--panel-text-dim); line-height:1.5; margin-top:9px; }
+  .pl-margin-fx .warnline{
+    display:block; margin-top:5px; color:var(--warn); background:var(--warn-bg);
+    border:1px solid #f0dcb8; border-radius:var(--r-card); padding:6px 8px;
+  }
+
   /* ---- 9. Toast ----------------------------------------------------------
      Routine confirmations only. Genuine warnings - a cleared cart, a failed
      import, a failed PDF - stay as alert() on purpose. */
@@ -1326,6 +1380,24 @@ var vfs = {
           <button class="pl-btn secondary" id="plClearAll" style="flex:1;padding:6px;font-size:10.5px;">Clear</button>
         </div>
         <div class="pl-fam-list" id="plFamList"></div>
+      </div>
+
+      <div class="panel-section pl-margin-card">
+        <div class="panel-label">
+          <span>Margin (TG)</span>
+          <span class="pl-internal-badge">Internal &mdash; never printed</span>
+        </div>
+        <div class="pl-two">
+          <div class="pl-field">
+            <label for="plTargetTg">Target TG %</label>
+            <input type="number" step="0.5" id="plTargetTg" value="35">
+          </div>
+          <div class="pl-field pl-mk-hint-field">
+            <label>Manufacturing cost</label>
+            <div class="pl-mk-hint">Type MK (SEK) per product in the picker above</div>
+          </div>
+        </div>
+        <div id="plMarginBody"></div>
       </div>
 
       <div class="panel-section">
@@ -5257,15 +5329,31 @@ function computeLine(item) {
   return { tierPrice, finalUnitPrice, lineTotal };
 }
 
-// TG (gross margin) calc: TG = (SP - MK) / SP. MK is in SEK, SP (unit) we have in EUR -> convert via fx.
-// fx_sek_eur means "1 SEK = fx_sek_eur EUR" based on the sheet's seed (rate ~0.0949 EUR per SEK).
+// The SEK per EUR rate the KAM maintains in the Currency card. Single source of
+// truth for both tabs.
+// It deliberately does NOT use PRICE_DATA.meta.tg_assumptions.fx_sek_eur: that is
+// frozen into the price list at import (0.0949 -> 10.54 SEK/EUR) and cannot be
+// edited, so margins drifted from every other price in the app as the real rate
+// moved. It survives only as a last-resort fallback if the field is unusable.
+function sekPerEur() {
+  const el = document.getElementById('fxRateSEK');
+  const typed = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+  if (isFinite(typed) && typed > 0) return typed;
+  const live = CURRENCY_RATES && CURRENCY_RATES.SEK && CURRENCY_RATES.SEK.rate;
+  if (isFinite(live) && live > 0) return live;
+  const seeded = PRICE_DATA.meta && PRICE_DATA.meta.tg_assumptions && PRICE_DATA.meta.tg_assumptions.fx_sek_eur;
+  return (seeded > 0) ? (1 / seeded) : 11.4;
+}
+
+// TG (gross margin) calc: TG = (SP - MK) / SP, mirroring TG_kalkyl B12.
+// MK is quoted in SEK and SP is in EUR, so MK is converted at the live rate.
 // mkSekOverride (manually entered in the app) always takes priority over mkSek (from the Excel price list).
 function computeTG(item, finalUnitPriceEur) {
   const mkSek = (item.mkSekOverride != null) ? item.mkSekOverride : item.mkSek;
   if (!mkSek) return null;
-  const fx = PRICE_DATA.meta.tg_assumptions.fx_sek_eur; // EUR per SEK
-  if (!fx) return null;
-  const mkEur = mkSek * fx;
+  const rate = sekPerEur();          // SEK per EUR
+  if (!(rate > 0)) return null;
+  const mkEur = mkSek / rate;
   if (finalUnitPriceEur <= 0) return null;
   const tg = (finalUnitPriceEur - mkEur) / finalUnitPriceEur;
   return tg;
@@ -6730,6 +6818,7 @@ const PL = {
   statusByPart: {},       // { part_number: 'active'|'new'|'eol'|'ltb' }
   openFamilies: {},       // { group: bool }
   basisColumn: 'list',    // 'list' | a tier label, e.g. '250-499'
+  mkByPart: {},           // { part_number: manufacturing cost in SEK, typed by the KAM }
 };
 const PL_STATUS_OPTS = [['','—'],['active','Active'],['new','New'],['eol','End-of-life'],['ltb','Last-time-buy']];
 
@@ -6779,10 +6868,12 @@ function plRenderFamilyList(){
     const head = document.createElement('div');
     head.className = 'pl-fam-head';
     head.innerHTML =
-      '<input type="checkbox" ' + (allChecked ? 'checked' : '') + (chosen > 0 && !allChecked ? ' data-indet="1"' : '') + '>' +
+      '<input type="checkbox" aria-label="Include all of ' + escapeAttr(g.group) + ' in the price list" ' +
+        (allChecked ? 'checked' : '') + (chosen > 0 && !allChecked ? ' data-indet="1"' : '') + '>' +
       '<span class="pl-fam-name">' + escapeHtml(g.group) + '</span>' +
       '<span class="pl-fam-count">' + chosen + '/' + total + '</span>' +
       '<input type="number" step="0.1" class="pl-fam-disc" placeholder="def%" ' +
+        'aria-label="Discount % for ' + escapeAttr(g.group) + ', blank uses the default" ' +
         'value="' + (PL.familyDiscounts[g.group] != null ? PL.familyDiscounts[g.group] : '') + '" title="Per-family discount % (blank = use default)">' +
       '<span class="pl-fam-caret">▶</span>';
 
@@ -6811,18 +6902,32 @@ function plRenderFamilyList(){
       row.className = 'pl-prod';
       const statusSel = PL_STATUS_OPTS.map(o => '<option value="' + o[0] + '"' + (PL.statusByPart[p.part_number] === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
       row.innerHTML =
-        '<input type="checkbox" ' + (PL.selection[p.part_number] ? 'checked' : '') + '>' +
+        '<input type="checkbox" aria-label="Include ' + escapeAttr(p.description || p.part_number) + ' in the price list" ' +
+          (PL.selection[p.part_number] ? 'checked' : '') + '>' +
         '<span class="pl-prod-name">' + escapeHtml(p.description || p.part_number) +
           '<span class="pl-prod-sku"> · ' + escapeHtml(p.part_number) + '</span></span>' +
         '<span class="pl-prod-extra">' +
-          '<input type="text" class="pl-prod-moq" placeholder="MOQ" value="' + escapeAttr(PL.moqByPart[p.part_number] != null ? PL.moqByPart[p.part_number] : '') + '">' +
-          '<select class="pl-prod-status">' + statusSel + '</select>' +
+          '<input type="text" class="pl-prod-moq" placeholder="MOQ" ' +
+            'aria-label="Minimum order quantity for ' + escapeAttr(p.description || p.part_number) + '" ' +
+            'value="' + escapeAttr(PL.moqByPart[p.part_number] != null ? PL.moqByPart[p.part_number] : '') + '">' +
+          '<input type="text" class="pl-prod-mk" placeholder="MK" title="Manufacturing cost in SEK" ' +
+            'aria-label="Manufacturing cost in SEK for ' + escapeAttr(p.description || p.part_number) + '" ' +
+            'value="' + escapeAttr(PL.mkByPart[p.part_number] != null ? PL.mkByPart[p.part_number] : (p.mk_sek != null ? p.mk_sek : '')) + '">' +
+          '<select class="pl-prod-status" aria-label="Lifecycle status for ' + escapeAttr(p.description || p.part_number) + '">' + statusSel + '</select>' +
         '</span>';
       const cb = row.querySelector('input[type=checkbox]');
       cb.addEventListener('change', () => { if (cb.checked) PL.selection[p.part_number] = true; else delete PL.selection[p.part_number]; plRenderAll(); });
       const moq = row.querySelector('.pl-prod-moq');
       moq.addEventListener('click', e => e.stopPropagation());
       moq.addEventListener('input', () => { const v = moq.value.trim(); if (v === '') delete PL.moqByPart[p.part_number]; else PL.moqByPart[p.part_number] = v; plRenderDoc(); });
+      const mkIn = row.querySelector('.pl-prod-mk');
+      mkIn.addEventListener('click', e => e.stopPropagation());
+      mkIn.addEventListener('input', () => {
+        const v = mkIn.value.trim().replace(',', '.');
+        if (v === '') delete PL.mkByPart[p.part_number];
+        else PL.mkByPart[p.part_number] = parseFloat(v);
+        plRenderMargin();
+      });
       const st = row.querySelector('.pl-prod-status');
       st.addEventListener('click', e => e.stopPropagation());
       st.addEventListener('change', () => { if (!st.value) delete PL.statusByPart[p.part_number]; else PL.statusByPart[p.part_number] = st.value; plRenderDoc(); });
@@ -6935,6 +7040,99 @@ function plRenderDoc(){
        '(CrossControl Standard Terms &amp; Conditions 2023). This price list supersedes all previous versions.</span></div>';
 
   root.innerHTML = h;
+}
+
+// ============================================================================
+// GROSS MARGIN (TG) - mirrors TG_kalkyl_och_valuta.xlsx
+//   TG  = (SP - MK) / SP        (sheet B12: 1 - MK/SP)
+//   TB  = SP - MK               (sheet B13: tackningsbidrag / gross profit)
+//   SP* = MK / (1 - target TG)  (sheet B14: price needed to reach the target)
+// MK is quoted in SEK, prices are in EUR, so every comparison needs the rate.
+// INTERNAL ONLY: none of this may ever reach plRenderDoc() or an export.
+// ============================================================================
+
+// Manufacturing cost for a product: a typed value beats the price list value.
+function plMkFor(p) {
+  var typed = PL.mkByPart[p.part_number];
+  if (typed != null && isFinite(typed)) return typed;
+  return (p.mk_sek != null && isFinite(p.mk_sek)) ? p.mk_sek : null;
+}
+
+// One line's margin, or null when no cost is known.
+function plMargin(line, mkSek, rate) {
+  if (mkSek == null || !(line.netEur > 0)) return null;
+  var mkEur = mkSek / rate;
+  return { mkSek: mkSek, mkEur: mkEur, tg: (line.netEur - mkEur) / line.netEur, tbEur: line.netEur - mkEur };
+}
+
+function plRenderMargin() {
+  var host = document.getElementById('plMarginBody');
+  if (!host) return;
+  var rate = sekPerEur();
+  var target = (parseFloat(plEl('plTargetTg').value) || 0) / 100;
+  var groups = buildPricelistGroups(PRICE_DATA, PL.selection, plGatherConfig());
+
+  var byPn = {};
+  plSections(PRICE_DATA).forEach(function (g) {
+    g.products.forEach(function (pr) { byPn[pr.part_number] = pr; });
+  });
+
+  var rows = [], known = 0, total = 0, revenue = 0, cost = 0;
+  groups.forEach(function (g) {
+    g.lines.forEach(function (l) {
+      total++;
+      var src = byPn[l.partNumber];
+      var m = plMargin(l, src ? plMkFor(src) : null, rate);
+      if (!m) return;
+      known++; revenue += l.netEur; cost += m.mkEur;
+      rows.push({ line: l, m: m, needed: m.mkEur / (1 - target) });
+    });
+  });
+
+  function pct(v) { return (v * 100).toFixed(1) + '%'; }
+  var html = '';
+
+  if (total === 0) {
+    html = '<div class="pl-margin-empty">Select products to see margin.</div>';
+  } else {
+    var blended = revenue > 0 ? (revenue - cost) / revenue : null;
+    html += '<div class="pl-margin-summary">' +
+      '<div><span class="k">Cost known for</span><span class="v">' + known + ' of ' + total + ' lines</span></div>';
+    if (blended != null) {
+      html += '<div><span class="k">Blended TG</span><span class="v ' + (blended < target ? 'bad' : 'good') + '">' + pct(blended) + '</span></div>' +
+              '<div><span class="k">TB (gross profit)</span><span class="v">' + plFmtMoney(revenue - cost, 'EUR', 1) + '</span></div>';
+    }
+    html += '</div>';
+
+    if (known === 0) {
+      html += '<div class="pl-margin-empty"><b>No manufacturing cost known for anything selected.</b><br>' +
+              'The imported price list carries MK for <b>1 of 86</b> products - the rest live in Monitor. ' +
+              'Type a cost into the <b>MK</b> box beside any product in the picker above and its margin appears here.</div>';
+    } else {
+      html += '<table class="pl-margin-table"><thead><tr>' +
+              '<th class="l">Product</th><th>MK<span>SEK</span></th><th>Price<span>EUR</span></th>' +
+              '<th>TG</th><th>TB<span>EUR</span></th>' +
+              '<th title="Unit price needed to reach the target TG">Need @ ' + pct(target) + '</th>' +
+              '</tr></thead><tbody>';
+      rows.sort(function (a, b) { return a.m.tg - b.m.tg; }).forEach(function (r) {
+        var under = r.m.tg < target;
+        html += '<tr>' +
+          '<td class="l"><div class="nm">' + escapeHtml(r.line.description || r.line.partNumber) + '</div>' +
+          '<div class="sku">' + escapeHtml(r.line.partNumber) + '</div></td>' +
+          '<td>' + r.m.mkSek.toLocaleString('en-GB') + '</td>' +
+          '<td>' + plFmtMoney(r.line.netEur, 'EUR', 1) + '</td>' +
+          '<td class="' + (under ? 'bad' : 'good') + '"><b>' + pct(r.m.tg) + '</b></td>' +
+          '<td>' + plFmtMoney(r.m.tbEur, 'EUR', 1) + '</td>' +
+          '<td class="' + (under ? 'need' : 'ok') + '">' + (under ? plFmtMoney(r.needed, 'EUR', 1) : 'on target') + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+  }
+
+  html += '<div class="pl-margin-fx">Calculated at <b>' + rate.toFixed(2) + ' SEK / EUR</b>, ' +
+          'taken from the Currency card. The Quote tab uses the same rate, so margins agree across both tabs.</div>';
+  host.innerHTML = html;
 }
 
 // ---- Basis column: which price column the list is calculated from ----
@@ -7051,6 +7249,7 @@ function plRenderAll(){
   plRenderFamilyList();
   plRenderDoc();
   plRenderBasisNote();
+  plRenderMargin();
 }
 
 // ---- PDF download (reuses pdfmake + Poppins registration) ----

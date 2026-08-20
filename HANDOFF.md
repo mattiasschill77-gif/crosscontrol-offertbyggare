@@ -23,6 +23,18 @@ A Key Account Manager tool for building customer price quotes from CrossControl'
 - Custom/unique line items (free text description, optional part ref, manual price) — for things not in the catalog, e.g. bespoke engineering work
 - Toggleable signature block ("Acceptance") with editable signer name/title
 - Live A4 page-break indicator in the on-screen preview
+- **Gross margin (TG) on the price list** (2026-08-20) — a "Margin (TG)" card in
+  the price list panel, implementing TG_kalkyl_och_valuta.xlsx exactly:
+  `TG = (SP-MK)/SP` (B12), `TB = SP-MK` (B13) and `SP* = MK/(1-target)` (B14,
+  the unit price needed to reach the target). Shows cost coverage, blended TG,
+  total gross profit, and a per-product table sorted worst-margin-first.
+  ⚠️ **INTERNAL ONLY.** It is badged "never printed" and lives in the panel.
+  Nothing about cost or margin may ever reach `plRenderDoc()`, the PDF or the
+  Excel export — verified by scanning the decompressed PDF streams and the
+  exported workbook XML, not just the on-screen document.
+  MK is entered per product in the picker (`PL.mkByPart`), because the price
+  list itself carries MK for only 1 of 86 products; the workbook says the rest
+  must come from Monitor.
 - **Accessories in the price list** (2026-08-18) — the two accessory sections
   ("Accessories", "Cables" — 43 items) now appear in the price list picker below
   a divider and can be included or excluded per section or per item, so a
@@ -558,3 +570,45 @@ Fixing it needs a price list archive UI (list + open + delete), mirroring
 `renderArchiveList` / `openQuote`. Note the saved record also does **not**
 include `basisColumn`, so that field has to be added to the record before a
 loader would restore the price list correctly.
+
+---
+
+## 15. The SEK/EUR rate used for margin (fixed 2026-08-20)
+
+**There were three different SEK/EUR rates in play**, and margin used the wrong one:
+
+| Source | Rate |
+|---|---|
+| `TG_kalkyl_och_valuta.xlsx` C9 | 11.07 SEK/EUR |
+| `PRICE_DATA.meta.tg_assumptions.fx_sek_eur` (0.0949) | **10.54** — what `computeTG` used |
+| The Currency card the KAM edits (`fxRateSEK`) | 11.40 |
+
+`computeTG` multiplied MK by the meta value, which is **frozen into the price
+list at import and cannot be edited**. So quote margins silently drifted from
+every other price in the app as the real rate moved: the same product read
+66.2% on the Quote tab and 68.7% in the price list.
+
+Fixed by introducing **one shared `sekPerEur()`** used by both tabs, reading the
+Currency card. `meta.tg_assumptions.fx_sek_eur` survives only as a last-resort
+fallback if that field is unusable. `setCurrencyRate()` already calls
+`renderAll()`, so editing the rate updates margins live.
+
+Verified: both tabs return bit-identical TG at 9.50, 11.40 and 12.00 SEK/EUR,
+all three matching a from-first-principles calculation, and the value moves with
+the rate (68.73% → 62.47% → 70.29%).
+
+⚠️ **Do not reintroduce `meta.tg_assumptions.fx_sek_eur` as the working rate.**
+It is a snapshot of the import, not a live rate.
+
+## 16. Label audits must expand the price list families
+
+The 2026-08-17 claim of "77 of 77 controls labelled" was **measured with the
+price list families collapsed**, so it never saw the controls inside them. With
+every family expanded the picker renders ~576 controls, and the family-discount,
+MOQ, status and both selection checkboxes were all unlabelled the whole time.
+
+Now genuinely complete: **611 of 611** across both tabs and the archive drawer,
+audited with every family expanded, everything selected, and a custom line added.
+
+⚠️ Same trap as §11: a control that has not been rendered yet audits as absent,
+and the audit then reports success. Expand everything first.
