@@ -358,9 +358,19 @@ with open('crosscontrol-offertbyggare.html', 'w', encoding='utf-8') as f:
 
 ## 8. Quick-reference: what to say to pick this up cleanly in a new session
 
-*"Continue work on the CrossControl Offertbyggare — read HANDOFF.md in the repo first."*
+*"Continue work on the CrossControl Offertbyggare — read HANDOFF.md, then
+SESSION_HANDOFF_2026-08-20.md, both in the repo."*
 
-**Current status (2026-08-14): there is no known open bug.** The §4 PDF-download
+`SESSION_HANDOFF_2026-08-20.md` covers the 08-14 → 08-20 stretch: what shipped,
+the decisions taken, what is still open and why, and the traps that cost time.
+This file (HANDOFF.md) stays the durable architecture reference.
+
+**Current status (2026-08-20): live build `c5000ac`.** Three items are open —
+manufacturing cost exists for 1 of 86 products, the price list archive is
+write-only, and the 2024 workbook has a duplicate part number at two prices.
+See `SESSION_HANDOFF_2026-08-20.md` §4.
+
+**(2026-08-14, historical): there was no known open bug.** The §4 PDF-download
 bug is fixed and click-verified, and the three features Zak asked for (§9) are
 shipped. The repo and the OneDrive delivery folder are in sync as of this commit.
 
