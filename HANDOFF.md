@@ -6,6 +6,17 @@
 
 Read this whole file before touching code. It replaces having to re-read the full chat transcript.
 
+**Interactive infrastructure map:** https://claude.ai/code/artifact/52091bb2-a6cb-41c1-b0b1-5395368ba548
+
+A clickable companion to this file, built 2026-08-21 and measured from the files rather
+than from these notes: the single HTML file in cross-section (click a band, toggle lines
+vs bytes), the data flow from workbook to customer document with traceable paths, the four
+copies and their md5s, the six `localStorage` keys, the traps, and the open items.
+A standalone copy sits beside this file as `INFRASTRUCTURE_MAP.html` — open it in any
+browser; it needs no server. Two figures in it correct this document: the launch config
+defines one server (`cc-offert`, 8142), not three, and the July 7 build now survives in
+three places rather than one.
+
 ---
 
 ## 1. What this tool does (product overview)

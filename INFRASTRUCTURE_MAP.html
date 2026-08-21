@@ -1,0 +1,1326 @@
+<title>Offertbyggare Infrastructure Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ============================================================
+   CrossControl Offertbyggare — infrastructure map
+   Palette taken from the project's own brand system (HANDOFF.md §3):
+   orange #F7971C is for graphic elements only, #C9760F for orange text.
+   ============================================================ */
+
+:root{
+  --ground:#E9ECEE;
+  --panel:#FFFFFF;
+  --panel-2:#F4F6F7;
+  --ink:#191C1E;
+  --ink-2:#4A4F52;
+  --ink-3:#767C80;
+  --rule:#D2D7DA;
+  --rule-2:#E3E7E9;
+
+  --orange:#F7971C;
+  --orange-text:#C9760F;
+  --orange-wash:#FDF1E1;
+  --grey:#646363;
+  --blue:#5390B5;
+  --blue-text:#2C5872;
+  --blue-wash:#E8F0F5;
+  --green:#9BAD50;
+  --green-text:#5C6F2E;
+  --green-wash:#EEF2E0;
+  --crit:#A93B27;
+  --crit-wash:#F8E9E6;
+
+  --shadow:0 1px 2px rgba(25,28,30,.06), 0 8px 24px -12px rgba(25,28,30,.18);
+
+  --mono:'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --display:'Poppins', 'Century Gothic', 'Trebuchet MS', sans-serif;
+  --body:Arial, 'Helvetica Neue', Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#121517;
+    --panel:#1B1F21;
+    --panel-2:#232729;
+    --ink:#E7EAEB;
+    --ink-2:#B0B6B9;
+    --ink-3:#858C90;
+    --rule:#31373A;
+    --rule-2:#282D30;
+
+    --orange:#F7971C;
+    --orange-text:#F2A73F;
+    --orange-wash:#2E2313;
+    --grey:#8E8D8C;
+    --blue:#5390B5;
+    --blue-text:#84B7D6;
+    --blue-wash:#18262E;
+    --green:#9BAD50;
+    --green-text:#B4C673;
+    --green-wash:#212816;
+    --crit:#D96B53;
+    --crit-wash:#2E1B17;
+
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+
+:root[data-theme="dark"]{
+  --ground:#121517;
+  --panel:#1B1F21;
+  --panel-2:#232729;
+  --ink:#E7EAEB;
+  --ink-2:#B0B6B9;
+  --ink-3:#858C90;
+  --rule:#31373A;
+  --rule-2:#282D30;
+
+  --orange:#F7971C;
+  --orange-text:#F2A73F;
+  --orange-wash:#2E2313;
+  --grey:#8E8D8C;
+  --blue:#5390B5;
+  --blue-text:#84B7D6;
+  --blue-wash:#18262E;
+  --green:#9BAD50;
+  --green-text:#B4C673;
+  --green-wash:#212816;
+  --crit:#D96B53;
+  --crit-wash:#2E1B17;
+
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- shared type ---------- */
+.eyebrow{
+  font-family:var(--display);
+  font-weight:700;
+  font-size:10.5px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  margin:0;
+}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-weight:800;font-size:clamp(28px,4.2vw,44px);line-height:1.05;letter-spacing:-.015em}
+h2{font-weight:800;font-size:19px;letter-spacing:.05em;text-transform:uppercase}
+h3{font-weight:700;font-size:15px;letter-spacing:.02em}
+h4{font-weight:700;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.88em;font-variant-ligatures:none}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--orange-text)}
+
+/* ---------- shell ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px 96px}
+
+header.masthead{
+  border-bottom:1px solid var(--rule);
+  background:var(--panel);
+  padding:34px 0 0;
+}
+.masthead-inner{max-width:1240px;margin:0 auto;padding:0 20px}
+.mh-top{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;justify-content:space-between}
+.mh-lede{max-width:60ch;color:var(--ink-2);margin-top:14px;font-size:16px}
+.mh-lede strong{color:var(--ink);font-weight:400;box-shadow:inset 0 -.5em 0 var(--orange-wash)}
+
+.rule-orange{height:3px;width:52px;background:var(--orange);margin-bottom:10px}
+
+/* status strip */
+.status{
+  display:flex;flex-wrap:wrap;gap:0;
+  margin:26px 0 0;border-top:1px solid var(--rule);
+}
+.status div{
+  flex:1 1 150px;padding:12px 16px 14px;
+  border-right:1px solid var(--rule-2);
+}
+.status div:last-child{border-right:0}
+.status .k{font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.status .v{font-family:var(--mono);font-size:14px;font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums}
+.status .v.ok{color:var(--green-text)}
+.status .v.warn{color:var(--orange-text)}
+
+/* nav rail */
+nav.rail{
+  position:sticky;top:0;z-index:40;
+  background:var(--panel);
+  border-bottom:1px solid var(--rule);
+  overflow-x:auto;
+}
+.rail-inner{
+  max-width:1240px;margin:0 auto;padding:0 20px;
+  display:flex;gap:2px;
+}
+.rail a{
+  font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);text-decoration:none;white-space:nowrap;
+  padding:13px 13px 11px;border-bottom:2px solid transparent;
+}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--orange-text);border-bottom-color:var(--orange)}
+
+/* ---------- sections & panels ---------- */
+section{padding-top:56px;scroll-margin-top:52px}
+.sec-head{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.sec-head .idx{
+  font-family:var(--mono);font-size:12px;font-weight:600;color:var(--orange-text);
+  letter-spacing:.04em;
+}
+.sec-sub{color:var(--ink-2);max-width:74ch;margin:8px 0 24px;font-size:15px}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--rule);
+  box-shadow:var(--shadow);
+  padding:22px;
+}
+.panel + .panel{margin-top:16px}
+.panel-head{
+  border-bottom:1px solid var(--rule-2);
+  padding-bottom:10px;margin-bottom:16px;
+}
+.panel-head .bar{height:3px;width:34px;background:var(--orange);margin-bottom:9px}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+/* ---------- A. core sample ---------- */
+.core{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:26px;align-items:start}
+
+.core-controls{display:flex;gap:6px;margin-bottom:14px}
+.tog{
+  font-family:var(--display);font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  padding:8px 13px;border:1px solid var(--rule);background:var(--panel-2);color:var(--ink-2);
+  cursor:pointer;
+}
+.tog:hover{color:var(--ink);border-color:var(--ink-3)}
+.tog.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tog:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+.strip{
+  display:flex;flex-direction:column;height:560px;
+  border:1px solid var(--rule);background:var(--panel-2);
+}
+.band{
+  position:relative;display:flex;align-items:center;
+  padding:0 10px;overflow:hidden;cursor:pointer;
+  border-bottom:1px solid var(--panel);
+  transition:flex-grow .55s cubic-bezier(.4,0,.2,1), background-color .15s;
+  min-height:3px;
+}
+.band:last-child{border-bottom:0}
+.band:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.band .bl{
+  font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  white-space:nowrap;opacity:0;transition:opacity .3s;color:#fff;mix-blend-mode:normal;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+.band.tall .bl{opacity:1}
+.band.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+.band[data-kind="lib"]{background:var(--grey)}
+.band[data-kind="style"]{background:var(--blue)}
+.band[data-kind="markup"]{background:#7FA6BE}
+.band[data-kind="data"]{background:var(--orange)}
+.band[data-kind="asset"]{background:#D8B26A}
+.band[data-kind="app"]{background:var(--green)}
+
+.core-detail{border:1px solid var(--rule);background:var(--panel-2);padding:20px;min-height:560px}
+.cd-kind{
+  display:inline-block;font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;padding:3px 8px;color:#fff;margin-bottom:10px;
+}
+.cd-title{font-family:var(--display);font-weight:800;font-size:21px;letter-spacing:-.01em;line-height:1.2}
+.cd-lines{font-family:var(--mono);font-size:13px;color:var(--ink-2);margin-top:5px;font-variant-numeric:tabular-nums}
+.cd-metrics{display:flex;gap:0;margin:18px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.cd-metrics div{flex:1;padding:11px 0}
+.cd-metrics div + div{border-left:1px solid var(--rule-2);padding-left:14px}
+.cd-metrics .k{font-family:var(--display);font-weight:700;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.cd-metrics .v{font-family:var(--mono);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.cd-body{color:var(--ink-2);font-size:14.5px;max-width:60ch}
+.cd-body p + p{margin-top:11px}
+.cd-note{
+  margin-top:16px;padding:12px 14px;border-left:3px solid var(--orange);
+  background:var(--orange-wash);font-size:13.5px;color:var(--ink-2);
+}
+.cd-note b{color:var(--ink)}
+
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px}
+.legend span{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2)}
+.legend i{width:11px;height:11px;display:block}
+
+.headline-stat{
+  margin-top:18px;border:1px solid var(--rule);background:var(--panel-2);
+  padding:18px 20px;display:flex;gap:22px;align-items:center;flex-wrap:wrap;
+}
+.headline-stat .big{
+  font-family:var(--display);font-weight:800;font-size:40px;line-height:1;
+  color:var(--orange-text);font-variant-numeric:tabular-nums;
+}
+.headline-stat p{color:var(--ink-2);font-size:14.5px;max-width:56ch}
+.headline-stat b{color:var(--ink);font-weight:400}
+
+/* ---------- B. flow diagram ---------- */
+.flow-controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;align-items:center}
+.flow-controls .lbl{font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-right:6px}
+.diagram-scroll{overflow-x:auto;border:1px solid var(--rule);background:var(--panel-2);padding:14px}
+svg.flow{display:block;min-width:900px;width:100%;height:auto}
+svg.flow .nd rect{fill:var(--panel);stroke:var(--rule);stroke-width:1.5;transition:opacity .25s,stroke .2s}
+svg.flow .nd{cursor:pointer}
+svg.flow .nd text{fill:var(--ink);font-family:var(--mono);font-size:12.5px;transition:opacity .25s}
+svg.flow .nd text.sub{fill:var(--ink-3);font-size:10.5px;font-family:var(--body)}
+svg.flow .nd:hover rect{stroke:var(--orange);stroke-width:2}
+svg.flow .nd.sel rect{stroke:var(--ink);stroke-width:2.5}
+svg.flow .nd.key rect{fill:var(--orange-wash);stroke:var(--orange)}
+svg.flow .nd.internal rect{stroke-dasharray:5 3;fill:var(--blue-wash);stroke:var(--blue)}
+svg.flow .nd.bug rect{fill:var(--crit-wash);stroke:var(--crit)}
+svg.flow .nd.dim rect,svg.flow .nd.dim text{opacity:.2}
+svg.flow path.link{fill:none;stroke:var(--ink-3);stroke-width:1.5;transition:opacity .25s,stroke .25s}
+svg.flow path.link.dim{opacity:.13}
+svg.flow path.link.hot{stroke:var(--orange);stroke-width:2.5}
+svg.flow .lane{fill:none;stroke:var(--rule);stroke-width:1;stroke-dasharray:3 4}
+svg.flow .lanelbl{fill:var(--ink-3);font-family:'Poppins',sans-serif;font-weight:700;font-size:10px;letter-spacing:.14em}
+
+.flow-detail{
+  margin-top:14px;border:1px solid var(--rule);background:var(--panel-2);padding:16px 18px;min-height:112px;
+}
+.flow-detail .fd-t{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--ink)}
+.flow-detail .fd-w{font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;margin-left:8px;vertical-align:2px}
+.flow-detail .fd-b{color:var(--ink-2);font-size:14px;margin-top:8px;max-width:78ch}
+.flow-detail .fd-loc{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:8px}
+
+/* ---------- tables ---------- */
+.tbl-scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:600px}
+th{
+  font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);text-align:left;padding:0 12px 8px 0;border-bottom:1px solid var(--rule);vertical-align:bottom;
+}
+td{padding:11px 12px 11px 0;border-bottom:1px solid var(--rule-2);vertical-align:top;color:var(--ink-2)}
+td:first-child,th:first-child{padding-left:2px}
+tr:last-child td{border-bottom:0}
+td.mono,th.mono{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+td strong{color:var(--ink);font-weight:400}
+
+/* pills */
+.pill{
+  display:inline-block;font-family:var(--display);font-weight:700;font-size:9px;letter-spacing:.11em;
+  text-transform:uppercase;padding:3px 7px;white-space:nowrap;
+}
+.pill.ok{background:var(--green-wash);color:var(--green-text)}
+.pill.info{background:var(--blue-wash);color:var(--blue-text)}
+.pill.warn{background:var(--orange-wash);color:var(--orange-text)}
+.pill.crit{background:var(--crit-wash);color:var(--crit)}
+.pill.neu{background:var(--panel-2);color:var(--ink-3);border:1px solid var(--rule)}
+
+/* copy button */
+.copy{
+  font-family:var(--display);font-weight:700;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  background:none;border:1px solid var(--rule);color:var(--ink-3);padding:3px 7px;cursor:pointer;margin-left:8px;
+}
+.copy:hover{border-color:var(--orange);color:var(--orange-text)}
+.copy:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+/* ---------- catalogue meter ---------- */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:8px}
+.fam{border:1px solid var(--rule-2);background:var(--panel-2);padding:9px 11px}
+.fam .n{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.fam .c{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+.meter{height:26px;background:var(--panel-2);border:1px solid var(--rule);display:flex;margin:10px 0 8px}
+.meter i{display:block;background:var(--orange)}
+.meter-cap{font-size:13px;color:var(--ink-2)}
+
+/* ---------- traps ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.chip{
+  font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+  padding:7px 12px;border:1px solid var(--rule);background:var(--panel);color:var(--ink-2);cursor:pointer;
+}
+.chip:hover{border-color:var(--ink-3);color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+.traps{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.trap{border:1px solid var(--rule);background:var(--panel);padding:16px 18px;border-left:3px solid var(--orange)}
+.trap.hide{display:none}
+.trap h3{font-size:14.5px;margin-bottom:7px}
+.trap p{color:var(--ink-2);font-size:13.5px;max-width:58ch}
+.trap .cat{font-family:var(--display);font-weight:700;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.trap code{background:var(--panel-2);padding:1px 4px;border:1px solid var(--rule-2)}
+
+/* ---------- open items ---------- */
+.item{border:1px solid var(--rule);background:var(--panel);padding:18px 20px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+.item + .item{margin-top:12px}
+.item .sev{width:4px;align-self:stretch;background:var(--orange)}
+.item.crit .sev{background:var(--crit)}
+.item.med .sev{background:var(--orange)}
+.item.low .sev{background:var(--blue)}
+.item h3{margin-bottom:8px}
+.item p{color:var(--ink-2);font-size:14px;max-width:76ch}
+.item p + p{margin-top:8px}
+.item .fix{margin-top:10px;font-size:13.5px;color:var(--ink-2);border-top:1px solid var(--rule-2);padding-top:10px}
+.item .fix b{font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:3px}
+
+/* ---------- footer ---------- */
+footer{margin-top:72px;border-top:1px solid var(--rule);padding-top:22px;color:var(--ink-3);font-size:13px}
+footer b{color:var(--ink-2);font-weight:400}
+
+/* ---------- responsive ---------- */
+@media (max-width:980px){
+  .core{grid-template-columns:1fr}
+  .strip{height:340px}
+  .core-detail{min-height:0}
+  .grid-2,.grid-3,.traps{grid-template-columns:1fr}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="mh-top">
+      <div>
+        <div class="rule-orange"></div>
+        <p class="eyebrow">CrossControl AB &middot; Internal tooling &middot; Infrastructure map</p>
+        <h1>Offertbyggare</h1>
+        <p class="mh-lede">One HTML file, <strong>3.24&nbsp;MB and 7,605 lines</strong>, holding two customer-facing tools, a 129-item product catalogue and three inlined libraries. No server, no build step, no network. This is where every piece of it lives.</p>
+      </div>
+    </div>
+
+    <div class="status">
+      <div><div class="k">Repo HEAD</div><div class="v">8e21492</div></div>
+      <div><div class="k">Working tree</div><div class="v ok">clean &middot; 0 unpushed</div></div>
+      <div><div class="k">Build hash</div><div class="v">2da9a5f8&hellip;</div></div>
+      <div><div class="k">Copies in sync</div><div class="v ok">4 of 4</div></div>
+      <div><div class="k">Cost coverage</div><div class="v warn">1 of 86</div></div>
+      <div><div class="k">Map verified</div><div class="v">2026-08-21</div></div>
+    </div>
+  </div>
+</header>
+
+<nav class="rail">
+  <div class="rail-inner">
+    <a href="#file" class="on">The one file</a>
+    <a href="#flow">Data flow</a>
+    <a href="#tabs">Two tools</a>
+    <a href="#where">Where it lives</a>
+    <a href="#memory">What it remembers</a>
+    <a href="#catalogue">The catalogue</a>
+    <a href="#traps">Rules &amp; traps</a>
+    <a href="#open">Open items</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ========================= A. THE ONE FILE ========================= -->
+<section id="file">
+  <div class="sec-head">
+    <span class="idx">A</span>
+    <h2>The one file, in cross-section</h2>
+  </div>
+  <p class="sec-sub">
+    <code>crosscontrol-offertbyggare.html</code> is the entire product. Everything &mdash; stylesheet, markup, product
+    catalogue, fonts, logo, SheetJS, pdfmake &mdash; is inlined, and the file contains
+    <strong>zero <code>&lt;script src&gt;</code> tags</strong>. Click a band to read what it is. Toggle the measure to
+    see how differently the file reads by line count and by byte weight.
+  </p>
+
+  <div class="panel">
+    <div class="core-controls">
+      <button class="tog on" id="byLines" type="button">Measure by lines</button>
+      <button class="tog" id="byBytes" type="button">Measure by bytes</button>
+    </div>
+
+    <div class="core">
+      <div>
+        <div class="strip" id="strip"></div>
+        <div class="legend">
+          <span><i style="background:var(--grey)"></i>Vendor library</span>
+          <span><i style="background:var(--blue)"></i>Stylesheet</span>
+          <span><i style="background:#7FA6BE"></i>Markup</span>
+          <span><i style="background:var(--orange)"></i>Catalogue data</span>
+          <span><i style="background:#D8B26A"></i>Embedded asset</span>
+          <span><i style="background:var(--green)"></i>Application code</span>
+        </div>
+      </div>
+      <div class="core-detail" id="coreDetail"></div>
+    </div>
+
+    <div class="headline-stat">
+      <div class="big num">86.2%</div>
+      <p>of the file's bytes are three vendor libraries sitting on <b>49 lines</b>. The app's own stylesheet, markup and
+      logic are <b>65% of the lines but 9.2% of the weight</b>. That imbalance is deliberate: inlining SheetJS and
+      pdfmake is what lets the tool run from a corporate laptop with no network, and it is what fixed the PDF download
+      button in July.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= B. DATA FLOW ========================= -->
+<section id="flow">
+  <div class="sec-head">
+    <span class="idx">B</span>
+    <h2>How a workbook becomes a customer document</h2>
+  </div>
+  <p class="sec-sub">
+    One source of product data feeds two independent pipelines. Pick a path to trace it, or click any node for what it
+    does and where it sits in the file.
+  </p>
+
+  <div class="panel">
+    <div class="flow-controls">
+      <span class="lbl">Trace</span>
+      <button class="tog on" data-path="all" type="button">Everything</button>
+      <button class="tog" data-path="quote" type="button">Quote &rarr; PDF</button>
+      <button class="tog" data-path="pl" type="button">Price list &rarr; PDF &amp; Excel</button>
+      <button class="tog" data-path="cost" type="button">Cost &amp; margin</button>
+      <button class="tog" data-path="store" type="button">Saved to disk</button>
+    </div>
+
+    <div class="diagram-scroll">
+      <svg class="flow" viewBox="0 0 1000 700" role="img" aria-label="Data flow from the master price list workbook through the importer to the quote builder and price list pipelines and their PDF, Excel and archive outputs.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/>
+          </marker>
+          <marker id="ah-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--orange)"/>
+          </marker>
+        </defs>
+
+        <!-- lane guides -->
+        <rect class="lane" x="18" y="282" width="452" height="386"></rect>
+        <rect class="lane" x="530" y="282" width="452" height="386"></rect>
+        <text class="lanelbl" x="30" y="299">QUOTE BUILDER</text>
+        <text class="lanelbl" x="542" y="299">PRICE LIST</text>
+
+        <!-- links: shared -->
+        <path class="link" data-p="quote pl cost store" d="M500,74 L500,102" marker-end="url(#ah)"/>
+        <path class="link" data-p="quote pl cost store" d="M500,162 L500,190" marker-end="url(#ah)"/>
+        <path class="link" data-p="quote store" d="M500,250 L500,268 L250,268 L250,318" marker-end="url(#ah)"/>
+        <path class="link" data-p="pl cost store" d="M500,250 L500,268 L750,268 L750,318" marker-end="url(#ah)"/>
+
+        <!-- links: quote lane -->
+        <path class="link" data-p="quote" d="M250,364 L250,382 L130,382 L130,400" marker-end="url(#ah)"/>
+        <path class="link" data-p="quote store" d="M250,364 L250,382 L365,382 L365,400" marker-end="url(#ah)"/>
+        <path class="link" data-p="store" d="M130,446 L130,478" marker-end="url(#ah)"/>
+        <path class="link" data-p="quote" d="M365,446 L365,478" marker-end="url(#ah)"/>
+        <path class="link" data-p="quote" d="M365,524 L365,556" marker-end="url(#ah)"/>
+        <path class="link" data-p="quote" d="M365,602 L365,630" marker-end="url(#ah)"/>
+
+        <!-- links: price list lane -->
+        <path class="link" data-p="pl cost store" d="M750,364 L750,396" marker-end="url(#ah)"/>
+        <path class="link" data-p="pl" d="M750,442 L750,462 L630,462 L630,480" marker-end="url(#ah)"/>
+        <path class="link" data-p="pl" d="M750,442 L750,462 L870,462 L870,480" marker-end="url(#ah)"/>
+        <path class="link" data-p="store" d="M630,526 L630,556" marker-end="url(#ah)"/>
+        <path class="link" data-p="pl" d="M870,526 L870,556" marker-end="url(#ah)"/>
+        <path class="link" data-p="cost" d="M750,442 L750,610" marker-end="url(#ah)"/>
+
+        <!-- ===== nodes ===== -->
+        <g class="nd key" data-id="wb" data-p="quote pl cost store">
+          <rect x="300" y="20" width="400" height="54"></rect>
+          <text x="500" y="43" text-anchor="middle">Master price list workbook</text>
+          <text class="sub" x="500" y="60" text-anchor="middle">.xlsx / .csv &mdash; uploaded in-browser, or baked in at build time</text>
+        </g>
+
+        <g class="nd" data-id="imp" data-p="quote pl cost store">
+          <rect x="300" y="108" width="400" height="54"></rect>
+          <text x="500" y="131" text-anchor="middle">parsePriceListFlexible()</text>
+          <text class="sub" x="500" y="148" text-anchor="middle">header-driven &middot; falls back to the legacy positional parser</text>
+        </g>
+
+        <g class="nd key" data-id="pd" data-p="quote pl cost store">
+          <rect x="300" y="196" width="400" height="54"></rect>
+          <text x="500" y="219" text-anchor="middle">PRICE_DATA</text>
+          <text class="sub" x="500" y="236" text-anchor="middle">16 families &middot; 86 products &middot; 43 accessories</text>
+        </g>
+
+        <!-- quote lane -->
+        <g class="nd" data-id="cart" data-p="quote store">
+          <rect x="60" y="318" width="380" height="46"></rect>
+          <text x="250" y="346" text-anchor="middle">cart[]</text>
+        </g>
+        <g class="nd" data-id="rd" data-p="quote">
+          <rect x="40" y="400" width="180" height="46"></rect>
+          <text x="130" y="422" text-anchor="middle">renderDoc()</text>
+          <text class="sub" x="130" y="437" text-anchor="middle">live screen preview</text>
+        </g>
+        <g class="nd key" data-id="beo" data-p="quote store">
+          <rect x="250" y="400" width="230" height="46"></rect>
+          <text x="365" y="422" text-anchor="middle">buildExportObj()</text>
+          <text class="sub" x="365" y="437" text-anchor="middle">the contract</text>
+        </g>
+        <g class="nd" data-id="autosave" data-p="store">
+          <rect x="40" y="478" width="180" height="46"></rect>
+          <text x="130" y="500" text-anchor="middle">scheduleAutoSave()</text>
+          <text class="sub" x="130" y="515" text-anchor="middle">cc_quote_archive_v1</text>
+        </g>
+        <g class="nd" data-id="qpdf" data-p="quote">
+          <rect x="250" y="478" width="230" height="46"></rect>
+          <text x="365" y="500" text-anchor="middle">pdfmake 0.3.11</text>
+          <text class="sub" x="365" y="515" text-anchor="middle">Quote PDF &mdash; the normal route</text>
+        </g>
+        <g class="nd" data-id="qjson" data-p="quote">
+          <rect x="250" y="556" width="230" height="46"></rect>
+          <text x="365" y="578" text-anchor="middle">export .json</text>
+          <text class="sub" x="365" y="593" text-anchor="middle">same object, written to disk</text>
+        </g>
+        <g class="nd internal" data-id="weasy" data-p="quote">
+          <rect x="250" y="630" width="230" height="50"></rect>
+          <text x="365" y="653" text-anchor="middle">generate_pdf.py</text>
+          <text class="sub" x="365" y="669" text-anchor="middle">WeasyPrint &mdash; pixel-exact fallback</text>
+        </g>
+
+        <!-- price list lane -->
+        <g class="nd key" data-id="plsec" data-p="pl cost store">
+          <rect x="550" y="318" width="400" height="46"></rect>
+          <text x="750" y="340" text-anchor="middle">plSections()</text>
+          <text class="sub" x="750" y="355" text-anchor="middle">the one adapter &mdash; products and accessories, one shape</text>
+        </g>
+        <g class="nd" data-id="plgroups" data-p="pl cost store">
+          <rect x="550" y="396" width="400" height="46"></rect>
+          <text x="750" y="418" text-anchor="middle">buildPricelistGroups()</text>
+          <text class="sub" x="750" y="433" text-anchor="middle">discount, basis column, fallbacks</text>
+        </g>
+        <g class="nd" data-id="plrender" data-p="pl">
+          <rect x="550" y="480" width="160" height="46"></rect>
+          <text x="630" y="502" text-anchor="middle">plRenderDoc()</text>
+          <text class="sub" x="630" y="517" text-anchor="middle">screen preview</text>
+        </g>
+        <g class="nd" data-id="plpdf" data-p="pl">
+          <rect x="790" y="480" width="160" height="46"></rect>
+          <text x="870" y="502" text-anchor="middle">pdfmake</text>
+          <text class="sub" x="870" y="517" text-anchor="middle">Price list PDF</text>
+        </g>
+        <g class="nd bug" data-id="plarch" data-p="store">
+          <rect x="550" y="556" width="160" height="50"></rect>
+          <text x="630" y="578" text-anchor="middle">plSaveToArchive()</text>
+          <text class="sub" x="630" y="594" text-anchor="middle">write-only &mdash; see F.2</text>
+        </g>
+        <g class="nd" data-id="plxlsx" data-p="pl">
+          <rect x="790" y="556" width="160" height="46"></rect>
+          <text x="870" y="578" text-anchor="middle">SheetJS</text>
+          <text class="sub" x="870" y="593" text-anchor="middle">Price list .xlsx</text>
+        </g>
+        <g class="nd internal" data-id="tg" data-p="cost">
+          <rect x="700" y="610" width="180" height="50"></rect>
+          <text x="790" y="632" text-anchor="middle">computeTG()</text>
+          <text class="sub" x="790" y="648" text-anchor="middle">internal &mdash; never printed</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="flow-detail" id="flowDetail"></div>
+  </div>
+</section>
+
+<!-- ========================= C. TWO TOOLS ========================= -->
+<section id="tabs">
+  <div class="sec-head">
+    <span class="idx">C</span>
+    <h2>Two tools, one file</h2>
+  </div>
+  <p class="sec-sub">
+    The top bar switches between them. They share the catalogue, the currency card and the brand, and share almost
+    nothing else &mdash; each has its own pricing engine, its own preview renderer, its own pdfmake document definition
+    and its own archive.
+  </p>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><div class="bar"></div><h3>Quote builder</h3></div>
+      <p style="color:var(--ink-2);font-size:14px">A priced offer for one customer: search and cart, volume tiers,
+      per-line discount with an off-list warning, per-line notes, custom free-text lines for bespoke work, Incoterms
+      2020 with a plain-English explainer, sender office, signature block and an A4 page-break indicator.</p>
+      <table style="margin-top:16px;min-width:0">
+        <tr><td style="width:38%"><strong>Output</strong></td><td>PDF (pdfmake), browser print, <code>.json</code></td></tr>
+        <tr><td><strong>Numbering</strong></td><td class="mono">CC-2026-0001</td></tr>
+        <tr><td><strong>Archive</strong></td><td>Browsable slide-in panel <span class="pill ok">reads back</span></td></tr>
+        <tr><td><strong>Margin</strong></td><td>Per line, with manual cost override</td></tr>
+        <tr><td><strong>Forecast condition</strong></td><td>Optional <span class="pill ok">on by default</span></td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div class="bar"></div><h3>Price list</h3></div>
+      <p style="color:var(--ink-2);font-size:14px">A customer-facing fixed price list: pick products, whole families or
+      everything, plus the 43 accessories and cables; a default discount with per-family overrides; a
+      &ldquo;calculate from&rdquo; basis column; optional MOQ, status, revision, valid-until, VAT, lead time and
+      confidentiality lines.</p>
+      <table style="margin-top:16px;min-width:0">
+        <tr><td style="width:38%"><strong>Output</strong></td><td>PDF <em>and</em> Excel <code>.xlsx</code></td></tr>
+        <tr><td><strong>Numbering</strong></td><td class="mono">PL-2026-0001</td></tr>
+        <tr><td><strong>Archive</strong></td><td>Writes only <span class="pill crit">no way back</span></td></tr>
+        <tr><td><strong>Margin</strong></td><td>Blended TG card, panel only</td></tr>
+        <tr><td><strong>Forecast condition</strong></td><td>Optional <span class="pill ok">on by default</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div class="bar"></div><h3>Three decisions that must not be quietly reversed</h3></div>
+    <div class="grid-3">
+      <div>
+        <h4>Discount stacks</h4>
+        <p style="color:var(--ink-2);font-size:13.5px;margin-top:6px">An extra discount applies on top of a chosen
+        volume column, with a visible warning whenever it does. Tier prices already run ~50% under list &mdash; stacking
+        silently would give margin away.</p>
+      </div>
+      <div>
+        <h4>Missing prices fall back</h4>
+        <p style="color:var(--ink-2);font-size:13.5px;margin-top:6px">A product with no price in the chosen column
+        keeps its list price rather than disappearing from the customer's document. The panel reports how many did.</p>
+      </div>
+      <div>
+        <h4>Duplicates are reported</h4>
+        <p style="color:var(--ink-2);font-size:13.5px;margin-top:6px">Duplicate part numbers are never deduped.
+        Dropping one silently would mean picking a price at random and hiding a commercial problem.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= D. WHERE IT LIVES ========================= -->
+<section id="where">
+  <div class="sec-head">
+    <span class="idx">D</span>
+    <h2>Where the build lives</h2>
+  </div>
+  <p class="sec-sub">
+    Four copies of the same file, only one of which is version-controlled. After every merge the build is copied to the
+    other three by hand. Hashes below were read from disk on 2026-08-21.
+  </p>
+
+  <div class="panel">
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:15%">Copy</th><th style="width:38%">Path</th><th style="width:17%" class="mono">md5</th><th style="width:12%">State</th><th>What else is in the folder</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Repo</strong></td>
+            <td class="mono">CrossControlOffertbyggare<button class="copy" data-c="C:\Users\Schill\CrossControlOffertbyggare">copy</button></td>
+            <td class="mono">d451ce0b</td>
+            <td><span class="pill ok">in sync</span></td>
+            <td>Source of truth. <code>HANDOFF.md</code>, <code>generate_pdf.py</code>, <code>parse_pricelist.py</code>, <code>xlsx_parser.js</code>, fonts, logo, T&amp;C</td>
+          </tr>
+          <tr>
+            <td><strong>Delivery</strong></td>
+            <td class="mono">OneDrive\WEB offert\New\CrossControl-Offertbyggare<button class="copy" data-c="C:\Users\Schill\OneDrive\WEB offert\New\CrossControl-Offertbyggare">copy</button></td>
+            <td class="mono">d451ce0b</td>
+            <td><span class="pill ok">in sync</span></td>
+            <td>What ships. Mirrors the repo, plus the end-user <code>README.txt</code></td>
+          </tr>
+          <tr>
+            <td><strong>Demo kit</strong></td>
+            <td class="mono">Desktop\CC Quote Builder (QB)<button class="copy" data-c="C:\Users\Schill\Desktop\CC Quote Builder (QB)">copy</button></td>
+            <td class="mono">d451ce0b</td>
+            <td><span class="pill ok">in sync</span></td>
+            <td><code>START HERE.txt</code> (10-minute demo script), <code>Fallback\</code> previous build, sample PDF/XLSX output, the cost-column meeting spec</td>
+          </tr>
+          <tr>
+            <td><strong>Prototypes</strong></td>
+            <td class="mono">Desktop\CC QB Prototypes\Live build (mirror).html<button class="copy" data-c="C:\Users\Schill\Desktop\CC QB Prototypes">copy</button></td>
+            <td class="mono">d451ce0b</td>
+            <td><span class="pill ok">in sync</span></td>
+            <td>Screenshots, and the frozen &ldquo;before&rdquo; build below</td>
+          </tr>
+          <tr>
+            <td><strong>Comparison</strong></td>
+            <td class="mono">&hellip;\CC QB Prototypes\Current build - for comparison.html</td>
+            <td class="mono">b34b1ecf</td>
+            <td><span class="pill info">frozen on purpose</span></td>
+            <td>Pinned at <code>d05887a</code>, pre-polish. <strong>Never refresh it</strong> &mdash; it is the &ldquo;before&rdquo; half of the before/after</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><div class="bar"></div><h3>The July 7 build, and why it matters</h3></div>
+      <p style="color:var(--ink-2);font-size:14px">The price list tab existed for six weeks in no commit at all &mdash;
+      it survived only inside a build sitting in <code>OneDrive\WEB offert\files\</code>, minutes from being deleted as
+      a stale duplicate. It is committed and live now, but that 3,170,524-byte build is still the only artefact of a
+      lineage the repo never captured.</p>
+      <p style="color:var(--ink-2);font-size:14px;margin-top:10px">It now has three copies rather than one:
+      <code>OneDrive\WEB offert\files\</code>, the <code>.zip</code> beside it, and the demo kit's
+      <em>&ldquo;Optional &mdash; older build with Price list tab&rdquo;</em> folder. Better than when this was flagged,
+      still all on one machine.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div class="bar"></div><h3>Running it locally</h3></div>
+      <p style="color:var(--ink-2);font-size:14px"><code>file://</code> is blocked by both the preview tool and
+      Playwright, so serve it over localhost. <code>npx serve</code> fails on the space in
+      <code>C:\Program&nbsp;Files</code> &mdash; use Python's own server.</p>
+      <p style="font-family:var(--mono);font-size:12.5px;background:var(--panel-2);border:1px solid var(--rule);padding:10px 12px;margin-top:12px;overflow-x:auto;white-space:nowrap">python -m http.server 8142 --directory .</p>
+      <p style="color:var(--ink-2);font-size:13.5px;margin-top:12px"><span class="pill warn">note</span> The repo's
+      <code>.claude/launch.json</code> defines one server, <code>cc-offert</code> on 8142. The handoff also mentions
+      8140 and 8143 &mdash; those are not in the file. <code>.claude/</code> is gitignored, so this config is
+      machine-local and not backed up anywhere.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= E. MEMORY ========================= -->
+<section id="memory">
+  <div class="sec-head">
+    <span class="idx">E</span>
+    <h2>What it remembers between sessions</h2>
+  </div>
+  <p class="sec-sub">
+    There is no database and no server. Six <code>localStorage</code> keys on one browser profile hold everything the
+    tool keeps &mdash; clearing site data for the file's origin loses every saved quote.
+  </p>
+
+  <div class="panel">
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:26%">Key</th><th style="width:20%">Holds</th><th style="width:20%">Written by</th><th style="width:20%">Read by</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">cc_quote_archive_v1</td><td>Every quote, keyed by ID</td><td class="mono">scheduleAutoSave()</td><td class="mono">renderArchiveList()</td><td><span class="pill ok">round trip</span></td></tr>
+          <tr><td class="mono">cc_quote_counter_v1</td><td>Next sequence number</td><td>New-quote flow</td><td>New-quote flow</td><td><span class="pill ok">round trip</span></td></tr>
+          <tr><td class="mono">cc_quote_last_open_v1</td><td>Quote to resume on load</td><td>Autosave</td><td>Startup</td><td><span class="pill ok">round trip</span></td></tr>
+          <tr><td class="mono">cc_pricelist_archive_v1</td><td>Saved price lists</td><td class="mono">plSaveToArchive()</td><td><strong>nothing</strong></td><td><span class="pill crit">write-only</span></td></tr>
+          <tr><td class="mono">cc_panel_width_v1</td><td>Control-panel width, per machine</td><td>Drag handle</td><td>Startup</td><td><span class="pill ok">round trip</span></td></tr>
+          <tr><td class="mono">cc_tc_filename_v1</td><td>Which T&amp;C document is referenced</td><td>Upload control</td><td>Document render</td><td><span class="pill ok">round trip</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div class="bar"></div><h3>The only real backup is the JSON export</h3></div>
+    <p style="color:var(--ink-2);font-size:14px">The quote archive can be exported and re-imported wholesale as JSON.
+    That is the sole route by which a quote survives a cleared browser profile or moves to another machine &mdash; and
+    it covers quotes only. Saved price lists have no export and no loader.</p>
+  </div>
+</section>
+
+<!-- ========================= F. CATALOGUE ========================= -->
+<section id="catalogue">
+  <div class="sec-head">
+    <span class="idx">F</span>
+    <h2>The catalogue baked into the file</h2>
+  </div>
+  <p class="sec-sub">
+    Read at startup from a <code>&lt;script type="application/json"&gt;</code> block, and replaceable for a session by
+    uploading a workbook. Source: <code>TG_kalkyl_och_valuta_updated.xlsx</code>.
+  </p>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><div class="bar"></div><h3>16 families &middot; 86 products</h3></div>
+      <div class="cat-grid" id="famGrid"></div>
+      <p style="color:var(--ink-2);font-size:13.5px;margin-top:14px">Plus <strong>43 accessories</strong> in two
+      sections &mdash; Accessories (7) and Cables (36). They are stored in a different shape:
+      <code>{part_number, description, price_eur}</code> with no tiers and no list price. <code>plSections()</code> is
+      the single adapter that normalises both, so the picker, pricing engine, preview, PDF and Excel never need to know
+      accessories exist. Add accessory handling there, not in five places.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div class="bar"></div><h3>Manufacturing cost coverage</h3></div>
+      <div class="meter" aria-label="1 of 86 products carry a manufacturing cost">
+        <i style="width:1.16%"></i>
+      </div>
+      <p class="meter-cap"><strong class="num" style="font-family:var(--mono);color:var(--ink)">1 of 86</strong>
+      products carries an <code>mk_sek</code> value. Margin is fully built and has almost nothing to calculate from.</p>
+      <p style="color:var(--ink-2);font-size:13.5px;margin-top:12px">The importer is already prepared: it matches a cost
+      column on the <em>start</em> of the normalised header, because real headers carry qualifiers
+      (<code>Cost (CMBF ONLY)</code>, <code>MK (SEK)</code>), and excludes look-alikes like <code>Cost center</code>.
+      Currency comes from the header &mdash; EUR if it says so, otherwise SEK. The day the column appears it is read
+      with no code change.</p>
+      <table style="margin-top:16px;min-width:0">
+        <tr><td style="width:52%"><strong>Target TG</strong></td><td class="mono">35%</td></tr>
+        <tr><td><strong>VAT assumption</strong></td><td class="mono">25%</td></tr>
+        <tr><td><strong>Rate frozen at import</strong></td><td class="mono">10.54 SEK/EUR <span class="pill warn">do not use</span></td></tr>
+        <tr><td><strong>Rate actually used</strong></td><td class="mono">sekPerEur() &rarr; Currency card</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div class="bar"></div><h3>The margin model, mirroring TG_kalkyl_och_valuta.xlsx</h3></div>
+    <div class="grid-3">
+      <div>
+        <p class="eyebrow">Sheet B12 &mdash; gross margin</p>
+        <p style="font-family:var(--mono);font-size:16px;margin-top:8px;color:var(--ink)">TG = (SP &minus; MK) / SP</p>
+      </div>
+      <div>
+        <p class="eyebrow">Sheet B13 &mdash; gross profit</p>
+        <p style="font-family:var(--mono);font-size:16px;margin-top:8px;color:var(--ink)">TB = SP &minus; MK</p>
+      </div>
+      <div>
+        <p class="eyebrow">Sheet B14 &mdash; price to hit target</p>
+        <p style="font-family:var(--mono);font-size:16px;margin-top:8px;color:var(--ink)">SP* = MK / (1 &minus; target)</p>
+      </div>
+    </div>
+    <p style="color:var(--ink-2);font-size:13.5px;margin-top:16px;border-top:1px solid var(--rule-2);padding-top:14px">
+      <span class="pill info">for information</span> The source workbook's <code>B12</code> reads
+      <code>1 - ABS((E5-B6)/B5)</code> and references <strong>E5, which is empty</strong>. It gives the right answer
+      only because empty evaluates to zero. If anyone types into E5, the sheet silently starts computing something
+      else.</p>
+  </div>
+</section>
+
+<!-- ========================= G. TRAPS ========================= -->
+<section id="traps">
+  <div class="sec-head">
+    <span class="idx">G</span>
+    <h2>Rules and traps</h2>
+  </div>
+  <p class="sec-sub">
+    Standing constraints, and the specific mistakes that have cost time on this codebase. Filter by kind.
+  </p>
+
+  <div class="chips" id="trapChips">
+    <button class="chip on" data-cat="all" type="button">All</button>
+    <button class="chip" data-cat="customer" type="button">Customer-facing</button>
+    <button class="chip" data-cat="verify" type="button">Verification</button>
+    <button class="chip" data-cat="css" type="button">CSS &amp; layout</button>
+    <button class="chip" data-cat="tooling" type="button">Tooling</button>
+  </div>
+
+  <div class="traps" id="trapList">
+    <div class="trap" data-cat="customer">
+      <p class="cat">Customer-facing &middot; hard rule</p>
+      <h3>Cost and margin never reach the customer</h3>
+      <p>The Margin (TG) card is internal and badged &ldquo;never printed&rdquo;. Nothing about cost may appear in
+      <code>plRenderDoc()</code>, either PDF, or the Excel export. Verify by decompressing the PDF streams and scanning
+      the xlsx XML &mdash; not by reading the screen.</p>
+    </div>
+
+    <div class="trap" data-cat="customer">
+      <p class="cat">Customer-facing &middot; hard rule</p>
+      <h3>The document never names its basis column</h3>
+      <p>Which volume column a price list was calculated from is panel-only feedback. It does not go into
+      <code>plRenderDoc</code>.</p>
+    </div>
+
+    <div class="trap" data-cat="customer">
+      <p class="cat">Customer-facing &middot; hard rule</p>
+      <h3>One rate for both tabs</h3>
+      <p>A single <code>sekPerEur()</code> reads the Currency card. Never go back to
+      <code>meta.tg_assumptions.fx_sek_eur</code> &mdash; it is a snapshot frozen at import, not a rate. Using it made
+      the same product read 66.2% on the quote and 68.7% on the price list.</p>
+    </div>
+
+    <div class="trap" data-cat="customer">
+      <p class="cat">Customer-facing &middot; hard rule</p>
+      <h3>The forecast condition lives in six places</h3>
+      <p>Added 2026-08-21. The sentence renders from <code>QUOTE_FORECAST_TEXT</code> on the
+      quote&rsquo;s two surfaces and <code>PL_FORECAST_TEXT</code> on the price list&rsquo;s three,
+      with a fourth hand-kept copy inside <code>generate_pdf.py</code>. The wording is a fixed
+      constant, not a free-text field \u2014 it is a commercial condition, and a typo in a customer
+      document costs more than the flexibility is worth. <code>buildExportObj()</code> carries
+      <code>forecast_condition</code>; a missing key reads as false, so quotes archived before
+      the change still render.</p>
+    </div>
+
+    <div class="trap" data-cat="css">
+      <p class="cat">CSS &amp; layout</p>
+      <h3>Styling is duplicated three times</h3>
+      <p>The app's <code>&lt;style&gt;</code>, the pdfmake style objects, and <code>generate_pdf.py</code>'s f-string
+      CSS. A change to the customer document must be made in all three or the PDFs silently diverge from the screen.</p>
+    </div>
+
+    <div class="trap" data-cat="css">
+      <p class="cat">CSS &amp; layout</p>
+      <h3>Tier A is an appended override block</h3>
+      <p>217 lines fenced with a banner comment, sitting before <code>@media print</code> so print still wins. Deleting
+      the block reverts the look exactly. To consolidate, fold the overrides into the originals <em>and</em> delete the
+      block &mdash; never keep both.</p>
+    </div>
+
+    <div class="trap" data-cat="css">
+      <p class="cat">CSS &amp; layout</p>
+      <h3>A hover state is a promise</h3>
+      <p>Archive rows were given an orange hover while only the small Open button was wired, which read as &ldquo;the
+      archive won't open&rdquo;. Wire the click or do not add the hover.</p>
+    </div>
+
+    <div class="trap" data-cat="verify">
+      <p class="cat">Verification</p>
+      <h3>Audit the UI in a non-default state</h3>
+      <p>Controls that have not rendered yet audit as absent, and the audit then reports success. A claim of
+      &ldquo;77 of 77 controls labelled&rdquo; was measured with the price list families collapsed; the real figure once
+      expanded was <strong>611 of 611</strong>. Expand every family, select all, add a custom line and enable volume
+      tiers first.</p>
+    </div>
+
+    <div class="trap" data-cat="verify">
+      <p class="cat">Verification</p>
+      <h3>A restored button label is not a pass</h3>
+      <p>The <code>.catch()</code> restores the caption too, so a failure reads as a pass. Assert that a download fired
+      and no alert appeared.</p>
+    </div>
+
+    <div class="trap" data-cat="verify">
+      <p class="cat">Verification</p>
+      <h3>Compare numbers, not formatted strings</h3>
+      <p><code>68.73%</code> and <code>68.7%</code> are the same number at two precisions. Comparing the strings produced
+      a false &ldquo;the tabs disagree&rdquo; failure.</p>
+    </div>
+
+    <div class="trap" data-cat="verify">
+      <p class="cat">Verification</p>
+      <h3>A half-applied edit passes unit-level checks</h3>
+      <p>A script that asserted and aborted left a consumer without its declarations
+      (<code>mkAfter is not defined</code>). Only driving the real file input caught it. Test end to end.</p>
+    </div>
+
+    <div class="trap" data-cat="tooling">
+      <p class="cat">Tooling</p>
+      <h3><code>grep -c</code> counts lines, not matches</h3>
+      <p>This file has single lines megabytes long &mdash; one of them is over a megabyte on its own. Use
+      <code>grep -o &hellip; | wc -l</code>.</p>
+    </div>
+
+    <div class="trap" data-cat="tooling">
+      <p class="cat">Tooling</p>
+      <h3>Heredocs mangle edit scripts here</h3>
+      <p>Write the script to a file, then run it.</p>
+    </div>
+
+    <div class="trap" data-cat="tooling">
+      <p class="cat">Tooling</p>
+      <h3>Verify every deploy copy by md5</h3>
+      <p>Three copies live outside git and are updated by hand after every merge. Do not assume the copy ran.</p>
+    </div>
+
+    <div class="trap" data-cat="tooling">
+      <p class="cat">Tooling &middot; contract</p>
+      <h3><code>buildExportObj()</code> is an untyped contract</h3>
+      <p>Its output shape ties the web app to <code>generate_pdf.py</code>, with nothing enforcing it. Change what goes
+      into a line item and both the pdfmake builder and the Python script need matching updates, or the PDFs lose data
+      or throw.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= H. OPEN ========================= -->
+<section id="open">
+  <div class="sec-head">
+    <span class="idx">H</span>
+    <h2>Open items</h2>
+  </div>
+  <p class="sec-sub">Three carried forward, in the order they are worth attacking.</p>
+
+  <div class="item crit">
+    <div class="sev"></div>
+    <div>
+      <p class="eyebrow">H.1 &middot; Data, not code</p>
+      <h3>Manufacturing cost exists for 1 of 86 products</h3>
+      <p>Margin is built, tested and mirrors the workbook exactly &mdash; and has nothing to work on. The workbook itself
+      says cost must come from Monitor. Until then it is typed in per product in the picker.</p>
+      <p>Two questions the meeting spec asks the business to answer: <strong>how current</strong> the cost will be, and
+      <strong>who owns the refresh</strong>. A silently stale cost is worse than no cost.</p>
+      <div class="fix"><b>Watch for</b> If cost lands in the master price list, that workbook becomes an
+      <em>internal</em> document and must not be forwarded to customers as-is.</div>
+    </div>
+  </div>
+
+  <div class="item crit">
+    <div class="sev"></div>
+    <div>
+      <p class="eyebrow">H.2 &middot; Code</p>
+      <h3>The price list archive is write-only</h3>
+      <p><code>plSaveToArchive()</code> writes <code>cc_pricelist_archive_v1</code>, mints an ID and confirms with a
+      toast. Nothing ever reads it back &mdash; no list, no loader, no UI. Every saved price list is unreachable, and the
+      Archive drawer in the top bar is the quote archive only.</p>
+      <div class="fix"><b>Either</b> Build a loader mirroring <code>renderArchiveList</code> / <code>openQuote</code>
+      &mdash; noting the saved record also omits <code>basisColumn</code>, which must be added first or a restored list
+      would price from the wrong column. <b style="margin-top:8px">Or</b> Remove the Save button, so it stops promising
+      something it does not do.</div>
+    </div>
+  </div>
+
+  <div class="item med">
+    <div class="sev"></div>
+    <div>
+      <p class="eyebrow">H.3 &middot; Source data</p>
+      <h3>One part number, two prices, in the 2024 workbook</h3>
+      <p><code>C000082-26</code> appears twice in the Cables section as two different products: row 159, &ldquo;Straight
+      M12 to RJ45 male, 2m&rdquo;, &euro;61.00; and row 180, &ldquo;Ethernet cable adapter V700&rdquo;, &euro;45.00.
+      Verified by reading the xlsx directly &mdash; not a parser bug. It also shows up live: &ldquo;Select all&rdquo; reports <strong>128</strong> selected, not 129, because selection is keyed by part number and the two collapse into one.</p>
+      <p>Any price list including Cables shows the same part number twice at two prices, and because selection is keyed
+      by part number the two cannot be picked apart. The app warns; the fix belongs in the workbook.</p>
+      <div class="fix"><b>Before</b> Sending any price list that includes Cables.</div>
+    </div>
+  </div>
+
+  <div class="item low">
+    <div class="sev"></div>
+    <div>
+      <p class="eyebrow">H.4 &middot; Deferred by choice</p>
+      <h3>Tier B/C UI, and the declined redesign items</h3>
+      <p>Left undone deliberately: the archive drawer row treatment, responsive behaviour below 1280px, and the empty
+      band between panel and document at wide widths.</p>
+      <p>The redesign brief's product-card grid and configurator grouping were <strong>declined</strong> &mdash; they
+      assume a CPQ model this tool does not have. Variants are baked into the SKU, so cards would be worse than
+      search.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p><b>How this map was built.</b> Every figure here was read from the files on 2026-08-21, not from the project's
+  documentation: line and byte spans by walking the HTML, catalogue counts by parsing the embedded JSON, storage keys by
+  grepping the source, and the four md5 hashes by hashing the copies on disk. Where the docs and the disk disagreed
+  &mdash; the launch config's port list, and how many copies of the July 7 build survive &mdash; the disk won and the
+  difference is noted in place. Re-measured against <code>8e21492</code> after the forecast condition
+  shipped; all four copies of the build were re-hashed and match.</p>
+</footer>
+</div>
+
+<script>
+/* ============================ A. core sample ============================ */
+var BANDS = [
+  { id:'sheetjs', kind:'lib', name:'SheetJS 0.18.5', from:1, to:32, lines:32, bytes:882026,
+    body:'<p>The Excel engine, inlined. It parses uploaded workbooks on the way in and writes the price list <code>.xlsx</code> on the way out \u2014 the only library used in both directions.</p><p>The <code>&lt;head&gt;</code> and the opening tags share this band; the library itself is a single line of roughly 860&nbsp;KB.</p>',
+    note:'<b>It was a CDN tag once.</b> Inlining it removed the dependency on cdnjs being reachable from a corporate network.' },
+
+  { id:'pdfmake', kind:'lib', name:'pdfmake 0.3.11', from:33, to:41, lines:9, bytes:1054373,
+    body:'<p>The client-side PDF engine. Both tabs build a pdfmake document definition and hand it over \u2014 two entirely separate definitions, one per tool.</p><p>The single heaviest thing in the file, at just over a megabyte on nine lines.</p>',
+    note:'<b>The version is load-bearing.</b> 0.2.10\u2019s <code>.download()</code> was callback-based, which broke the download button. 0.3.11\u2019s is a real Promise API. Do not pin backwards.' },
+
+  { id:'vfs', kind:'lib', name:'pdfmake VFS fonts (Roboto)', from:42, to:49, lines:8, bytes:854753,
+    body:'<p>pdfmake\u2019s virtual filesystem, carrying four Roboto TTFs as base64. Required for pdfmake to render any text at all.</p><p>Note this is separate from the brand\u2019s Poppins, which is embedded further down for the screen and the WeasyPrint route.</p>' },
+
+  { id:'style', kind:'style', name:'The stylesheet', from:50, to:1073, lines:1024, bytes:111413,
+    body:'<p>Every rule for the app chrome, the on-screen customer document, and print. One of the three places the document\u2019s styling is defined.</p><p>Three regions inside it matter: the <b>Tier A override block</b> at lines 801\u20131017 (217 lines, 10.8&nbsp;KB), the four lines of forecast-condition styling at 1018\u20131021, and <code>@media print</code> at 1022\u20131072 \u2014 the overrides sit before print deliberately, so printing still wins.</p>',
+    note:'<b>Tier A is reversible by design.</b> It re-declares a handful of properties rather than editing the originals. That was a deliberate trade three days before a demo: reversibility over tidiness.' },
+
+  { id:'markup', kind:'markup', name:'Body markup', from:1074, to:1461, lines:388, bytes:21028,
+    body:'<p>The whole interface in 380 lines: top bar, archive slide-in, the two-pane layout, the left control panel, the right live preview, tab navigation, the price list panel and its preview document, and the internal Margin (TG) card.</p><p>Class names here are shared with what the JavaScript generates, which is why the entire app could be reskinned in CSS alone without touching the markup-generating logic.</p>' },
+
+  { id:'logo', kind:'asset', name:'Logo, as vector', from:1462, to:1502, lines:41, bytes:8442,
+    body:'<p>The CrossControl logo as inline SVG with brand colours baked in, held in a template tag and cloned where needed. The same logo also exists as base64 PNG two bands down, because pdfmake needs a raster.</p>' },
+
+  { id:'catalogue', kind:'data', name:'PRICE_DATA catalogue', from:1503, to:4059, lines:2557, bytes:70594,
+    body:'<p>The product catalogue as JSON in a <code>&lt;script type="application/json"&gt;</code> block, parsed at startup. 16 families, 86 products with volume tiers, and 43 accessories and cables.</p><p>A third of the file\u2019s lines and only 2.2% of its bytes \u2014 it is pretty-printed, which is what makes it readable in a diff.</p>',
+    note:'<b>Replaceable at runtime.</b> Uploading a workbook swaps this wholesale for the session. Nothing is written back to the file.' },
+
+  { id:'fonts', kind:'asset', name:'Poppins + logo PNG, base64', from:4060, to:4063, lines:4, bytes:68455,
+    body:'<p>Poppins Bold and ExtraBold as base64 TTF, plus the logo as base64 PNG. Four lines, 67&nbsp;KB.</p><p>Poppins stands in for Century Gothic, which is the brand guide\u2019s own stated fallback for Decima Pro. Embedding it means the headline font is right even with no network and no Google Fonts.</p>' },
+
+  { id:'app', kind:'app', name:'Application code', from:4064, to:7605, lines:3542, bytes:165804,
+    body:'<p>Everything the tool actually does, in one script: the flexible workbook parser, both pdfmake document builders, the quote engine (cart, tiers, discounts, currency, Incoterms, archive), and the price list engine (sections adapter, pricing, preview, PDF, Excel, TG). The two wording constants for the forecast condition sit at the top, one shared by the quote\u2019s two surfaces and one inside the price list\u2019s DOM-free block.</p><p>Nearly half the file\u2019s lines, one twentieth of its weight.</p>',
+    note:'<b>Ordered, not modular.</b> The regions are marked with banner comments rather than separated into modules \u2014 the split source files this was once assembled from no longer exist.' }
+];
+
+var TOTAL_LINES = 7605, TOTAL_BYTES = 3236888;
+var KINDLABEL = { lib:'Vendor library', style:'Stylesheet', markup:'Markup', data:'Catalogue data', asset:'Embedded asset', app:'Application code' };
+var KINDCOLOR = { lib:'var(--grey)', style:'var(--blue)', markup:'#7FA6BE', data:'var(--orange)', asset:'#D8B26A', app:'var(--green)' };
+
+var strip = document.getElementById('strip');
+var coreDetail = document.getElementById('coreDetail');
+var mode = 'lines';
+
+function fmt(n){ return n.toLocaleString('en-US'); }
+function kb(n){ return n >= 1048576 ? (n/1048576).toFixed(2) + ' MB' : Math.round(n/1024) + ' KB'; }
+
+BANDS.forEach(function(b, i){
+  var el = document.createElement('button');
+  el.className = 'band';
+  el.type = 'button';
+  el.dataset.kind = b.kind;
+  el.dataset.i = i;
+  el.setAttribute('aria-label', b.name + ', lines ' + b.from + ' to ' + b.to);
+  el.innerHTML = '<span class="bl">' + b.name + '</span>';
+  strip.appendChild(el);
+  b.el = el;
+  el.addEventListener('click', function(){ select(i); });
+});
+
+function applyMode(){
+  BANDS.forEach(function(b){
+    var share = mode === 'lines' ? b.lines / TOTAL_LINES : b.bytes / TOTAL_BYTES;
+    b.el.style.flexGrow = share * 1000;
+    b.el.style.flexBasis = '0';
+    b.el.classList.toggle('tall', share > 0.055);
+  });
+}
+
+function select(i){
+  BANDS.forEach(function(b, j){ b.el.classList.toggle('sel', i === j); });
+  var b = BANDS[i];
+  coreDetail.innerHTML =
+    '<span class="cd-kind" style="background:' + KINDCOLOR[b.kind] + '">' + KINDLABEL[b.kind] + '</span>' +
+    '<div class="cd-title">' + b.name + '</div>' +
+    '<div class="cd-lines">lines ' + fmt(b.from) + '\u2013' + fmt(b.to) + '</div>' +
+    '<div class="cd-metrics">' +
+      '<div><div class="k">Lines</div><div class="v">' + fmt(b.lines) + '</div><div class="k" style="margin-top:2px">' + (b.lines / TOTAL_LINES * 100).toFixed(1) + '% of file</div></div>' +
+      '<div><div class="k">Weight</div><div class="v">' + kb(b.bytes) + '</div><div class="k" style="margin-top:2px">' + (b.bytes / TOTAL_BYTES * 100).toFixed(1) + '% of file</div></div>' +
+    '</div>' +
+    '<div class="cd-body">' + b.body + '</div>' +
+    (b.note ? '<div class="cd-note">' + b.note + '</div>' : '');
+}
+
+document.getElementById('byLines').addEventListener('click', function(){
+  mode = 'lines';
+  this.classList.add('on');
+  document.getElementById('byBytes').classList.remove('on');
+  applyMode();
+});
+document.getElementById('byBytes').addEventListener('click', function(){
+  mode = 'bytes';
+  this.classList.add('on');
+  document.getElementById('byLines').classList.remove('on');
+  applyMode();
+});
+
+applyMode();
+select(8);
+
+/* ============================ B. flow diagram ============================ */
+var FLOW = {
+  wb:      { t:'Master price list workbook', w:'', b:'The CrossControl Standard Product Price List, as .xlsx or .csv. Either uploaded through the app for one session, or baked into the HTML at build time via parse_pricelist.py. Multi-sheet, Euro sheet preferred, currency duplicates and condition sheets skipped.', loc:'external \u2014 not in the repo' },
+  imp:     { t:'parsePriceListFlexible()', w:'', b:'Matches columns by header name across Swedish and English synonyms, in any order, handling split two-row headers, per-family tier refreshes, European decimals and part-number/description swaps. Falls back to the original position-based parser when no header row is recognisable.', loc:'parsePriceListFlexible() line 6506 \u00b7 block 6201\u20136590 \u00b7 the legacy fallback still hardcodes mk_sek: null' },
+  pd:      { t:'PRICE_DATA', w:'', b:'The in-memory catalogue: { meta, groups, accessories }. Read from the embedded JSON at startup, replaced wholesale by an upload. Everything downstream reads from here, never from the file.', loc:'lines 1503\u20134059 (embedded) \u00b7 parsed into PRICE_DATA at line 4763' },
+  cart:    { t:'cart[]', w:'', b:'Line items for one quote, built by addProductToCart() and addCustomLine(). Carries quantity, chosen tier, per-line discount, notes and any manual cost override.', loc:'addProductToCart() line 5158 \u00b7 cart block 5155\u20135222' },
+  rd:      { t:'renderDoc()', w:'', b:'Renders the customer document as HTML into the right-hand pane, including the live A4 page-break indicator. One of the three surfaces the document styling is duplicated across.', loc:'renderDoc() line 5655 \u00b7 block 5654\u20135903' },
+  beo:     { t:'buildExportObj()', w:'contract', b:'The canonical offer object, and the single source of truth for a quote: customer, terms, currency, every line item, totals, signature and T&C filename. Its shape is an untyped contract with generate_pdf.py \u2014 change a field and both the pdfmake builder and the Python script need matching updates.', loc:'buildExportObj() line 5974 \u00b7 block 5973\u20136036' },
+  autosave:{ t:'scheduleAutoSave()', w:'', b:'Debounced write of the current quote into localStorage under a sequential ID. The quote archive reads this back and can browse and reopen every past quote.', loc:'scheduleAutoSave() line 4845 \u00b7 archive block 4781\u20135035 \u00b7 key cc_quote_archive_v1' },
+  qpdf:    { t:'pdfmake \u2192 Quote PDF', w:'normal route', b:'Builds a pdfmake document definition from the export object and downloads a real PDF client-side. No Python, no server, no network.', loc:'generatePdfInBrowser() line 4722 \u00b7 buildPdfDocDefinition() line 4318' },
+  qjson:   { t:'Export quote data (.json)', w:'', b:'Writes buildExportObj() straight to disk. This is also the archive backup route \u2014 the whole quote archive can be exported and re-imported as JSON.', loc:'lines 6037\u20136048' },
+  weasy:   { t:'generate_pdf.py', w:'secondary', b:'Standalone Python script. Takes an exported quote JSON, rebuilds the document as an HTML string with its own copy of the CSS, and rasterises it through WeasyPrint for pixel-exact output. Needs cc-logo.svg and both Poppins base64 files beside it.', loc:'generate_pdf.py \u00b7 22 KB \u00b7 the third copy of the document styling' },
+  plsec:   { t:'plSections()', w:'the adapter', b:'Normalises products and accessories into one shape. Accessories are stored as { part_number, description, price_eur } with no tiers and no list price; everything downstream would otherwise need to special-case them. Because they have no tiers they always price from price_eur, whatever basis column is chosen.', loc:'plSections() line 6639 \u00b7 add accessory handling here, not in five places' },
+  plgroups:{ t:'buildPricelistGroups()', w:'', b:'Applies the default discount and per-family overrides, resolves the chosen basis column, and marks products that fell back to list price because the column had no price for them. line.listEur keeps the true list price; line.basisEur is the calculation base.', loc:'buildPricelistGroups() line 6663 \u00b7 no DOM dependencies, unit-testable in Node' },
+  plrender:{ t:'plRenderDoc()', w:'', b:'The customer-facing price list, rendered to screen. Nothing about cost or margin may ever reach it, and it never states which basis column was used.', loc:'plRenderDoc() line 7067' },
+  plpdf:   { t:'pdfmake \u2192 Price list PDF', w:'', b:'A second, entirely separate pdfmake document definition \u2014 the price list shares no layout code with the quote.', loc:'buildPricelistDocDefinition() line 6718 \u00b7 plDownloadPdf() line 7351' },
+  plarch:  { t:'plSaveToArchive()', w:'write-only', b:'Writes cc_pricelist_archive_v1, mints an ID like PL-2026-0001 and confirms with a toast. Nothing ever reads it back. The saved record also omits basisColumn, which must be added before a loader could restore a list correctly.', loc:'plSaveToArchive() line 7423 \u00b7 open item H.2' },
+  plxlsx:  { t:'SheetJS \u2192 .xlsx', w:'', b:'The price list as a real Excel workbook \u2014 the one output the quote builder has no equivalent of. Cost and margin must not appear in the exported XML; verify by scanning the workbook, not the screen.', loc:'plDownloadXlsx() line 7372' },
+  tg:      { t:'computeTG()', w:'internal', b:'Gross margin, mirroring TG_kalkyl_och_valuta.xlsx: TG = (SP\u2212MK)/SP, TB = SP\u2212MK, SP* = MK/(1\u2212target). Feeds the panel-only Margin (TG) card, badged \u201cnever printed\u201d. MK is quoted in SEK while prices are in EUR, so every comparison goes through the live sekPerEur() rate \u2014 never the rate frozen into the catalogue at import.', loc:'computeTG() line 5375 \u00b7 price list margin block 7131\u20137476 \u00b7 must never reach a document or an export' }
+};
+
+var svg = document.querySelector('svg.flow');
+var flowDetail = document.getElementById('flowDetail');
+var WPILL = { 'contract':'warn', 'write-only':'crit', 'internal':'info', 'normal route':'ok', 'secondary':'neu', 'the adapter':'warn' };
+
+function showNode(id){
+  var d = FLOW[id];
+  if (!d) return;
+  svg.querySelectorAll('.nd').forEach(function(n){ n.classList.toggle('sel', n.dataset.id === id); });
+  flowDetail.innerHTML =
+    '<div><span class="fd-t">' + d.t + '</span>' +
+    (d.w ? '<span class="pill ' + (WPILL[d.w] || 'neu') + ' fd-w">' + d.w + '</span>' : '') + '</div>' +
+    '<div class="fd-b">' + d.b + '</div>' +
+    '<div class="fd-loc">' + d.loc + '</div>';
+}
+
+svg.querySelectorAll('.nd').forEach(function(n){
+  n.setAttribute('tabindex', '0');
+  n.setAttribute('role', 'button');
+  n.addEventListener('click', function(){ showNode(n.dataset.id); });
+  n.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showNode(n.dataset.id); }
+  });
+});
+
+function tracePath(p){
+  var all = p === 'all';
+  svg.querySelectorAll('.nd').forEach(function(n){
+    var on = all || (n.dataset.p || '').split(' ').indexOf(p) > -1;
+    n.classList.toggle('dim', !on);
+  });
+  svg.querySelectorAll('path.link').forEach(function(l){
+    var on = all || (l.dataset.p || '').split(' ').indexOf(p) > -1;
+    l.classList.toggle('dim', !on);
+    l.classList.toggle('hot', !all && on);
+    l.setAttribute('marker-end', (!all && on) ? 'url(#ah-hot)' : 'url(#ah)');
+  });
+}
+
+document.querySelectorAll('.flow-controls .tog').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.flow-controls .tog').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    tracePath(btn.dataset.path);
+  });
+});
+
+showNode('pd');
+
+/* ============================ F. families ============================ */
+var FAMILIES = [
+  ['CCpilot VI',6],['CCpilot V510',10],['CCpilot V700',5],['CCpilot V705',10],
+  ['CCpilot 710',10],['CCpilot V1000',10],['CCpilot V1200',10],['CCpilot V1090',2],
+  ['CCpilot V1290',2],['CCpilot VS',7],['CCpilot X900',4],['CCpilot X1200',4],
+  ['CCpilot X1400',1],['CrossFire IX',2],['CrossFire SX',2],['CrossLink TG',1]
+];
+var famGrid = document.getElementById('famGrid');
+FAMILIES.forEach(function(f){
+  var d = document.createElement('div');
+  d.className = 'fam';
+  d.innerHTML = '<div class="n">' + f[0] + '</div><div class="c">' + f[1] + (f[1] === 1 ? ' product' : ' products') + '</div>';
+  famGrid.appendChild(d);
+});
+
+/* ============================ G. trap filter ============================ */
+document.querySelectorAll('#trapChips .chip').forEach(function(chip){
+  chip.addEventListener('click', function(){
+    document.querySelectorAll('#trapChips .chip').forEach(function(c){ c.classList.remove('on'); });
+    chip.classList.add('on');
+    var cat = chip.dataset.cat;
+    document.querySelectorAll('#trapList .trap').forEach(function(t){
+      t.classList.toggle('hide', cat !== 'all' && t.dataset.cat !== cat);
+    });
+  });
+});
+
+/* ============================ copy buttons ============================ */
+document.querySelectorAll('.copy').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var txt = btn.dataset.c;
+    var done = function(){
+      var old = btn.textContent;
+      btn.textContent = 'copied';
+      setTimeout(function(){ btn.textContent = old; }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, function(){});
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = txt; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+  });
+});
+
+/* ============================ nav highlight ============================ */
+var links = Array.prototype.slice.call(document.querySelectorAll('.rail a'));
+var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+var obs = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if (!e.isIntersecting) return;
+    var i = secs.indexOf(e.target);
+    if (i < 0) return;
+    links.forEach(function(a){ a.classList.remove('on'); });
+    links[i].classList.add('on');
+  });
+}, { rootMargin: '-52px 0px -70% 0px' });
+secs.forEach(function(s){ if (s) obs.observe(s); });
+</script>
