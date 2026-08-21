@@ -1015,6 +1015,10 @@ var vfs = {
   .cc-toast .tick{ color:var(--cc-orange); font-weight:700; font-size:14px; line-height:1; }
 
 
+  /* Forecast condition - quote and price list */
+  .tc-ref-forecast{display:block;margin-top:7px;}
+  .pl-doc-forecast{display:block;margin-top:6px;}
+
   @media print{
     /* @page margin:0 removes the browser's own date/URL/page-number header and footer lines.
        All document margins and spacing are handled by our own CSS instead. */
@@ -1280,6 +1284,13 @@ var vfs = {
           </datalist>
           <div class="price-list-hint" style="margin-top:5px;">Shown under Terms. Presets: EU (excl. VAT) · US (no VAT or Tariff).</div>
         </div>
+        <div class="term-row">
+          <label class="pl-toggle-row" style="margin-top:0;">
+            <input type="checkbox" id="includeForecast" checked>
+            State the 12-month forecast condition
+          </label>
+          <div class="price-list-hint" style="margin-top:5px;">Adds a sentence to the § block making the quote conditional on a rolling 12-month forecast.</div>
+        </div>
       </div>
 
       <div class="panel-section">
@@ -1418,6 +1429,7 @@ var vfs = {
         <div class="pl-field"><input type="text" id="plLeadTime" aria-label="Lead time text" placeholder="Approx. 6 weeks from confirmed PO"></div>
         <label class="pl-toggle-row"><input type="checkbox" id="plShowConfidentiality" checked> Show confidentiality line</label>
         <div class="pl-field"><input type="text" id="plConfidentiality" aria-label="Confidentiality line text" placeholder="Confidential — not for redistribution"></div>
+        <label class="pl-toggle-row"><input type="checkbox" id="plShowForecast" checked> State the 12-month forecast condition</label>
       </div>
 
       <div class="panel-section">
@@ -4055,6 +4067,15 @@ window._poppinsFontsB64 = {
   b700: document.getElementById('poppins-700-data').textContent.trim(),
   b800: document.getElementById('poppins-800-data').textContent.trim(),
 };
+// ===== DOCUMENT WORDING (shared by the screen render and the pdfmake build) =====
+// The forecast condition is optional per quote (Terms card) and per price list
+// (Professional details). generate_pdf.py carries its own copy of the quote text -
+// change both or the WeasyPrint PDF diverges from the screen.
+const QUOTE_FORECAST_TEXT =
+  'This quotation is made subject to the customer having submitted a rolling forecast ' +
+  'for the twelve (12) months following the date of issue. The prices quoted are ' +
+  'conditional upon receipt of that forecast.';
+
 // ===== IN-BROWSER EXCEL PARSER (mirrors parse_pricelist.py logic) =====
 // Parses an uploaded "TG_kalkyl_och_valuta_updated.xlsx"-shaped workbook into
 // the same { meta, groups, accessories } structure as PRICE_DATA.
@@ -4522,6 +4543,9 @@ function buildPdfDocDefinition(offer) {
             ', enclosed as a separate document (',
             { text: tcName, italics: true },
             '). By accepting this quote, the buyer agrees to be bound by these terms.',
+            ...(offer.forecast_condition
+              ? ['\n\n', { text: QUOTE_FORECAST_TEXT }]
+              : []),
           ],
           style: 'tcText',
         },
@@ -5750,6 +5774,10 @@ function renderDoc() {
 
   // T&C reference block — always shown on the quote
   const tcFileName = window._tcFileName || 'CrossControl Standard Terms & Conditions 2023';
+  const includeForecast = document.getElementById('includeForecast').checked;
+  const forecastHtml = includeForecast
+    ? `<div class="tc-ref-forecast">${escapeHtml(QUOTE_FORECAST_TEXT)}</div>`
+    : '';
   const tcRefHtml = `
     <div class="tc-reference">
       <div class="tc-ref-icon">§</div>
@@ -5757,6 +5785,7 @@ function renderDoc() {
         This quote is subject to CrossControl's <b>Standard Terms &amp; Conditions</b>,
         enclosed as a separate document (<em>${escapeHtml(tcFileName)}</em>).
         By accepting this quote, the buyer agrees to be bound by these terms.
+        ${forecastHtml}
       </div>
     </div>`;
 
@@ -5922,7 +5951,7 @@ function renderPageBreaks() {
 }
 
 // ===== RE-RENDER ON FORM CHANGES =====
-['custName','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote'].forEach(id => {
+['custName','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => { renderDoc(); scheduleAutoSave(); });
   document.getElementById(id).addEventListener('change', () => { renderDoc(); scheduleAutoSave(); });
 });
@@ -5998,6 +6027,7 @@ function buildExportObj() {
       signer_title: document.getElementById('signerTitle').value.trim(),
     },
     tc_filename: window._tcFileName || 'CrossControl Standard Terms & Conditions 2023',
+    forecast_condition: document.getElementById('includeForecast').checked,
     lines,
     subtotal_eur: round2(subtotal),
     appendices: appendices.map(a => a.name),
@@ -6566,6 +6596,13 @@ function parsePriceListFlexible(workbook, opts) {
 // it can be unit-tested in Node against the real PRICE_DATA.
 // ============================================================================
 
+// ---- Document wording ----
+// Optional per price list, toggled in Professional details.
+const PL_FORECAST_TEXT =
+  'This price list is made subject to the customer having submitted a rolling forecast ' +
+  'for the twelve (12) months following the date of issue. The prices stated are ' +
+  'conditional upon receipt of that forecast.';
+
 // ---- Brand colours (mirror pdf_export.js) ----
 const PL_ORANGE = '#F7971C';
 const PL_ORANGE_DARK = '#c9760f';
@@ -6786,6 +6823,7 @@ function buildPricelistDocDefinition(meta, groups, opts) {
         { text: 'Prices are subject to CrossControl\u2019s ' },
         { text: 'Standard Terms & Conditions', bold: true },
         { text: ' (CrossControl Standard Terms & Conditions 2023). This price list supersedes all previous versions.' },
+        ...(meta.showForecast ? [{ text: '\n\n' }, { text: PL_FORECAST_TEXT }] : []),
       ], style: 'tcText', border: [false, false, false, false] },
     ]] },
     layout: { defaultBorder: false, fillColor: () => PL_GREY_BG, paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 8, paddingBottom: () => 8 },
@@ -7012,6 +7050,7 @@ function plGatherMeta(){
     showVat: plEl('plShowVat').checked,
     showLeadTime: plEl('plShowLeadTime').checked,
     showConfidentiality: plEl('plShowConfidentiality').checked,
+    showForecast: plEl('plShowForecast').checked,
   };
 }
 function plGatherConfig(){
@@ -7082,7 +7121,9 @@ function plRenderDoc(){
     h += '<div class="pl-doc-section">Terms &amp; Conditions</div><div class="pl-doc-terms">' + escapeHtml(meta.termsText.trim()) + '</div>';
   }
   h += '<div class="pl-doc-tc"><span class="sec">§</span><span>Prices are subject to CrossControl’s <b>Standard Terms &amp; Conditions</b> ' +
-       '(CrossControl Standard Terms &amp; Conditions 2023). This price list supersedes all previous versions.</span></div>';
+       '(CrossControl Standard Terms &amp; Conditions 2023). This price list supersedes all previous versions.' +
+       (meta.showForecast ? '<span class="pl-doc-forecast">' + escapeHtml(PL_FORECAST_TEXT) + '</span>' : '') +
+       '</span></div>';
 
   root.innerHTML = h;
 }
@@ -7366,6 +7407,7 @@ function plDownloadXlsx(){
     });
     aoa.push([]);
     aoa.push(['Prices are subject to CrossControl Standard Terms & Conditions 2023. This price list supersedes all previous versions.']);
+    if (meta.showForecast) aoa.push([PL_FORECAST_TEXT]);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = header.map((h, i) => ({ wch: i === 1 ? 34 : (i === 0 ? 16 : 14) }));
@@ -7415,7 +7457,7 @@ plPopulateBasisOptions();
 ].forEach(id => plEl(id).addEventListener('input', plRenderDoc));
 [
   'plShowDiscount','plShowMoq','plShowStatus','plShowRevision','plShowPriceBasis',
-  'plShowVat','plShowLeadTime','plShowConfidentiality',
+  'plShowVat','plShowLeadTime','plShowConfidentiality','plShowForecast',
 ].forEach(id => plEl(id).addEventListener('change', plRenderDoc));
 plEl('plSelectAll').addEventListener('click', () => { plSections(PRICE_DATA).forEach(g => g.products.forEach(p => PL.selection[p.part_number] = true)); plRenderAll(); });
 plEl('plClearAll').addEventListener('click', () => { PL.selection = {}; plRenderAll(); });

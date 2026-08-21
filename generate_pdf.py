@@ -183,6 +183,17 @@ def build_html(offer, logo_path):
         appendix_html += f'<div class="appendix-note">📎 Appendix: {name}</div>'
 
     tc_filename = offer.get('tc_filename', 'CrossControl Standard Terms & Conditions 2023')
+    # Mirrors QUOTE_FORECAST_TEXT in crosscontrol-offertbyggare.html - change both.
+    forecast_html = ""
+    if offer.get('forecast_condition'):
+        forecast_html = (
+            '<span class="tc-ref-forecast">'
+            'This quotation is made subject to the customer having submitted a rolling '
+            'forecast for the twelve (12) months following the date of issue. '
+            'The prices quoted are conditional upon receipt of that forecast.'
+            '</span>'
+        )
+
     tc_ref_html = f"""
       <div class="tc-reference">
         <div class="tc-ref-icon">§</div>
@@ -190,6 +201,7 @@ def build_html(offer, logo_path):
           This quote is subject to CrossControl&#x2019;s <strong>Standard Terms &amp; Conditions</strong>,
           enclosed as a separate document (<em>{tc_filename}</em>).
           By accepting this quote, the buyer agrees to be bound by these terms.
+          {forecast_html}
         </div>
       </div>"""
 
