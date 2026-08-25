@@ -18,6 +18,7 @@ def quote_pages(tmp_path_factory):
     with serve() as url, sync_playwright() as p:
         with app_page(p, url) as (page, alerts):
             build_long_quote(page, 100)
+            assert page.evaluate("cart.length") == 101
             download_quote_pdf(page, alerts, out)
     texts = page_texts(out)
     # pdfmake's own paragraph wrapping leaves a trailing space before the line
@@ -27,7 +28,11 @@ def quote_pages(tmp_path_factory):
     # genuine page break, not this unrelated wrap artifact (verified directly
     # against the raw PDF text stream before adding this normalization).
     texts = [re.sub(r"\s+", " ", t) for t in texts]
-    assert len(texts) >= 3, f"expected 3+ pages, got {len(texts)}"
+    # This fixture relies on a specific 12-page quote (100 products) for a
+    # protected block to actually land on a page boundary. >= 3 would still
+    # pass on a much shorter catalogue where nothing lands near a break and
+    # every test below proves nothing. Assert what we actually depend on.
+    assert len(texts) >= 10, f"expected 10+ pages, got {len(texts)}"
     return texts
 
 
@@ -46,8 +51,11 @@ def test_terms_and_conditions_block_is_not_split(quote_pages):
 
 
 def test_terms_heading_stays_with_its_content(quote_pages):
-    hits = [i for i, t in enumerate(quote_pages) if "TERMS" in t and "Payment" in t]
-    assert hits, "the TERMS heading and its grid ended up on different pages"
+    # "Currency" is one of the grid's later fields, not its first ("Payment"),
+    # so this actually catches the grid splitting after its first row instead
+    # of passing regardless of where inside the grid a break would land.
+    hits = [i for i, t in enumerate(quote_pages) if "TERMS" in t and "Currency" in t]
+    assert len(hits) == 1, f"the TERMS heading and its grid ended up on different pages ({hits})"
 
 
 def test_header_and_footer_on_every_page(quote_pages):
@@ -56,3 +64,45 @@ def test_header_and_footer_on_every_page(quote_pages):
         assert "QUOTE #CC-" in text, f"header missing on page {i} of {total}"
         assert "info@crosscontrol.com" in text, f"footer missing on page {i} of {total}"
         assert f"Page {i} of {total}" in text, f"page number wrong or missing on page {i}"
+
+
+# A per-line note is a plain <textarea> with no maxlength anywhere in the
+# file, and its placeholder invites long text. If a product row is ever made
+# unbreakable (directly, or via pdfmake's row-level dontBreakRows), a note
+# long enough to push the row past one page body doesn't move the row to the
+# next page or clip it — pdfmake's commitUnbreakableBlock keeps only the
+# first page's fragment and discards the rest. A single unbroken run of one
+# repeated character doesn't trigger this (pdfmake treats it as one
+# unbreakable "word" and never reflows it across enough lines to overflow a
+# page); realistic wrapped prose does. This fixture is intentionally
+# separate from quote_pages: it needs a tiny cart, not a 12-page one.
+LONG_NOTE = " ".join(
+    f"Scope item {i:03d}: engineering deliverable with acceptance criteria and assumptions."
+    for i in range(60)
+)
+
+
+@pytest.fixture
+def longnote_pdf_texts(tmp_path):
+    out = tmp_path / "longnote.pdf"
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            build_long_quote(page, 3)
+            assert page.evaluate("cart.length") == 5
+            note_field = page.locator('#productList textarea[data-action="note"]').nth(1)
+            note_field.fill(LONG_NOTE)
+            page.wait_for_timeout(400)
+            assert page.evaluate("cart[1].note.length") == len(LONG_NOTE)
+            part_number = page.evaluate("cart[1].partNumber")
+            download_quote_pdf(page, alerts, out)
+    return page_texts(out), part_number
+
+
+def test_long_note_does_not_delete_its_product_line(longnote_pdf_texts):
+    texts, part_number = longnote_pdf_texts
+    full = " ".join(texts)
+    assert part_number in full, (
+        f"product line {part_number!r} is entirely missing from the PDF "
+        "after a long note on it — the row was silently dropped instead of "
+        "being moved or clipped"
+    )

@@ -4502,7 +4502,7 @@ function buildPdfDocDefinition(offer) {
   // Standard product table + totals (only when there are standard lines)
   if (standardLines.length) {
     content.push({
-      table: { headerRows: 1, dontBreakRows: true, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
       layout: {
         hLineWidth: (i, node) => (i === 0 ? 0 : (i === 1 ? 1.2 : 0.5)),
         vLineWidth: () => 0,
