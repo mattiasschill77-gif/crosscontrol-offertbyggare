@@ -840,3 +840,39 @@ libraries through the user environment variable
 existed will not see it; pass it inline. ⚠️ `pytest.importorskip("weasyprint")` is **not**
 enough to skip on a machine without Pango — the failure is an `OSError`, not an
 `ImportError`, so collection crashes. The module catches `Exception` and skips.
+
+---
+
+## 19. Save location — the browser capability is measured, not assumed (2026-08-25)
+
+The planned "save into a customer folder" feature depends on the File System Access
+API, and the assumption going in was that it would be **blocked** on `file://`. That
+assumption was wrong. Measured in the owner's own Chrome, with the app opened the normal
+way by double-clicking the delivered file:
+
+```
+{"url":"file:","save":true,"dir":true,"idb":true,"secure":true}
+CC PROBE: {"idb":"ok","picker":"OPENED and cancelled = PASS"}
+```
+
+⚠️ The first line only proves the APIs **exist**. `!!window.indexedDB` is true even on
+origins where `open()` throws, and `showSaveFilePicker` can sit on `window` and still
+refuse when called. The second line is the one that counts: `indexedDB.open()` really
+succeeded, and `showSaveFilePicker()` really put a dialog on screen — proven by the
+`AbortError` that comes back when the user cancels it. **Presence is not function; call
+the API before believing in it.**
+
+What this settles for the design:
+
+- The quote can be written **straight into a chosen customer folder** from `file://`.
+  No download-folder detour, no "copy this path" choreography.
+- A directory handle can be stored in IndexedDB, so the folder can be remembered **per
+  customer between sessions** rather than only for the current one.
+- Still unmeasured, and deliberately so because it does not change the architecture:
+  whether Chrome keeps the folder **permission** across a restart. The handle is stored
+  either way and `requestPermission()` is called when needed; the only difference is
+  whether the owner clicks "allow" once per customer folder or once per session.
+
+⚠️ Unchanged regardless: the copy in the `localStorage` archive is written **first and
+unconditionally**, before any file leaves the app. The customer folder is an addition,
+never a replacement, and the archive checkbox is rendered checked and disabled.
