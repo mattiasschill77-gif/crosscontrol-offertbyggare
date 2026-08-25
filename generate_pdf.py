@@ -413,6 +413,14 @@ def build_html(offer, logo_path):
   }}
   .tc-ref-icon {{ font-size:16px; color:{CC_ORANGE_DARK}; font-weight:700; line-height:1.2; flex-shrink:0; }}
   .tc-ref-text {{ line-height:1.6; }}
+  /* Same block-integrity guarantee the pdfmake builder gives, so the two PDFs
+     agree. Measured 2026-08-25: .tc-reference, .terms-grid and .totals are all
+     display:flex, and WeasyPrint never fragments a flex container - it moves it
+     whole - so for those three this rule is insurance for the day someone
+     changes display, not a fix. .appendix-note is a plain block and a plain
+     block DOES split here, so for that one the rule is load-bearing. */
+  .tc-reference, .terms-grid, .totals, .appendix-note {{ break-inside:avoid; }}
+  .section-eyebrow {{ break-after:avoid; }}
   .signature-block {{ margin-top:28px; padding-top:20px; border-top:1px solid {LINE}; break-inside:avoid; }}
   .signature-grid {{ display:flex; gap:36px; margin-top:12px; }}
   .signature-col {{ width:48%; }}
