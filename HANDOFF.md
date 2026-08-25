@@ -748,9 +748,18 @@ counts it**. In the reproduction the visible lines summed to €28,959.05 and th
 printed €32,813.45. `tests/test_pagination.py::test_long_note_does_not_delete_its_product_line`
 exists solely to catch a reintroduction; it was proven to fail with the flag re-applied.
 
-⚠️ The underlying exposure is unbounded input: the per-line note and the custom-item
-description are `<textarea>`s and there is **not a single `maxlength` in the file**.
-Bounding them is an open owner decision, deliberately not taken here.
+**The underlying exposure — unbounded input — was closed on 2026-08-25** at the owner's
+decision. The four free-text fields that reach the customer document now carry a
+`maxlength` and a small character counter: the per-line note 1000 (in **both** the
+standard-line and custom-line templates), the custom-line description 400, `#vatNote`
+400, `#termIncotermLocation` 120. Every limit sits well under the measured overflow
+thresholds, so no bounded field can push a block past a page body.
+
+⚠️ **Playwright's `fill()` respects `maxlength`** in this Chromium build — it truncates
+exactly like typing. A test that needs more text into a bounded field than a user could
+type must go through `harness.set_value_bypassing_maxlength()`, which assigns `el.value`
+and dispatches an `input` event. Both deletion guards use it, and both were re-proven to
+fail with their defects reintroduced *after* the change.
 
 ⚠️ **`orphans` and `widows` are a dead end.** Their CSS initial value is already `2`
 in both Chrome and WeasyPrint — measured: a bare `<div>` with no rules computes
@@ -797,9 +806,10 @@ the pdfmake button produces a correct PDF and is the path in daily use.
 python -m pytest tests/ -v
 ```
 
-13 tests: `test_smoke.py` (the harness works end to end), `test_version.py` (4),
+27 tests: `test_smoke.py` (the harness works end to end), `test_version.py` (4),
 `test_pagination.py` (6, the pdfmake surface), `test_weasyprint.py` (2, skipped when
-Pango is unreachable). They drive the real UI in Chromium over `http://localhost:8142`
+Pango is unreachable), `test_input_limits.py` (14, the field bounds and counters).
+They drive the real UI in Chromium over `http://localhost:8142`
 — `file://` is refused by Playwright — click the real export button, and read the real
 PDF page by page with PyMuPDF.
 
