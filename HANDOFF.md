@@ -672,3 +672,132 @@ European decimals (`2043,50` → 2043.5).
 ⚠️ The **legacy** positional parser still hardcodes `mk_sek: null`. It only runs
 when no header row is recognisable, so the flexible path covers the real file —
 but a cost column added to a headerless sheet would not be read.
+
+---
+
+## 18. Version scheme, the pagination contract, and the test suite (2026-08-25)
+
+### 18.1 Version
+
+`APP_VERSION` and `APP_BUILD_DATE` near the top of the app script are the **single
+source of truth**. The version literal appears exactly once in the file; the topbar
+label, the export JSON and both archive records all read the constant.
+
+At release time three things must be made to agree **by hand** — nothing enforces it:
+
+| | |
+|---|---|
+| the constant | `APP_VERSION` in the app script |
+| the git tag | `v1.5.0` on the merge commit |
+| the delivered file names | `crosscontrol-offertbyggare-v1.5.0.html` in Delivery, Demo kit and the Prototypes mirror |
+
+⚠️ **The file in the repo deliberately keeps its unversioned name.** Renaming a
+3.2 MB file every release makes the history unreadable. Only the copies outside git
+carry the version. Keep exactly one versioned file per delivery folder — replace the
+previous one, never leave two — and update `START HERE.txt` in the demo kit, because
+the file name it names changes every release.
+
+The version is stamped into `buildExportObj()`, `buildQuoteSnapshot()` and
+`plSaveToArchive()`, and is **never rendered in the customer document**. A test guards
+that, and it reads the live `APP_VERSION` from the page rather than a hardcoded string,
+so it keeps guarding the invariant after the next bump.
+
+### 18.2 The pagination contract
+
+**The rule: a text block moves whole to the next page; a table breaks between rows.**
+
+Protected in the pdfmake builder with `unbreakable: true`: the T&C block (which carries
+the forecast-condition sentence), the TERMS heading together with its grid, the totals
+block, and the signature block (which already was). In the print CSS and in
+`generate_pdf.py`: `break-inside: avoid` on `.tc-reference`, `.terms-grid`, `.totals`,
+`.appendix-note`, plus `break-after: avoid` on `.section-eyebrow`.
+
+⚠️ **Never mark a block unbreakable if it can be taller than one page body.** pdfmake
+does not move such a block and does not clip it — `commitUnbreakableBlock` keeps only
+`context.pages[0]` and **discards the rest**.
+
+⚠️ **`dontBreakRows: true` on the product table is FORBIDDEN, and was reverted once.**
+It is row-level `unbreakable`, so it inherits exactly that behaviour. Measured
+2026-08-25: with a per-line note of 3,115 characters the row survives; at 3,279 the
+**entire product row is deleted** from the PDF — description, part number, unit price,
+quantity, line total — with no alert and no visual cue, **while the totals block still
+counts it**. In the reproduction the visible lines summed to €28,959.05 and the document
+printed €32,813.45. `tests/test_pagination.py::test_long_note_does_not_delete_its_product_line`
+exists solely to catch a reintroduction; it was proven to fail with the flag re-applied.
+
+⚠️ The underlying exposure is unbounded input: the per-line note and the custom-item
+description are `<textarea>`s and there is **not a single `maxlength` in the file**.
+Bounding them is an open owner decision, deliberately not taken here.
+
+⚠️ **`orphans` and `widows` are a dead end.** Their CSS initial value is already `2`
+in both Chrome and WeasyPrint — measured: a bare `<div>` with no rules computes
+`orphans: 2, widows: 2`, identical to `.doc-body`. Declaring `2` does nothing. Only a
+value of 3 or more would mean anything, and that shifts existing layout.
+
+**WeasyPrint, measured 2026-08-25:** a plain block **does** fragment across a page
+break, and `break-inside: avoid` moves it whole instead. A `display: flex` container
+**never** fragments, with or without the rule. `.tc-reference`, `.terms-grid` and
+`.totals` are all flex, so for those three the rule is insurance for the day someone
+changes `display` — only `.appendix-note` is load-bearing today.
+
+### 18.3 Browser print still has a page-1-only header — known and accepted
+
+`Print via browser` repeats the footer (`position: fixed`) but **not** the header. The
+`@page { margin: 0 }` that would normally be relaxed to reserve space for a running
+header is load-bearing: it is what removes Chrome's own URL, date and page-number lines
+from a customer document.
+
+The `<thead>` wrapper approach was implemented and abandoned on 2026-08-25. Three
+findings worth keeping:
+
+1. Playwright's `page.pdf()` **does** fire `beforeprint` and `afterprint` in Chromium 145,
+   contrary to what is often written. A test that dispatches them manually gets four
+   events, not two.
+2. Mutating the header's inline `style` in those handlers races Chromium's own print
+   teardown — the restored element intermittently keeps a stray `style=""`. Toggling a
+   class instead is reliable.
+3. The real blocker: for a 16-product quote this document already produces a **trailing
+   page containing nothing but the footer**, both before and after the change. A repeated
+   `<thead>` can only appear on a page that receives at least one table row, so a
+   footer-only page can never carry the header by that technique. Fixing it means tuning
+   the spacing around `.doc-body` / `.doc-footer`, which risks the two paths that already
+   work.
+
+**Open decision for the owner:** keep the button with this limitation, or remove it —
+the pdfmake button produces a correct PDF and is the path in daily use.
+
+### 18.4 The test suite
+
+`tests/` — the first automated tests this repo has had. Run from the repo root:
+
+```
+python -m pytest tests/ -v
+```
+
+12 tests: `test_smoke.py` (the harness works end to end), `test_version.py` (4),
+`test_pagination.py` (5, the pdfmake surface), `test_weasyprint.py` (2, skipped when
+Pango is unreachable). They drive the real UI in Chromium over `http://localhost:8142`
+— `file://` is refused by Playwright — click the real export button, and read the real
+PDF page by page with PyMuPDF.
+
+⚠️ **Every guard in this suite was proven able to fail before it was trusted**, by
+breaking the thing it protects and watching it go red. Keep that discipline: a green
+test that has never failed is not evidence. Two traps that produced false results while
+writing them: PDF text extraction turns a line wrap into a double space, so page text
+must be normalised with `re.sub(r"\s+", " ", t)` before asserting; and a note made of
+one repeated character never reproduces an over-tall row, because pdfmake treats it as
+a single unbreakable word — realistic wrapped prose is required.
+
+⚠️ The app **seeds three demo cart lines** on a fresh browser profile (2 products and a
+custom line, when `localStorage` holds no archive), and `addProductToCart` no-ops for a
+part number already in the cart. Every cart-length assertion in the suite accounts for
+this. `FLAT_PRODUCTS.length` is **129** — 86 products plus 43 accessories.
+
+**WeasyPrint on this machine** (installed 2026-08-25): `pip install weasyprint` (69.0)
+plus the MSYS2 Pango stack (`winget install MSYS2.MSYS2`, then
+`pacman -S mingw-w64-x86_64-pango mingw-w64-x86_64-fontconfig`). WeasyPrint finds the
+libraries through the user environment variable
+`WEASYPRINT_DLL_DIRECTORIES=C:\msys64\mingw64\bin`. A shell opened before that variable
+existed will not see it; pass it inline. ⚠️ `pytest.importorskip("weasyprint")` is **not**
+enough to skip on a machine without Pango — the failure is an `OSError`, not an
+`ImportError`, so collection crashes. The module catches `Exception` and skips.
