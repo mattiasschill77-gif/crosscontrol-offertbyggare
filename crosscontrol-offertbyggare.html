@@ -4502,7 +4502,7 @@ function buildPdfDocDefinition(offer) {
   // Standard product table + totals (only when there are standard lines)
   if (standardLines.length) {
     content.push({
-      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+      table: { headerRows: 1, dontBreakRows: true, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
       layout: {
         hLineWidth: (i, node) => (i === 0 ? 0 : (i === 1 ? 1.2 : 0.5)),
         vLineWidth: () => 0,
@@ -4514,14 +4514,19 @@ function buildPdfDocDefinition(offer) {
       },
       margin: [0, 0, 0, 16],
     });
-    content.push({ columns: [{ width: '*', text: '' }, { width: 'auto', ...totalsTable }], margin: [0, 0, 0, 22] });
+    content.push({ unbreakable: true, columns: [{ width: '*', text: '' }, { width: 'auto', ...totalsTable }], margin: [0, 0, 0, 22] });
   }
 
   // Custom volume-tier matrix blocks
   matrixBlocks.forEach(b => content.push(b));
 
-  content.push({ text: 'TERMS', style: 'eyebrow', margin: [0, 0, 0, 10] });
-  content.push(termsGrid);
+  content.push({
+    unbreakable: true,
+    stack: [
+      { text: 'TERMS', style: 'eyebrow', margin: [0, 0, 0, 10] },
+      termsGrid,
+    ],
+  });
 
   // Appendices
   (offer.appendices || []).forEach(name => {
@@ -4540,6 +4545,7 @@ function buildPdfDocDefinition(offer) {
   // T&C reference
   const tcName = offer.tc_filename || 'CrossControl Standard Terms & Conditions 2023';
   content.push({
+    unbreakable: true,
     table: {
       widths: ['auto', '*'],
       body: [[
