@@ -76,6 +76,12 @@ def test_header_and_footer_on_every_page(quote_pages):
 # unbreakable "word" and never reflows it across enough lines to overflow a
 # page); realistic wrapped prose does. This fixture is intentionally
 # separate from quote_pages: it needs a tiny cart, not a 12-page one.
+# The note below is ~4,900 characters, about 1.5x the ~3,200 needed to push
+# a row past the 618 pt page body at the current column width and 9.5 pt
+# note size (measured: 3,115 survives, 3,279 is deleted). Do not shorten it
+# without re-measuring - a shorter note leaves the test green while proving
+# nothing. "The note spans a page break" is NOT a sufficient check either;
+# that is already true at ~2,950 characters, well below the trigger.
 LONG_NOTE = " ".join(
     f"Scope item {i:03d}: engineering deliverable with acceptance criteria and assumptions."
     for i in range(60)
