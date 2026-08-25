@@ -484,6 +484,8 @@ var vfs = {
   .upload-zone:hover{border-color:var(--cc-orange);color:var(--cc-orange-dark);}
   .upload-zone input{display:none;}
   .price-list-hint{font-size:10.5px;color:var(--panel-text-dim);margin-top:7px;line-height:1.5;}
+  .char-count{display:block;font-size:10.5px;color:var(--panel-text-dim);margin-top:3px;text-align:right;}
+  .char-count.hidden{display:none;}
 
   .checkbox-row{
     display:flex;align-items:center;gap:8px;margin-top:9px;
@@ -1254,7 +1256,8 @@ var vfs = {
         </div>
         <div class="term-row">
           <label class="field-tiny-label" style="margin-top:0;" for="termIncotermLocation">Named place</label>
-          <input type="text" id="termIncotermLocation" placeholder="Named place, e.g. Alfta, Sweden" value="Alfta, Sweden">
+          <input type="text" id="termIncotermLocation" maxlength="120" placeholder="Named place, e.g. Alfta, Sweden" value="Alfta, Sweden">
+          <span class="char-count" id="termIncotermLocationCount" aria-hidden="true"></span>
         </div>
         <div class="term-row">
           <label class="field-tiny-label" style="margin-top:0;" for="termValidity">Quote validity</label>
@@ -1277,7 +1280,8 @@ var vfs = {
         </div>
         <div class="term-row">
           <label class="field-tiny-label" style="margin-top:0;" for="vatNote">VAT / Tariff note</label>
-          <input type="text" id="vatNote" list="vatPresets" value="Prices are given excluding VAT">
+          <input type="text" id="vatNote" list="vatPresets" maxlength="400" value="Prices are given excluding VAT">
+          <span class="char-count" id="vatNoteCount" aria-hidden="true"></span>
           <datalist id="vatPresets">
             <option value="Prices are given excluding VAT"></option>
             <option value="Prices are given without VAT or Tariff"></option>
@@ -5518,7 +5522,8 @@ function renderProductList() {
 
       <div class="note-row">
         <label class="field-tiny-label" style="margin-top:0;">Note (internal + shown on quote if filled in)</label>
-        <textarea rows="2" aria-label="Note for ${escapeAttr(item.description)}" placeholder="e.g. lead time 6 weeks, requires confirmation from production…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
+        <textarea rows="2" maxlength="1000" aria-label="Note for ${escapeAttr(item.description)}" placeholder="e.g. lead time 6 weeks, requires confirmation from production…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
+        <span class="char-count ${(item.note || '').length ? '' : 'hidden'}" aria-hidden="true">${(item.note || '').length} / 1000</span>
       </div>
     </div>`;
   }).join('');
@@ -5532,9 +5537,10 @@ function renderCustomLineRow(item) {
       <div class="product-row-top">
         <div style="flex:1;">
           <span class="custom-badge">Custom item</span>
-          <input type="text" class="custom-desc-input" aria-label="Custom item description"
+          <input type="text" class="custom-desc-input" maxlength="400" aria-label="Custom item description"
                  placeholder="e.g. Software development, on-site installation, training…"
                  value="${escapeAttr(item.description)}" data-line-id="${item.lineId}" data-action="custom-desc">
+          <span class="char-count ${(item.description || '').length ? '' : 'hidden'}" aria-hidden="true">${(item.description || '').length} / 400</span>
           <input type="text" class="custom-pn-input" aria-label="Custom item reference or PO note"
                  placeholder="Reference / PO note (optional)"
                  value="${escapeAttr(item.partNumber)}" data-line-id="${item.lineId}" data-action="custom-pn">
@@ -5562,7 +5568,8 @@ function renderCustomLineRow(item) {
 
       <div class="note-row">
         <label class="field-tiny-label" style="margin-top:0;">Note (internal + shown on quote if filled in)</label>
-        <textarea rows="2" aria-label="Note for this custom item" placeholder="e.g. scope description, assumptions, timeline…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
+        <textarea rows="2" maxlength="1000" aria-label="Note for this custom item" placeholder="e.g. scope description, assumptions, timeline…" data-line-id="${item.lineId}" data-action="note">${escapeHtml(item.note || '')}</textarea>
+        <span class="char-count ${(item.note || '').length ? '' : 'hidden'}" aria-hidden="true">${(item.note || '').length} / 1000</span>
       </div>
     </div>`;
 }
@@ -5642,6 +5649,7 @@ document.getElementById('productList').addEventListener('input', (e) => {
   if (e.target.dataset.action === 'custom-desc') setCustomField(lineId, 'description', e.target.value);
   if (e.target.dataset.action === 'custom-pn') setCustomField(lineId, 'partNumber', e.target.value);
   if (e.target.dataset.action === 'custom-price') setCustomField(lineId, 'unitPrice', e.target.value);
+  if (e.target.dataset.action === 'note' || e.target.dataset.action === 'custom-desc') updateCharCount(e.target);
 });
 document.getElementById('addCustomBtn').addEventListener('click', addCustomLine);
 
@@ -5968,8 +5976,10 @@ function renderPageBreaks() {
 
 // ===== RE-RENDER ON FORM CHANGES =====
 ['custName','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => { renderDoc(); scheduleAutoSave(); });
-  document.getElementById(id).addEventListener('change', () => { renderDoc(); scheduleAutoSave(); });
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
+  el.addEventListener('change', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
+  updateCharCount(el); // sets the initial "N / MAX" state (no-op for fields with no counter)
 });
 
 document.getElementById('fxRateUSD').addEventListener('input', (e) => setCurrencyRate('USD', e.target.value));
@@ -5985,6 +5995,18 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+// Updates the "N / MAX" hint that follows a maxlength-bound field in the
+// markup. No-ops for fields with no such sibling (safe to call generically).
+function updateCharCount(el) {
+  if (!el) return;
+  const counter = el.nextElementSibling;
+  if (!counter || !counter.classList.contains('char-count')) return;
+  const max = el.maxLength;
+  const len = el.value.length;
+  counter.textContent = `${len} / ${max}`;
+  counter.classList.toggle('hidden', len === 0);
+}
 
 // ===== BUILD EXPORT OBJECT (shared by JSON export and in-browser PDF) =====
 function buildExportObj() {

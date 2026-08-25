@@ -4,7 +4,14 @@ import re
 import pytest
 from playwright.sync_api import sync_playwright
 
-from harness import app_page, build_long_quote, download_quote_pdf, page_texts, serve
+from harness import (
+    app_page,
+    build_long_quote,
+    download_quote_pdf,
+    page_texts,
+    serve,
+    set_value_bypassing_maxlength,
+)
 
 FORECAST_HEAD = "This quotation is made subject to the customer having submitted"
 FORECAST_TAIL = "conditional upon receipt of that forecast."
@@ -66,16 +73,21 @@ def test_header_and_footer_on_every_page(quote_pages):
         assert f"Page {i} of {total}" in text, f"page number wrong or missing on page {i}"
 
 
-# A per-line note is a plain <textarea> with no maxlength anywhere in the
-# file, and its placeholder invites long text. If a product row is ever made
-# unbreakable (directly, or via pdfmake's row-level dontBreakRows), a note
-# long enough to push the row past one page body doesn't move the row to the
-# next page or clip it — pdfmake's commitUnbreakableBlock keeps only the
-# first page's fragment and discards the rest. A single unbroken run of one
-# repeated character doesn't trigger this (pdfmake treats it as one
-# unbreakable "word" and never reflows it across enough lines to overflow a
-# page); realistic wrapped prose does. This fixture is intentionally
-# separate from quote_pages: it needs a tiny cart, not a 12-page one.
+# A per-line note is a plain <textarea>, and its placeholder invites long
+# text. Task 8 (2026-08-25) added maxlength=1000 to it as defence in depth,
+# which blocks a *typed* note from ever reaching this fixture's length again
+# through the UI — but old data can still be this long (a quote archived
+# before the limit existed, an imported JSON export), so the deletion bug
+# this fixture guards is still reachable and still needs a test. If a
+# product row is ever made unbreakable (directly, or via pdfmake's row-level
+# dontBreakRows), a note long enough to push the row past one page body
+# doesn't move the row to the next page or clip it — pdfmake's
+# commitUnbreakableBlock keeps only the first page's fragment and discards
+# the rest. A single unbroken run of one repeated character doesn't trigger
+# this (pdfmake treats it as one unbreakable "word" and never reflows it
+# across enough lines to overflow a page); realistic wrapped prose does.
+# This fixture is intentionally separate from quote_pages: it needs a tiny
+# cart, not a 12-page one.
 # The note below is ~4,900 characters, about 1.5x the ~3,200 needed to push
 # a row past the 618 pt page body at the current column width and 9.5 pt
 # note size (measured: 3,115 survives, 3,279 is deleted). Do not shorten it
@@ -96,7 +108,12 @@ def longnote_pdf_texts(tmp_path):
             build_long_quote(page, 3)
             assert page.evaluate("cart.length") == 5
             note_field = page.locator('#productList textarea[data-action="note"]').nth(1)
-            note_field.fill(LONG_NOTE)
+            # locator.fill() now respects maxlength (verified empirically -
+            # see harness.set_value_bypassing_maxlength), so it can no longer
+            # get LONG_NOTE's full length into a maxlength=1000 textarea.
+            # This bypasses it on purpose: this fixture guards the deletion
+            # bug for content that reaches the app some other way than typing.
+            set_value_bypassing_maxlength(note_field, LONG_NOTE)
             page.wait_for_timeout(400)
             assert page.evaluate("cart[1].note.length") == len(LONG_NOTE)
             part_number = page.evaluate("cart[1].partNumber")
@@ -114,13 +131,19 @@ def test_long_note_does_not_delete_its_product_line(longnote_pdf_texts):
     )
 
 
-# The VAT / Tariff note and the Named place are free-text <input>s with no
-# maxlength, and both feed the TERMS grid. A long paste is realistic: a customs
-# or tariff clause for a US customer. Measured 2026-08-25: an unbreakable terms
-# block exceeds one page body at ~2,100 characters, and pdfmake then deletes the
-# whole block - heading, payment terms, validity, delivery terms and currency -
-# while the on-screen preview still shows it. This note is ~2,600 characters, a
-# little over that threshold. Do not shorten it without re-measuring.
+# The VAT / Tariff note and the Named place are free-text <input>s that feed
+# the TERMS grid. Task 8 (2026-08-25) added maxlength=400 to #vatNote as
+# defence in depth, which blocks a *typed* note from ever reaching this
+# fixture's length again through the UI — but old data can still be this
+# long (a quote archived before the limit existed, an imported JSON export),
+# so the deletion bug this fixture guards is still reachable and still needs
+# a test. A long paste was realistic before the limit: a customs or tariff
+# clause for a US customer. Measured 2026-08-25: an unbreakable terms block
+# exceeds one page body at ~2,100 characters, and pdfmake then deletes the
+# whole block - heading, payment terms, validity, delivery terms and currency
+# - while the on-screen preview still shows it. This note is ~2,600
+# characters, a little over that threshold. Do not shorten it without
+# re-measuring.
 LONG_VAT_NOTE = " ".join(
     f"Clause {i:02d}: prices exclude VAT, duties and tariffs applicable at import."
     for i in range(35)
@@ -133,7 +156,11 @@ def longvat_pdf_texts(tmp_path):
     with serve() as url, sync_playwright() as p:
         with app_page(p, url) as (page, alerts):
             build_long_quote(page, 3)
-            page.fill("#vatNote", LONG_VAT_NOTE)
+            # page.fill() now respects maxlength (verified empirically - see
+            # harness.set_value_bypassing_maxlength), so it can no longer get
+            # LONG_VAT_NOTE's full length into a maxlength=400 input. This
+            # bypasses it on purpose - see the LONG_NOTE comment above.
+            set_value_bypassing_maxlength(page.locator("#vatNote"), LONG_VAT_NOTE)
             page.wait_for_timeout(400)
             assert page.evaluate("document.getElementById('vatNote').value.length") == len(
                 LONG_VAT_NOTE

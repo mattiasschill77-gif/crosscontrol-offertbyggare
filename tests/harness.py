@@ -90,3 +90,24 @@ def page_texts(pdf_path):
 
     with fitz.open(str(pdf_path)) as doc:
         return [p.get_text().replace("\n", " ") for p in doc]
+
+
+def set_value_bypassing_maxlength(locator, text):
+    """Set a field's value via script and dispatch a real 'input' event,
+    bypassing any maxlength attribute on it.
+
+    Verified 2026-08-25, empirically, against this repo's Playwright/Chromium
+    build: locator.fill() does NOT bypass maxlength - it truncates to
+    maxlength exactly like typing does (a 50-char fill() into a
+    maxlength=10 field lands as 10 chars). A raw `el.value = text` assignment
+    followed by a dispatched 'input' event does bypass it (lands at 50) -
+    that matches spec: the constraint is on user interaction, not script
+    writes. Use this where a test deliberately needs to get more text into a
+    bounded field than the field allows a user to type or paste - e.g.
+    proving old content (an archived quote saved before a limit existed, an
+    imported JSON export) doesn't crash or silently delete data on render.
+    """
+    locator.evaluate(
+        "(el, text) => { el.value = text; el.dispatchEvent(new Event('input', {bubbles: true})); }",
+        text,
+    )
