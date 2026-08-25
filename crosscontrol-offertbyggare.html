@@ -1080,7 +1080,7 @@ var vfs = {
     <div class="topbar-divider"></div>
     <div>
       <div class="topbar-title">CrossControl Tools</div>
-      <div class="topbar-sub">Internal KAM tool · price list synced from Excel</div>
+      <div class="topbar-sub">Internal KAM tool · price list synced from Excel · <span id="appVersionLabel"></span></div>
     </div>
     <div class="topbar-tabs">
       <button class="topbar-tab active" id="tabQuote" data-view="quote">Quote builder</button>
@@ -4071,6 +4071,12 @@ window._poppinsFontsB64 = {
 // The forecast condition is optional per quote (Terms card) and per price list
 // (Professional details). generate_pdf.py carries its own copy of the quote text -
 // change both or the WeasyPrint PDF diverges from the screen.
+// ===== BUILD IDENTITY =====
+// The single source of truth for the version. The delivered file name, the git tag
+// and this constant must always say the same thing. Never rendered to the customer.
+const APP_VERSION = '1.5.0';
+const APP_BUILD_DATE = '2026-08-25';
+
 const QUOTE_FORECAST_TEXT =
   'This quotation is made subject to the customer having submitted a rolling forecast ' +
   'for the twelve (12) months following the date of issue. The prices quoted are ' +
@@ -4819,6 +4825,7 @@ function nextQuoteId() {
 function buildQuoteSnapshot() {
   return {
     quote_id: QUOTE_ID,
+    app_version: APP_VERSION,
     saved_at: new Date().toISOString(),
     customer_name: document.getElementById('custName').value.trim(),
     customer_contact: document.getElementById('custContact').value.trim(),
@@ -5100,7 +5107,7 @@ function rebuildFlatIndex() {
       });
     });
   });
-  document.getElementById('productCountPill').textContent = FLAT_PRODUCTS.length + ' products loaded';
+  document.getElementById('productCountPill').textContent = FLAT_PRODUCTS.length + ' products loaded'; document.getElementById('appVersionLabel').textContent = 'v' + APP_VERSION;
 }
 rebuildFlatIndex();
 
@@ -6012,6 +6019,8 @@ function buildExportObj() {
 
   return {
     quote_id: QUOTE_ID,
+    app_version: APP_VERSION,
+    app_build_date: APP_BUILD_DATE,
     issued_date: fmtDate(TODAY),
     valid_until: validUntil,
     sender_office: document.getElementById('senderOffice').value,
@@ -7431,7 +7440,7 @@ function plSaveToArchive(){
     let n = 1; Object.keys(store).forEach(k => { const m = k.match(/^PL-(\d+)-(\d+)$/); if (m && +m[1] === year) n = Math.max(n, +m[2] + 1); });
     const id = 'PL-' + year + '-' + String(n).padStart(4, '0');
     store[id] = {
-      id, saved_at: new Date().toISOString(),
+      id, app_version: APP_VERSION, saved_at: new Date().toISOString(),
       meta, selection: PL.selection, familyDiscounts: PL.familyDiscounts,
       moqByPart: PL.moqByPart, statusByPart: PL.statusByPart,
       defaultDiscountPct: plEl('plDefaultDiscount').value,
