@@ -704,13 +704,36 @@ so it keeps guarding the invariant after the next bump.
 
 ### 18.2 The pagination contract
 
-**The rule: a text block moves whole to the next page; a table breaks between rows.**
+**The rule: a text block moves whole to the next page — but only a block whose height
+is bounded by fixed content.** Anything fed by a free-text field stays breakable.
 
 Protected in the pdfmake builder with `unbreakable: true`: the T&C block (which carries
-the forecast-condition sentence), the TERMS heading together with its grid, the totals
-block, and the signature block (which already was). In the print CSS and in
+the forecast-condition sentence, all fixed prose plus a file name), the totals block
+(three fixed rows), and the signature block (which already was). In the print CSS and in
 `generate_pdf.py`: `break-inside: avoid` on `.tc-reference`, `.terms-grid`, `.totals`,
 `.appendix-note`, plus `break-after: avoid` on `.section-eyebrow`.
+
+⚠️ **The TERMS grid is deliberately NOT unbreakable, and was reverted once.** It is fed
+by `#vatNote` and `#termIncotermLocation`, two free-text inputs with no `maxlength`.
+Measured 2026-08-25: at **~2,100 pasted characters** an unbreakable terms block exceeds
+one page body, and pdfmake deletes it — heading, payment terms, validity, delivery terms
+and currency all gone from the PDF, **while the on-screen preview still shows them**. A
+quote reaches the customer priced but with no payment terms and no validity period. That
+threshold is *lower* than the product-note one below. A split terms block is ugly; a
+missing one is not survivable.
+`tests/test_pagination.py::test_long_vat_note_does_not_delete_the_terms_block` guards it
+and was proven to fail with `unbreakable` re-applied.
+
+⚠️ **"A table breaks between rows" is only true on one surface.** `table.quote-table tr
+{ break-inside: avoid }` exists in the print CSS only. pdfmake and WeasyPrint both
+fragment *inside* a row. That is lossless — no content disappears — but a row can be cut
+across the page edge.
+
+⚠️ **The price list PDF was left out of this work on purpose.** `buildPricelistDocDefinition`
+has no `unbreakable` anywhere. Giving its blocks the same treatment needs the same
+per-block height measurement first, and the TERMS defect above is exactly what happens
+when that step is skipped. `.appendix-note` is likewise protected in the print CSS and in
+`generate_pdf.py` but not in the pdfmake builder — a known, recorded divergence.
 
 ⚠️ **Never mark a block unbreakable if it can be taller than one page body.** pdfmake
 does not move such a block and does not clip it — `commitUnbreakableBlock` keeps only
@@ -774,11 +797,17 @@ the pdfmake button produces a correct PDF and is the path in daily use.
 python -m pytest tests/ -v
 ```
 
-12 tests: `test_smoke.py` (the harness works end to end), `test_version.py` (4),
-`test_pagination.py` (5, the pdfmake surface), `test_weasyprint.py` (2, skipped when
+13 tests: `test_smoke.py` (the harness works end to end), `test_version.py` (4),
+`test_pagination.py` (6, the pdfmake surface), `test_weasyprint.py` (2, skipped when
 Pango is unreachable). They drive the real UI in Chromium over `http://localhost:8142`
 — `file://` is refused by Playwright — click the real export button, and read the real
 PDF page by page with PyMuPDF.
+
+⚠️ **The harness refuses to run if something is already listening on 8142.** On Windows
+`SO_REUSEADDR` lets a bind succeed against a port already in use: the existing server
+keeps answering, the suite tests *that* build, and it all reports green. Since
+`CLAUDE.md` and `.claude/launch.json` both put a dev server on 8142, a leftover one is
+the normal case. `serve()` probes the port first and raises rather than lying.
 
 ⚠️ **Every guard in this suite was proven able to fail before it was trusted**, by
 breaking the thing it protects and watching it go red. Keep that discipline: a green

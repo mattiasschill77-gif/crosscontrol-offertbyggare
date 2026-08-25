@@ -3,6 +3,7 @@ import contextlib
 import functools
 import http.server
 import pathlib
+import socket
 import socketserver
 import threading
 
@@ -10,12 +11,30 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 PORT = 8142
 APP_PATH = "/crosscontrol-offertbyggare.html"
 
-socketserver.TCPServer.allow_reuse_address = True
+# Deliberately NOT allow_reuse_address. On Windows SO_REUSEADDR lets a bind
+# succeed against a port something else is already listening on: the old server
+# keeps answering, the suite silently tests that server's build, and everything
+# reports green. CLAUDE.md and .claude/launch.json both put a dev server on this
+# very port, so a leftover one is the normal case, not an exotic one.
+socketserver.TCPServer.allow_reuse_address = False
+
+
+def _port_is_busy():
+    with socket.socket() as probe:
+        probe.settimeout(0.25)
+        return probe.connect_ex(("127.0.0.1", PORT)) == 0
 
 
 @contextlib.contextmanager
 def serve():
     """Serve the repo root over localhost. file:// is refused by Playwright."""
+    if _port_is_busy():
+        raise RuntimeError(
+            f"Port {PORT} is already serving something, so these tests would run "
+            "against that server's build instead of this working tree - and pass. "
+            "Stop it first: it is most likely the cc-offert launch configuration or "
+            "a leftover 'python -m http.server 8142' from CLAUDE.md."
+        )
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
     httpd = socketserver.TCPServer(("127.0.0.1", PORT), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()

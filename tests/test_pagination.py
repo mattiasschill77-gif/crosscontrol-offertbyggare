@@ -112,3 +112,43 @@ def test_long_note_does_not_delete_its_product_line(longnote_pdf_texts):
         "after a long note on it — the row was silently dropped instead of "
         "being moved or clipped"
     )
+
+
+# The VAT / Tariff note and the Named place are free-text <input>s with no
+# maxlength, and both feed the TERMS grid. A long paste is realistic: a customs
+# or tariff clause for a US customer. Measured 2026-08-25: an unbreakable terms
+# block exceeds one page body at ~2,100 characters, and pdfmake then deletes the
+# whole block - heading, payment terms, validity, delivery terms and currency -
+# while the on-screen preview still shows it. This note is ~2,600 characters, a
+# little over that threshold. Do not shorten it without re-measuring.
+LONG_VAT_NOTE = " ".join(
+    f"Clause {i:02d}: prices exclude VAT, duties and tariffs applicable at import."
+    for i in range(35)
+)
+
+
+@pytest.fixture
+def longvat_pdf_texts(tmp_path):
+    out = tmp_path / "longvat.pdf"
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            build_long_quote(page, 3)
+            page.fill("#vatNote", LONG_VAT_NOTE)
+            page.wait_for_timeout(400)
+            assert page.evaluate("document.getElementById('vatNote').value.length") == len(
+                LONG_VAT_NOTE
+            )
+            on_screen = page.inner_text("#docRoot")
+            download_quote_pdf(page, alerts, out)
+    return [re.sub(r"\s+", " ", t) for t in page_texts(out)], on_screen
+
+
+def test_long_vat_note_does_not_delete_the_terms_block(longvat_pdf_texts):
+    texts, on_screen = longvat_pdf_texts
+    assert "Payment terms" in on_screen, "the screen lost the terms block - different bug"
+    full = " ".join(texts)
+    assert "Payment terms" in full, (
+        "the TERMS block is entirely missing from the PDF after a long VAT note - "
+        "the commercial terms were silently dropped while the screen still showed them"
+    )
+    assert "Validity" in full, "the TERMS block reached the PDF only partly"

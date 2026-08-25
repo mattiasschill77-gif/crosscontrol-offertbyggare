@@ -4520,13 +4520,14 @@ function buildPdfDocDefinition(offer) {
   // Custom volume-tier matrix blocks
   matrixBlocks.forEach(b => content.push(b));
 
-  content.push({
-    unbreakable: true,
-    stack: [
-      { text: 'TERMS', style: 'eyebrow', margin: [0, 0, 0, 10] },
-      termsGrid,
-    ],
-  });
+  // NOT unbreakable, deliberately. The terms grid is fed by two free-text inputs
+  // with no maxlength (#vatNote, #termIncotermLocation). Measured 2026-08-25: at
+  // ~2,100 pasted characters an unbreakable terms block exceeds one page body and
+  // pdfmake DELETES it - heading, payment terms, validity, delivery terms and
+  // currency all vanish from the PDF while the screen still shows them. Splitting
+  // the block across a page is ugly; losing the commercial terms is not survivable.
+  content.push({ text: 'TERMS', style: 'eyebrow', margin: [0, 0, 0, 10] });
+  content.push(termsGrid);
 
   // Appendices
   (offer.appendices || []).forEach(name => {
