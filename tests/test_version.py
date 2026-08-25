@@ -35,4 +35,6 @@ def test_version_never_reaches_the_customer_document():
         with app_page(p, url) as (page, _alerts):
             page.evaluate("addProductToCart(FLAT_PRODUCTS[0].part_number)")
             page.wait_for_timeout(300)
-            assert VERSION not in page.inner_text("#docRoot")
+            live_version = page.evaluate("APP_VERSION")
+            doc_text = page.inner_text("#docRoot")
+    assert live_version not in doc_text
