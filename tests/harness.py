@@ -55,6 +55,9 @@ def build_long_quote(page, n_products=16):
 
 
 def download_quote_pdf(page, alerts, out_path):
+    """Click the real export button and save the PDF. Asserts no alert fired:
+    the button restores its own label in the failure path, so a restored label
+    is not a pass signal — a download event and a silent page are."""
     with page.expect_download(timeout=30000) as dl:
         page.click("#downloadPdfBtn")
     dl.value.save_as(str(out_path))
