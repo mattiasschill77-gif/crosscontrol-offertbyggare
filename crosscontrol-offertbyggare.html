@@ -5106,9 +5106,76 @@ document.getElementById('newQuoteBtn').addEventListener('click', () => {
 });
 
 // ----- Archive export / import (backup, or moving between computers) -----
+// ===== ARCHIVE TRANSFER =====
+// The exported file used to be the bare store object, with nothing saying what
+// it was or which version wrote it. Files in that shape are on people's disks
+// and in email threads, so readArchiveFile() still accepts them - but everything
+// written from now on carries a marker, so a future version can adapt instead of
+// guessing.
+const ARCHIVE_FORMAT = 'cc-quote-archive';
+const ARCHIVE_FORMAT_VERSION = 1;
+
+function readArchiveFile(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('this file does not contain a quote archive');
+  }
+  if (parsed.format === ARCHIVE_FORMAT) {
+    if (!parsed.quotes || typeof parsed.quotes !== 'object' || Array.isArray(parsed.quotes)) {
+      throw new Error('this archive file has no quotes in it');
+    }
+    return parsed.quotes;
+  }
+  // Legacy: the bare store, exported before the marker existed.
+  return parsed;
+}
+
+// Key order is not guaranteed to match between two records written by different
+// versions, so compare on sorted keys rather than raw JSON.
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+}
+
+// Every machine starts its series at CC-YYYY-0001, so two colleagues almost
+// certainly hold different quotes under the same number. An import must never
+// destroy one. Identical records are skipped so re-importing your own backup is
+// a no-op; different ones are kept alongside under a new number.
+function mergeArchives(existing, incoming) {
+  const merged = Object.assign({}, existing);
+  const result = { added: 0, skipped: 0, renumbered: [] };
+  Object.keys(incoming).forEach(id => {
+    const rec = incoming[id];
+    if (!Object.prototype.hasOwnProperty.call(merged, id)) {
+      merged[id] = rec;
+      result.added += 1;
+      return;
+    }
+    if (stableStringify(merged[id]) === stableStringify(rec)) {
+      result.skipped += 1;
+      return;
+    }
+    let candidate = `${id}-imported`;
+    let n = 2;
+    while (Object.prototype.hasOwnProperty.call(merged, candidate)) {
+      candidate = `${id}-imported-${n}`;
+      n += 1;
+    }
+    merged[candidate] = Object.assign({}, rec, { quote_id: candidate });
+    result.renumbered.push(`${id} → ${candidate}`);
+  });
+  return { merged, result };
+}
+
 document.getElementById('exportArchiveBtn').addEventListener('click', () => {
-  const store = loadArchive();
-  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+  const payload = {
+    format: ARCHIVE_FORMAT,
+    format_version: ARCHIVE_FORMAT_VERSION,
+    exported_at: new Date().toISOString(),
+    app_version: APP_VERSION,
+    quotes: loadArchive(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -5122,14 +5189,22 @@ document.getElementById('importArchiveInput').addEventListener('change', (e) => 
   const reader = new FileReader();
   reader.onload = (evt) => {
     try {
-      const incoming = JSON.parse(evt.target.result);
-      const existing = loadArchive();
+      const incoming = readArchiveFile(JSON.parse(evt.target.result));
       const incomingCount = Object.keys(incoming).length;
-      const merged = { ...existing, ...incoming }; // imported records win on quote_id collision
-      if (!confirm(`Import ${incomingCount} quote(s) from this file into your archive? Existing quotes with the same number will be overwritten.`)) return;
+      const { merged, result } = mergeArchives(loadArchive(), incoming);
+      const lines = [`Import ${incomingCount} quote(s) from this file?`, ''];
+      lines.push(`${result.added} new`);
+      if (result.skipped) lines.push(`${result.skipped} already in your archive, unchanged`);
+      if (result.renumbered.length) {
+        lines.push(`${result.renumbered.length} with a number you already use, kept under a new one:`);
+        lines.push(result.renumbered.slice(0, 8).join('\n'));
+        if (result.renumbered.length > 8) lines.push(`…and ${result.renumbered.length - 8} more`);
+      }
+      lines.push('', 'Nothing in your archive will be overwritten.');
+      if (!confirm(lines.join('\n'))) return;
       saveArchiveStore(merged);
       renderArchiveList(document.getElementById('archiveSearch').value);
-      alert('Archive imported successfully.');
+      alert(`Archive imported. ${result.added} new, ${result.skipped} unchanged, ${result.renumbered.length} renumbered.`);
     } catch (err) {
       alert('Could not read this file as a quote archive: ' + err.message);
     }
