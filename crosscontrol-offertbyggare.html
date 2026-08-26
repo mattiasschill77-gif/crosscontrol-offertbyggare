@@ -194,6 +194,12 @@ var vfs = {
     cursor:pointer;white-space:nowrap;font-family:Arial,sans-serif;
   }
   .archive-open-btn:hover{background:var(--cc-orange-dark);}
+  .archive-delete-btn{
+    background:transparent;color:var(--panel-text-dim);border:1px solid var(--panel-line);
+    padding:8px 12px;border-radius:var(--radius);font-size:12px;
+    cursor:pointer;white-space:nowrap;font-family:Arial,sans-serif;
+  }
+  .archive-delete-btn:hover{border-color:#b3261e;color:#b3261e;}
   .archive-backup-section{
     margin-top:28px;padding-top:20px;border-top:1px solid var(--panel-line);
   }
@@ -5037,6 +5043,31 @@ function updateArchiveStatus(ok) {
 }
 
 // Loads a saved snapshot back into the live editing state.
+// The local archive copy is a backup you can fall back on - so it has to be
+// possible to deliberately let it go. Only the local record is removed: a PDF
+// already written into a customer folder stays exactly where it is.
+function deleteQuoteFromArchive(quoteId) {
+  const store = loadArchive();
+  const rec = store[quoteId];
+  if (!rec) return;
+  const who = rec.customer_name ? ` for ${rec.customer_name}` : '';
+  if (!confirm(`Delete quote ${quoteId}${who} from this archive?
+
+Only the local copy goes. Any PDF you already saved into a customer folder stays where it is.
+
+This cannot be undone.`)) return;
+  delete store[quoteId];
+  saveArchiveStore(store);
+  // Autosave writes store[QUOTE_ID] on every change, so deleting the quote that
+  // is currently open would resurrect it on the very next keystroke. Move onto a
+  // fresh one instead, and stay in the archive so several can be cleared in a row.
+  if (quoteId === QUOTE_ID) {
+    startNewQuote();
+    openArchivePanel();
+  }
+  renderArchiveList(document.getElementById('archiveSearch').value);
+}
+
 function openQuote(quoteId) {
   const store = loadArchive();
   const rec = store[quoteId];
@@ -5200,11 +5231,14 @@ function renderArchiveList(query) {
           <div class="archive-item-meta">${itemCount} item${itemCount === 1 ? '' : 's'} · saved ${savedDate}</div>
         </div>
         <button class="archive-open-btn" data-quote-id="${escapeAttr(r.quote_id)}">Open</button>
+        <button class="archive-delete-btn" data-quote-id="${escapeAttr(r.quote_id)}" aria-label="Delete quote ${escapeAttr(r.quote_id)}">Delete</button>
       </div>`;
   }).join('');
 }
 document.getElementById('archiveSearch').addEventListener('input', (e) => renderArchiveList(e.target.value));
 document.getElementById('archiveList').addEventListener('click', (e) => {
+  const del = e.target.closest('.archive-delete-btn');
+  if (del) { deleteQuoteFromArchive(del.dataset.quoteId); return; }
   const btn = e.target.closest('.archive-open-btn');
   if (btn) { openQuote(btn.dataset.quoteId); return; }
   // The whole row opens the quote too. The row highlights on hover, so it
