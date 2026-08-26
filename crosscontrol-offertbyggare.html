@@ -1340,8 +1340,9 @@ var vfs = {
     <div class="generate-bar">
       <div class="archive-status" id="archiveStatus">Not saved yet</div>
       <button class="generate-btn" id="downloadPdfBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download quote as PDF</button>
-      <button class="add-custom-btn" id="saveToFolderBtn" style="width:100%;margin-top:8px;"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Save to customer folder…</button>
       <div class="print-hint">Vector PDF with header &amp; footer on every page. No setup needed.</div>
+      <button class="generate-btn" id="saveToFolderBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Save to customer folder…</button>
+      <div class="print-hint">Writes the PDF straight into that customer’s folder and remembers it. A copy is always kept in the Archive.</div>
       <button class="generate-btn" onclick="window.print()" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;">Print via browser (quick preview)</button>
       <button class="generate-btn" id="exportJsonBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:8px;">Export quote data (.json)</button>
       <div class="print-hint">JSON is for generating a PDF locally with <code>generate_pdf.py</code></div>
