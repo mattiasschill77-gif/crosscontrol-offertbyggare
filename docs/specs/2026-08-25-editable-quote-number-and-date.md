@@ -69,10 +69,30 @@ into `buildExportObj()`, `buildQuoteSnapshot()`, the PDF and the archive.
     and say so. Never overwrite another quote.
   - otherwise → **move** the existing record to the new key and delete the old one, so
     one quote stays one record. `LAST_OPEN_KEY` follows.
-- ⚠️ **File name.** `quote-${offer.quote_id}.pdf` and `quote-${QUOTE_ID}.json` are built
-  from the id. Free text must be sanitised for `/ \ : * ? " < > |` and control characters
-  before it reaches a download name. The document keeps the id **as typed** — only the
-  file name is sanitised.
+- ~~**File name.** Free text must be sanitised before it reaches a download name.~~
+  **WITHDRAWN 2026-08-26 — measured, not needed.** With the number set to
+  `CC/2026/0007`, Chrome's own download handling already produces
+  `quote-CC_2026_0007.pdf`, and the export completes with no alert. A review confirmed
+  it independently and found the sanitisation broader still: `/ \ : * ? < > |` and even
+  `../../` all collapse, on both the pdfmake path and the JSON download. A sanitiser of
+  ours would sit in the file looking like a protection nothing needs. The document keeps
+  the id **as typed**, and a test asserts on `suggested_filename` so the claim stays
+  checked.
+- ⚠️ **Escaping, added 2026-08-26 after review.** Turning a machine-generated value into
+  free text made two raw interpolations unsafe: `<span class="doc-id">QUOTE #${QUOTE_ID}`
+  in `renderDoc()` (twice) and the same line in `generate_pdf.py`. Unescaped, a number
+  containing markup renders **differently on screen than in the pdfmake PDF**, and an
+  imported archive can execute script on open. Both are escaped, and a test asserts the
+  three surfaces render a markup-bearing number identically.
+- ⚠️ **The counter must be bounded.** `parseInt` on 23 trailing digits reaches `1e+23`,
+  where `n + 1 === n`: `nextQuoteId()` then returns the same id forever and every new
+  quote overwrites the previous one in the archive, permanently, with no UI to reset it.
+  `bumpCounterTo()` refuses anything that is not a positive safe integer, and the field
+  carries a `maxlength` like every other free-text field in the app.
+- ⚠️ **Minting must skip numbers the archive already holds.** Importing a colleague's
+  archive does not move the counter, so the series could walk straight into an imported
+  quote and autosave over it. `nextQuoteId()` now skips occupied keys — safe from looping
+  because the counter is bounded.
 
 **Acceptance:** the default is unchanged for an untouched quote · a typed id appears on
 screen, in the PDF, in the export JSON and in the archive list · typing an existing id is

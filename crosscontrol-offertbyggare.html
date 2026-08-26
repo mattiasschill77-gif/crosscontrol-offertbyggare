@@ -1099,7 +1099,7 @@ var vfs = {
     </div>
   </div>
   <div class="topbar-right">
-    <span class="quote-id-badge">Quote <input type="text" id="currentQuoteId" class="quote-id-input" aria-label="Quote number" spellcheck="false" autocomplete="off"></span>
+    <span class="quote-id-badge">Quote <input type="text" id="currentQuoteId" class="quote-id-input" aria-label="Quote number" maxlength="40" spellcheck="false" autocomplete="off"></span>
     <button class="topbar-btn" id="newQuoteBtn">+ New quote</button>
     <button class="topbar-btn" id="openArchiveBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Archive</button>
     <span class="pill" id="productCountPill">0 products loaded</span>
@@ -4842,10 +4842,20 @@ function nextQuoteId() {
   try {
     counters = JSON.parse(localStorage.getItem(COUNTER_KEY) || '{}');
   } catch (e) { counters = {}; }
-  const next = (counters[year] || 0) + 1;
+  // Skip numbers the archive already holds. An imported archive does not move
+  // the counter, so without this the series walks straight into a colleague's
+  // quote and the next autosave overwrites it. Bounded because bumpCounterTo()
+  // refuses anything that is not a safe integer.
+  const store = loadArchive();
+  let next = (counters[year] || 0) + 1;
+  let id = `CC-${year}-${String(next).padStart(4, '0')}`;
+  while (Object.prototype.hasOwnProperty.call(store, id)) {
+    next += 1;
+    id = `CC-${year}-${String(next).padStart(4, '0')}`;
+  }
   counters[year] = next;
   localStorage.setItem(COUNTER_KEY, JSON.stringify(counters));
-  return `CC-${year}-${String(next).padStart(4, '0')}`;
+  return id;
 }
 
 // Builds a complete, self-contained snapshot of the current quote state.
@@ -5015,6 +5025,11 @@ function bumpCounterTo(id) {
   const m = String(id).match(/(\d+)\s*$/);
   if (!m) return;
   const typed = parseInt(m[1], 10);
+  // Unbounded, 23 digits reach 1e+23, where n + 1 === n: nextQuoteId() would
+  // return the same id forever and every new quote would overwrite the previous
+  // one in the archive. ~320 digits reach Infinity, which JSON.stringify writes
+  // as null, restarting the series at 0001 on top of real archived quotes.
+  if (!Number.isSafeInteger(typed) || typed <= 0) return;
   const year = new Date().getFullYear();
   let counters = {};
   try { counters = JSON.parse(localStorage.getItem(COUNTER_KEY) || '{}'); } catch (e) { counters = {}; }
@@ -5794,7 +5809,7 @@ function renderDoc() {
         <div class="doc-logo">${LOGO_SVG}</div>
         <div class="doc-header-right">
           ${headerAddressHtml}
-          <span class="doc-id">QUOTE #${QUOTE_ID}</span>
+          <span class="doc-id">QUOTE #${escapeHtml(QUOTE_ID)}</span>
         </div>
       </div>
       <div class="empty-state">
@@ -5940,7 +5955,7 @@ function renderDoc() {
       <div class="doc-logo">${LOGO_SVG}</div>
       <div class="doc-header-right">
         ${headerAddressHtml}
-        <span class="doc-id">QUOTE #${QUOTE_ID}</span>
+        <span class="doc-id">QUOTE #${escapeHtml(QUOTE_ID)}</span>
       </div>
     </div>
 

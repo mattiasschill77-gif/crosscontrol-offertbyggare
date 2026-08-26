@@ -26,9 +26,12 @@ def test_a_chosen_issue_date_reaches_the_screen_and_the_pdf(tmp_path):
             export = page.evaluate("buildExportObj()")
             download_quote_pdf(page, alerts, out)
     in_pdf = " ".join(re.sub(r"\s+", " ", t) for t in page_texts(out))
+    # Assert the exact date, not just the year: three surfaces agreeing on
+    # today's date would also satisfy a loose check, so a regression to TODAY
+    # would pass unnoticed.
+    assert export["issued_date"] == "04/03/2026", export["issued_date"]
     assert export["issued_date"] in on_screen, "screen and export disagree on the issue date"
     assert export["issued_date"] in in_pdf, "the PDF did not get the chosen issue date"
-    assert "2026" in export["issued_date"]
 
 
 def test_validity_is_counted_from_the_issue_date_not_from_today():

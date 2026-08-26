@@ -17,6 +17,9 @@ import argparse
 import json
 import os
 import sys
+# Imported as a name, not as the `html` module: build_html() has a local
+# variable called `html`, which shadows the module for the whole function.
+from html import escape as html_escape
 from weasyprint import HTML
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -461,7 +464,7 @@ def build_html(offer, logo_path):
     <div class="doc-logo">{logo_svg}</div>
     <div class="doc-header-right">
       {header_address_html}
-      <span class="doc-id">QUOTE #{offer['quote_id']}</span>
+      <span class="doc-id">QUOTE #{html_escape(str(offer['quote_id']))}</span>
     </div>
   </div>
 

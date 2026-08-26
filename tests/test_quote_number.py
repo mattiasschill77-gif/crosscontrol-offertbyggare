@@ -136,3 +136,83 @@ def test_an_empty_number_is_refused():
             page.wait_for_timeout(400)
             assert page.evaluate("QUOTE_ID") == before
             assert page.input_value("#currentQuoteId") == before
+
+
+def test_a_number_containing_markup_renders_identically_everywhere(tmp_path):
+    """The number became free text, so it must be escaped like every other user
+    field. Unescaped, the screen strips the tags while pdfmake prints them
+    literally - the KAM checks the screen and the customer gets something else."""
+    out = tmp_path / "markup.pdf"
+    typed = "2026-08-<b>HUSCO</b>-14"
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            build_long_quote(page, 2)
+            page.fill("#currentQuoteId", typed)
+            page.press("#currentQuoteId", "Tab")
+            page.wait_for_timeout(500)
+            doc = page.inner_text("#docRoot")
+            download_quote_pdf(page, alerts, out)
+    in_pdf = " ".join(page_texts(out))
+    assert typed in doc, f"the screen document changed the number: {doc[:200]!r}"
+    assert typed in in_pdf, "the PDF and the screen disagree about the quote number"
+
+
+def test_an_archived_number_containing_markup_cannot_run_code():
+    """Archives are exported and imported between colleagues, so a hostile
+    quote_id is not purely self-inflicted."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.evaluate("""() => {
+                const store = loadArchive();
+                const rec = buildQuoteSnapshot();
+                rec.quote_id = '<img src=x onerror="window.__pwned=true">';
+                store[rec.quote_id] = rec;
+                saveArchiveStore(store);
+                openQuote(rec.quote_id);
+            }""")
+            page.wait_for_timeout(500)
+            assert page.evaluate("window.__pwned === true") is False
+
+
+def test_an_absurd_number_cannot_wreck_the_counter():
+    """parseInt is unbounded: 23 digits reach 1e+23, where n + 1 === n, so
+    nextQuoteId() would return the same id forever and every new quote would
+    overwrite the previous one in the archive."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.fill("#currentQuoteId", "CC-2026-99999999999999999999999")
+            page.press("#currentQuoteId", "Tab")
+            page.wait_for_timeout(500)
+            page.evaluate("startNewQuote()")
+            page.wait_for_timeout(400)
+            first = page.evaluate("QUOTE_ID")
+            page.evaluate("startNewQuote()")
+            page.wait_for_timeout(400)
+            second = page.evaluate("QUOTE_ID")
+    assert first != second, f"two new quotes got the same number: {first!r}"
+    assert "e+" not in first, f"the counter went floating point: {first!r}"
+
+
+def test_minting_never_lands_on_a_number_already_in_the_archive():
+    """An imported archive does not move the counter, so the series can walk
+    straight into a colleague's quote."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.evaluate("""() => {
+                const store = loadArchive();
+                const rec = buildQuoteSnapshot();
+                const year = new Date().getFullYear();
+                rec.quote_id = `CC-${year}-0002`;
+                rec.customer_name = 'IMPORTED CUSTOMER';
+                store[rec.quote_id] = rec;
+                saveArchiveStore(store);
+            }""")
+            for _ in range(3):
+                page.evaluate("startNewQuote()")
+                page.wait_for_timeout(300)
+            store = page.evaluate("loadArchive()")
+            year = page.evaluate("new Date().getFullYear()")
+    key = f"CC-{year}-0002"
+    assert store[key]["customer_name"] == "IMPORTED CUSTOMER", (
+        "minting a new quote overwrote an archived one"
+    )

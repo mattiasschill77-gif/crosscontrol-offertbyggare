@@ -82,3 +82,27 @@ def test_terms_and_conditions_block_is_not_split(weasy_pages):
     hits = [i for i, t in enumerate(weasy_pages) if TC_HEAD in t]
     assert len(hits) == 1, f"{TC_HEAD!r} found on pages {hits}, expected exactly one"
     assert TC_TAIL in weasy_pages[hits[0]], "the T&C block is split across a page break"
+
+
+def test_the_chosen_date_and_number_reach_the_weasyprint_pdf(tmp_path):
+    """The spec requires the new fields to appear identically on all three
+    surfaces. This is the third one."""
+    json_path = tmp_path / "dated.json"
+    pdf_path = tmp_path / "dated.pdf"
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            build_long_quote(page, 2)
+            page.fill("#issueDate", "2026-03-04")
+            page.fill("#currentQuoteId", "2026-03-HUSCO-247")
+            page.press("#currentQuoteId", "Tab")
+            page.wait_for_timeout(500)
+            offer = page.evaluate("buildExportObj()")
+    json_path.write_text(json.dumps(offer), encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "generate_pdf.py", str(json_path), "-o", str(pdf_path)],
+        cwd=str(REPO), capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"generate_pdf.py failed:\n{result.stderr}"
+    text = " ".join(re.sub(r"\s+", " ", t) for t in page_texts(pdf_path))
+    assert "04/03/2026" in text, "the WeasyPrint PDF did not get the chosen issue date"
+    assert "2026-03-HUSCO-247" in text, "the WeasyPrint PDF did not get the typed number"
