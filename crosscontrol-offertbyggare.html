@@ -1340,6 +1340,7 @@ var vfs = {
     <div class="generate-bar">
       <div class="archive-status" id="archiveStatus">Not saved yet</div>
       <button class="generate-btn" id="downloadPdfBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download quote as PDF</button>
+      <button class="add-custom-btn" id="saveToFolderBtn" style="width:100%;margin-top:8px;"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Save to customer folder…</button>
       <div class="print-hint">Vector PDF with header &amp; footer on every page. No setup needed.</div>
       <button class="generate-btn" onclick="window.print()" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;">Print via browser (quick preview)</button>
       <button class="generate-btn" id="exportJsonBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:8px;">Export quote data (.json)</button>
@@ -4866,6 +4867,71 @@ async function recallFolder(customer) {
     // rather than breaking the save.
     return null;
   }
+}
+
+// Feature detection, not user-agent sniffing - and the real call is wrapped in a
+// try/catch as well, because an API can exist on window and still throw when a
+// corporate policy blocks it.
+function folderSaveSupported() {
+  return typeof window.showDirectoryPicker === 'function';
+}
+
+async function ensureFolderPermission(handle) {
+  if (!handle || typeof handle.queryPermission !== 'function') return false;
+  const opts = { mode: 'readwrite' };
+  if (await handle.queryPermission(opts) === 'granted') return true;
+  return (await handle.requestPermission(opts)) === 'granted';
+}
+
+// Never replace a file without being told to. Revision A must not vanish because
+// revision B was saved into the same folder.
+async function pickTargetName(dir, fileName) {
+  let exists = true;
+  try { await dir.getFileHandle(fileName); } catch (e) { exists = false; }
+  if (!exists) return fileName;
+  if (confirm(`${fileName} is already in that folder.\n\nOK — replace it\nCancel — keep both, and save this one under a new name`)) {
+    return fileName;
+  }
+  const base = fileName.replace(/\.pdf$/i, '');
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base}-${n}.pdf`;
+    try { await dir.getFileHandle(candidate); } catch (e) { return candidate; }
+  }
+}
+
+async function saveQuoteToCustomerFolder() {
+  // The local copy first, always, before anything can go wrong. The customer
+  // folder is an addition to the archive, never a replacement for it.
+  autoSaveNow();
+
+  const customer = (document.getElementById('custName').value || '').trim();
+  const fileName = `quote-${QUOTE_ID}.pdf`;
+
+  if (!folderSaveSupported()) {
+    alert('This browser cannot write straight into a folder, so the quote will download instead. Your archive copy is saved either way.');
+    document.getElementById('downloadPdfBtn').click();
+    return;
+  }
+
+  try {
+    let dir = await recallFolder(customer);
+    if (dir && !(await ensureFolderPermission(dir))) dir = null;
+    if (!dir) {
+      dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await rememberFolder(customer, dir);
+    }
+    const target = await pickTargetName(dir, fileName);
+    const blob = await pdfMake.createPdf(buildPdfDocDefinition(buildExportObj())).getBlob();
+    const fileHandle = await dir.getFileHandle(target, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    ccToast(`Saved ${target} to ${customer || 'the chosen folder'}.`);
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;  // the picker was cancelled; say nothing
+    alert('Could not write to that folder (' + ((err && err.name) || 'unknown') + '). The quote will download instead. Your archive copy is untouched.');
+    document.getElementById('downloadPdfBtn').click();
+  }
 }  // remembers which quote to resume on reload
 
 function loadArchive() {
@@ -6221,6 +6287,7 @@ function renderPageBreaks() {
 document.getElementById('fxRateUSD').addEventListener('input', (e) => setCurrencyRate('USD', e.target.value));
 document.getElementById('fxRateSEK').addEventListener('input', (e) => setCurrencyRate('SEK', e.target.value));
 
+document.getElementById('saveToFolderBtn').addEventListener('click', saveQuoteToCustomerFolder);
 document.getElementById('currentQuoteId').addEventListener('blur', commitQuoteIdEdit);
 document.getElementById('currentQuoteId').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
