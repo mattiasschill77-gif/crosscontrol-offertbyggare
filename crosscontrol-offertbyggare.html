@@ -4855,6 +4855,10 @@ function buildQuoteSnapshot() {
     term_incoterm: document.getElementById('termIncoterm').value,
     term_incoterm_location: document.getElementById('termIncotermLocation').value,
     term_validity_days: document.getElementById('termValidity').value,
+    // The raw yyyy-mm-dd input value, because that is what restores a field.
+    // buildExportObj() carries issued_date, the FORMATTED string the document
+    // prints. Two names, two jobs - do not unify them.
+    issue_date: document.getElementById('issueDate').value,
     qty_heading: document.getElementById('qtyHeading').value,
     vat_note: document.getElementById('vatNote').value,
     signer_name: document.getElementById('signerName').value,
@@ -4916,6 +4920,9 @@ function openQuote(quoteId) {
   document.getElementById('termIncoterm').value = rec.term_incoterm || 'DAP';
   document.getElementById('termIncotermLocation').value = rec.term_incoterm_location || '';
   document.getElementById('termValidity').value = rec.term_validity_days || '90';
+  // Records written before the issue date existed have no issue_date; those
+  // fall back to today, which is exactly how they behaved before.
+  document.getElementById('issueDate').value = rec.issue_date || todayInputValue();
   document.getElementById('qtyHeading').value = rec.qty_heading || 'Qty';
   document.getElementById('vatNote').value = (rec.vat_note != null) ? rec.vat_note : 'Prices are given excluding VAT';
   document.getElementById('signerName').value = rec.signer_name || '';

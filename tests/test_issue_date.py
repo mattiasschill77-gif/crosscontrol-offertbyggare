@@ -58,3 +58,45 @@ def test_the_warning_is_internal_only(tmp_path):
     assert note.strip() not in doc, "the warning leaked into the customer document"
     in_pdf = " ".join(page_texts(out))
     assert note.strip() not in in_pdf, "the warning leaked into the PDF"
+
+
+def test_an_archived_quote_keeps_the_date_it_was_issued():
+    """Before this, the archive stored no date and both renderers computed from
+    TODAY, so a quote issued in August and reopened in November re-dated itself
+    to November with a fresh validity window."""
+    with serve() as url, sync_playwright() as p:
+        with _open(p, url) as (page, _alerts):
+            build_long_quote(page, 2)
+            page.fill("#issueDate", "2026-03-04")
+            page.wait_for_timeout(600)
+            quote_id = page.evaluate("QUOTE_ID")
+            saved = page.evaluate("buildQuoteSnapshot()")
+            assert saved.get("issue_date") == "2026-03-04", "the archive record has no issue date"
+            page.evaluate("saveArchiveStore(Object.assign(loadArchive(), {[QUOTE_ID]: buildQuoteSnapshot()}))")
+            # Come back to it the way the archive panel does.
+            page.fill("#issueDate", "2026-07-01")
+            page.wait_for_timeout(400)
+            page.evaluate("(id) => openQuote(id)", quote_id)
+            page.wait_for_timeout(400)
+            assert page.input_value("#issueDate") == "2026-03-04"
+
+
+def test_a_record_saved_before_this_release_still_opens():
+    """Records written before the issue date existed have no issue_date key.
+    They must fall back to today rather than breaking or blanking the field."""
+    with serve() as url, sync_playwright() as p:
+        with _open(p, url) as (page, _alerts):
+            today = page.evaluate("new Date().toISOString().slice(0,10)")
+            page.evaluate("""() => {
+                const store = loadArchive();
+                const rec = buildQuoteSnapshot();
+                delete rec.issue_date;
+                rec.quote_id = 'CC-2026-9999';
+                store['CC-2026-9999'] = rec;
+                saveArchiveStore(store);
+            }""")
+            page.fill("#issueDate", "2026-03-04")
+            page.wait_for_timeout(300)
+            page.evaluate("openQuote('CC-2026-9999')")
+            page.wait_for_timeout(400)
+            assert page.input_value("#issueDate") == today
