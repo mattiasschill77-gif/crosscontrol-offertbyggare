@@ -1052,3 +1052,44 @@ keep-both, the archive-first ordering, and the resurrection guard.
 store, the ordering, the collision logic and every fallback are automated; the picker
 itself is a device gate the owner runs. Do not let a green suite imply that path was
 tested.
+
+---
+
+## 22. The app on a phone (v1.7.1, 2026-08-26)
+
+Scope, set by the owner: **readable on a phone, not usable with a thumb.** Opening a
+quote and showing it to someone works. Building a whole quote with a thumb was
+explicitly not asked for and is not there.
+
+**What was actually wrong.** Measured at 390x844 before any change, the page was 798px
+wide. Everything below the top bar already fitted — the `max-width:1000px` rule collapses
+the grid correctly — and the whole overflow came from the top bar, one flex row that
+refused to wrap. It wraps now, and `#productCountPill` is dropped as the first thing not
+worth its width.
+
+⚠️ **The trap: fixing that revealed the real problem, and the test stayed green through
+it.** `.doc` is `width:780px; max-width:100%`, so on a phone it was squeezed to ~316px
+and the five-column price table collapsed until the header cells collided and the totals
+ran into the page edge. **Nothing overflowed in DOM terms** — columns crush rather than
+overflow — so the overflow assertion passed while a screenshot showed a broken document.
+The document now keeps its real 780px and the whole thing is scaled down in bands, the
+way a PDF looks on a phone. `tests/test_mobile_layout.py` asserts the document is **not
+squeezed**, which is the invariant a geometric test can actually check.
+
+⚠️ **A media query adds no specificity.** The narrow-screen block sits earlier in the
+stylesheet than the rules it overrides, so plain selectors lost on source order and the
+rules silently did nothing. They are written as `#docRoot, #plDocRoot, .workspace
+.doc-wrap` for that reason. This cost two rounds; check the computed value, not the
+source.
+
+⚠️ Everything here is inside `@media screen and (...)`, so it cannot leak into the print
+path or either PDF.
+
+⚠️ **An interim version stacked the acceptance block into one column.** That was only
+needed because of the squeeze, and once the real width was restored it made the preview
+disagree with the PDF. It is gone, and a test asserts the block stays two columns — the
+preview must show what the customer gets.
+
+**Confirmed on the owner's own iPhone**, which is what settles the one thing the emulator
+could not: Safari honours the `zoom` used for the scaling. Chromium with an iPhone
+viewport is not Safari; keep using a real phone as the gate for anything visual here.
