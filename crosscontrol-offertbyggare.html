@@ -1260,6 +1260,11 @@ var vfs = {
           <span class="char-count" id="termIncotermLocationCount" aria-hidden="true"></span>
         </div>
         <div class="term-row">
+          <label class="field-tiny-label" style="margin-top:0;" for="issueDate">Issue date</label>
+          <input type="date" id="issueDate">
+          <div id="issueDateNote" class="price-list-hint" style="margin-top:5px;"></div>
+        </div>
+        <div class="term-row">
           <label class="field-tiny-label" style="margin-top:0;" for="termValidity">Quote validity</label>
           <select id="termValidity">
             <option value="30">Valid for 30 days</option>
@@ -5053,6 +5058,22 @@ function addDays(d, days){
   return r;
 }
 
+// The date the document is dated with. The field is authoritative once it exists,
+// so the screen and both PDFs cannot disagree; TODAY is only the fallback.
+function issueDate() {
+  const el = document.getElementById('issueDate');
+  if (el && el.value) {
+    const d = new Date(el.value + 'T00:00:00');
+    if (!isNaN(d.getTime())) return d;
+  }
+  return TODAY;
+}
+
+function todayInputValue() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ===== CURRENCY =====
 // Price list base currency is EUR. These rates convert FROM EUR. Edit if rates drift.
 let CURRENCY_RATES = {
@@ -5687,7 +5708,7 @@ function renderDoc() {
   const incotermName = INCOTERMS[incotermCode] ? INCOTERMS[incotermCode].name : incotermCode;
   const termDelivery = `${incotermCode} — ${incotermName}${incotermLocation ? ', ' + incotermLocation : ''} (Incoterms 2020)`;
   const validityDays = parseInt(document.getElementById('termValidity').value);
-  const validUntil = fmtDate(addDays(TODAY, validityDays));
+  const validUntil = fmtDate(addDays(issueDate(), validityDays));
   const officeKey = document.getElementById('senderOffice').value;
   const office = OFFICES[officeKey] || OFFICES.alfta;
   const headerAddressHtml = `${office.name}<br>${office.line1}, Sweden<br>`;
@@ -5851,7 +5872,7 @@ function renderDoc() {
     <div class="doc-title-bar">
       <h1>Price Quote</h1>
       ${custBlock}
-      <div class="meta">Issued ${fmtDate(TODAY)}</div>
+      <div class="meta">Issued ${fmtDate(issueDate())}</div>
     </div>
 
     <div class="doc-body">
@@ -5985,10 +6006,28 @@ function renderPageBreaks() {
 document.getElementById('fxRateUSD').addEventListener('input', (e) => setCurrencyRate('USD', e.target.value));
 document.getElementById('fxRateSEK').addEventListener('input', (e) => setCurrencyRate('SEK', e.target.value));
 
+document.getElementById('issueDate').addEventListener('input', () => { renderAll(); renderIssueDateNote(); });
+document.getElementById('issueDate').addEventListener('change', () => { renderAll(); renderIssueDateNote(); });
+
 function renderAll() {
   renderProductList();
   renderDoc();
   scheduleAutoSave();
+}
+
+function renderIssueDateNote() {
+  const el = document.getElementById('issueDateNote');
+  if (!el) return;
+  const d = issueDate();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((d - today) / 86400000);
+  if (days > 0) {
+    el.textContent = 'This quote is dated in the future. Intended?';
+  } else if (days < -30) {
+    el.textContent = `This quote is dated ${Math.abs(days)} days ago. Intended?`;
+  } else {
+    el.textContent = '';
+  }
 }
 
 function escapeHtml(s) {
@@ -6019,7 +6058,7 @@ function buildExportObj() {
   const incotermName = INCOTERMS[incotermCode] ? INCOTERMS[incotermCode].name : incotermCode;
   const termDelivery = `${incotermCode} — ${incotermName}${incotermLocation ? ', ' + incotermLocation : ''} (Incoterms 2020)`;
   const validityDays = parseInt(document.getElementById('termValidity').value);
-  const validUntil = fmtDate(addDays(TODAY, validityDays));
+  const validUntil = fmtDate(addDays(issueDate(), validityDays));
   const currency = getCurrency();
 
   const lines = cart.map(item => {
@@ -6052,7 +6091,7 @@ function buildExportObj() {
     quote_id: QUOTE_ID,
     app_version: APP_VERSION,
     app_build_date: APP_BUILD_DATE,
-    issued_date: fmtDate(TODAY),
+    issued_date: fmtDate(issueDate()),
     valid_until: validUntil,
     sender_office: document.getElementById('senderOffice').value,
     currency,
@@ -6221,6 +6260,9 @@ function seedDemoContent() {
 }
 
 (function init() {
+  document.getElementById('issueDate').value = todayInputValue();
+  renderIssueDateNote();
+
   const archive = loadArchive();
   const lastOpenId = localStorage.getItem(LAST_OPEN_KEY);
 
