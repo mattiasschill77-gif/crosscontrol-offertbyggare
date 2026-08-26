@@ -969,3 +969,86 @@ never fail, because Playwright saves a download to a path the test itself choose
 the suggested name was never exercised. It was only noticed because eight tests passed
 against code that had never been written to disk. Assert on what the browser actually
 produced, not on what you handed it.
+
+---
+
+## 21. Saving into a customer folder, and deleting from the archive (v1.7.0, 2026-08-26)
+
+### 21.1 What the owner asked for
+
+> *"användaren så få välja var offerterna sparas utöver det som finns idag … Men ska
+> alltid finnas en lokal backup att falla tillbaka på (om man inte avsiktligt tar bort
+> den i arkivet)"*
+
+Both halves are now true. They were not before: the deliberate removal did not exist.
+
+### 21.2 The save
+
+`Save to customer folder…` sits under the download button as a secondary action.
+`Download quote as PDF` is untouched — this was additive, and every pre-existing test
+still passes.
+
+The order is the contract: **`autoSaveNow()` writes the archive copy first**, before the
+picker is even opened, so a cancelled or failed save still leaves the quote in the
+archive. A test asserts it by making the picker throw.
+
+The folder is remembered **per customer**, keyed on the trimmed customer name, in
+IndexedDB (`cc_customer_folders_v1`) — a directory handle is structured-cloneable, so
+`localStorage` cannot hold one. An empty customer name is never used as a key, or every
+nameless quote would share one folder under `""`.
+
+⚠️ **Never overwrites.** If `quote-<id>.pdf` is already in the folder: OK replaces it,
+Cancel keeps both and this one becomes `-2`, then `-3`. Revision A must not vanish
+because revision B was saved.
+
+**Degrades in four directions rather than failing:** no API at all → ordinary download
+with an explanation · API present but blocked by policy → the same, caught at the call
+rather than guessed from feature detection · picker cancelled (`AbortError`) → silence,
+because that is not an error · IndexedDB blocked → ask for the folder every time.
+
+### 21.3 Measured on the owner's machine, 2026-08-26
+
+The device gate, run by the owner on the real build opened by double-click:
+
+| | |
+|---|---|
+| Writing into a real folder from `file://` | ✅ the PDF landed in `OneDrive\…\Android` |
+| Collision | ✅ asked first; Cancel kept both — `quote-CC-2026-1002.pdf` and `-2.pdf` |
+| **After closing Chrome completely** | ✅ **the folder was still remembered** — it never asked which folder |
+| Permission after that restart | ⚠️ **Chrome asks again**, offering *Tillåt den här gången* / **Tillåt vid varje besök** / *Tillåt inte* |
+| Deleting the quote from the archive | ✅ both PDFs stayed in the customer folder |
+
+So the handle survives a restart but the **grant** does not, unless the owner picks
+*allow on every visit*. That is a per-user choice, and `ensureFolderPermission()` handles
+both by calling `requestPermission()` when `queryPermission()` is not already `granted`.
+
+⚠️ Two UI defects were found by that device test and by nothing else: the new button was
+inserted between the download button and *its* hint, so the hint read as a description of
+the wrong control; and it used the `+ Add custom item` class, which is dashed precisely to
+say "add something". Both fixed. **Look at the screen — a green suite says nothing about
+whether a control sits where its label belongs.**
+
+### 21.4 Deleting from the archive
+
+Every archive row now has `Delete` beside `Open`. It confirms first, naming the quote and
+its customer, and says that only the local copy goes.
+
+⚠️ **The trap that made this a real task rather than three lines:** autosave writes
+`store[QUOTE_ID]` on every change, so deleting the quote that is **currently open**
+resurrects it on the next keystroke. Deleting the open quote therefore moves the app onto
+a fresh one and reopens the archive, so several can be cleared in a row. Proven by
+removing that branch and watching the quote come back as soon as anything was typed.
+
+The delete branch sits **before** the open branch in the row's click handler, so Delete
+does not fall through to the row's own open-on-click (see §13 for why that row is
+clickable at all).
+
+### 21.5 Tests
+
+72. The guards were each proven to fail with their protection removed: the collision
+keep-both, the archive-first ordering, and the resurrection guard.
+
+⚠️ **What the suite cannot cover:** Playwright cannot drive a native folder picker. The
+store, the ordering, the collision logic and every fallback are automated; the picker
+itself is a device gate the owner runs. Do not let a green suite imply that path was
+tested.
