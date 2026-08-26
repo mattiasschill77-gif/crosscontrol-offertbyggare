@@ -194,6 +194,12 @@ var vfs = {
     cursor:pointer;white-space:nowrap;font-family:Arial,sans-serif;
   }
   .archive-open-btn:hover{background:var(--cc-orange-dark);}
+  .archive-delete-btn{
+    background:transparent;color:var(--panel-text-dim);border:1px solid var(--panel-line);
+    padding:8px 12px;border-radius:var(--radius);font-size:12px;
+    cursor:pointer;white-space:nowrap;font-family:Arial,sans-serif;
+  }
+  .archive-delete-btn:hover{border-color:#b3261e;color:#b3261e;}
   .archive-backup-section{
     margin-top:28px;padding-top:20px;border-top:1px solid var(--panel-line);
   }
@@ -1341,6 +1347,8 @@ var vfs = {
       <div class="archive-status" id="archiveStatus">Not saved yet</div>
       <button class="generate-btn" id="downloadPdfBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download quote as PDF</button>
       <div class="print-hint">Vector PDF with header &amp; footer on every page. No setup needed.</div>
+      <button class="generate-btn" id="saveToFolderBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Save to customer folder…</button>
+      <div class="print-hint">Writes the PDF straight into that customer’s folder and remembers it. A copy is always kept in the Archive.</div>
       <button class="generate-btn" onclick="window.print()" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;">Print via browser (quick preview)</button>
       <button class="generate-btn" id="exportJsonBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:8px;">Export quote data (.json)</button>
       <div class="print-hint">JSON is for generating a PDF locally with <code>generate_pdf.py</code></div>
@@ -4094,7 +4102,7 @@ window._poppinsFontsB64 = {
 // file names of the delivered copies outside git must be set to match by hand -
 // nothing enforces that. This repo file deliberately keeps its unversioned name.
 // Never rendered to the customer.
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const APP_BUILD_DATE = '2026-08-26';
 
 const QUOTE_FORECAST_TEXT =
@@ -4816,7 +4824,122 @@ let QUOTE_ID = null;
 // reopened later to continue negotiating, without losing the original record.
 const ARCHIVE_KEY = 'cc_quote_archive_v1';      // { [quoteId]: savedQuoteRecord }
 const COUNTER_KEY = 'cc_quote_counter_v1';      // { [year]: lastUsedNumber }
-const LAST_OPEN_KEY = 'cc_quote_last_open_v1';  // remembers which quote to resume on reload
+const LAST_OPEN_KEY = 'cc_quote_last_open_v1';
+
+// ===== CUSTOMER FOLDERS =====
+// Which folder this customer's quotes are written into. A directory handle is
+// structured-cloneable, so IndexedDB can hold one and localStorage cannot.
+const FOLDER_DB = 'cc_customer_folders_v1';
+const FOLDER_STORE = 'folders';
+
+function folderDb() {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(FOLDER_DB, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => { req.result.createObjectStore(FOLDER_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('IndexedDB is not available'));
+  });
+}
+
+async function rememberFolder(customer, handle) {
+  const key = (customer || '').trim();
+  if (!key) return;  // no customer name, nothing to remember it under
+  const db = await folderDb();
+  try {
+    await new Promise((res, rej) => {
+      const tx = db.transaction(FOLDER_STORE, 'readwrite');
+      tx.objectStore(FOLDER_STORE).put(handle, key);
+      tx.oncomplete = res;
+      tx.onerror = () => rej(tx.error);
+    });
+  } finally { db.close(); }
+}
+
+async function recallFolder(customer) {
+  const key = (customer || '').trim();
+  if (!key) return null;
+  try {
+    const db = await folderDb();
+    try {
+      return await new Promise((res, rej) => {
+        const tx = db.transaction(FOLDER_STORE, 'readonly');
+        const req = tx.objectStore(FOLDER_STORE).get(key);
+        req.onsuccess = () => res(req.result || null);
+        req.onerror = () => rej(req.error);
+      });
+    } finally { db.close(); }
+  } catch (e) {
+    // No IndexedDB on this machine, or it is blocked: ask for the folder each time
+    // rather than breaking the save.
+    return null;
+  }
+}
+
+// Feature detection, not user-agent sniffing - and the real call is wrapped in a
+// try/catch as well, because an API can exist on window and still throw when a
+// corporate policy blocks it.
+function folderSaveSupported() {
+  return typeof window.showDirectoryPicker === 'function';
+}
+
+async function ensureFolderPermission(handle) {
+  if (!handle || typeof handle.queryPermission !== 'function') return false;
+  const opts = { mode: 'readwrite' };
+  if (await handle.queryPermission(opts) === 'granted') return true;
+  return (await handle.requestPermission(opts)) === 'granted';
+}
+
+// Never replace a file without being told to. Revision A must not vanish because
+// revision B was saved into the same folder.
+async function pickTargetName(dir, fileName) {
+  let exists = true;
+  try { await dir.getFileHandle(fileName); } catch (e) { exists = false; }
+  if (!exists) return fileName;
+  if (confirm(`${fileName} is already in that folder.\n\nOK — replace it\nCancel — keep both, and save this one under a new name`)) {
+    return fileName;
+  }
+  const base = fileName.replace(/\.pdf$/i, '');
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base}-${n}.pdf`;
+    try { await dir.getFileHandle(candidate); } catch (e) { return candidate; }
+  }
+}
+
+async function saveQuoteToCustomerFolder() {
+  // The local copy first, always, before anything can go wrong. The customer
+  // folder is an addition to the archive, never a replacement for it.
+  autoSaveNow();
+
+  const customer = (document.getElementById('custName').value || '').trim();
+  const fileName = `quote-${QUOTE_ID}.pdf`;
+
+  if (!folderSaveSupported()) {
+    alert('This browser cannot write straight into a folder, so the quote will download instead. Your archive copy is saved either way.');
+    document.getElementById('downloadPdfBtn').click();
+    return;
+  }
+
+  try {
+    let dir = await recallFolder(customer);
+    if (dir && !(await ensureFolderPermission(dir))) dir = null;
+    if (!dir) {
+      dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await rememberFolder(customer, dir);
+    }
+    const target = await pickTargetName(dir, fileName);
+    const blob = await pdfMake.createPdf(buildPdfDocDefinition(buildExportObj())).getBlob();
+    const fileHandle = await dir.getFileHandle(target, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    ccToast(`Saved ${target} to ${customer || 'the chosen folder'}.`);
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;  // the picker was cancelled; say nothing
+    alert('Could not write to that folder (' + ((err && err.name) || 'unknown') + '). The quote will download instead. Your archive copy is untouched.');
+    document.getElementById('downloadPdfBtn').click();
+  }
+}  // remembers which quote to resume on reload
 
 function loadArchive() {
   try {
@@ -4920,6 +5043,31 @@ function updateArchiveStatus(ok) {
 }
 
 // Loads a saved snapshot back into the live editing state.
+// The local archive copy is a backup you can fall back on - so it has to be
+// possible to deliberately let it go. Only the local record is removed: a PDF
+// already written into a customer folder stays exactly where it is.
+function deleteQuoteFromArchive(quoteId) {
+  const store = loadArchive();
+  const rec = store[quoteId];
+  if (!rec) return;
+  const who = rec.customer_name ? ` for ${rec.customer_name}` : '';
+  if (!confirm(`Delete quote ${quoteId}${who} from this archive?
+
+Only the local copy goes. Any PDF you already saved into a customer folder stays where it is.
+
+This cannot be undone.`)) return;
+  delete store[quoteId];
+  saveArchiveStore(store);
+  // Autosave writes store[QUOTE_ID] on every change, so deleting the quote that
+  // is currently open would resurrect it on the very next keystroke. Move onto a
+  // fresh one instead, and stay in the archive so several can be cleared in a row.
+  if (quoteId === QUOTE_ID) {
+    startNewQuote();
+    openArchivePanel();
+  }
+  renderArchiveList(document.getElementById('archiveSearch').value);
+}
+
 function openQuote(quoteId) {
   const store = loadArchive();
   const rec = store[quoteId];
@@ -5083,11 +5231,14 @@ function renderArchiveList(query) {
           <div class="archive-item-meta">${itemCount} item${itemCount === 1 ? '' : 's'} · saved ${savedDate}</div>
         </div>
         <button class="archive-open-btn" data-quote-id="${escapeAttr(r.quote_id)}">Open</button>
+        <button class="archive-delete-btn" data-quote-id="${escapeAttr(r.quote_id)}" aria-label="Delete quote ${escapeAttr(r.quote_id)}">Delete</button>
       </div>`;
   }).join('');
 }
 document.getElementById('archiveSearch').addEventListener('input', (e) => renderArchiveList(e.target.value));
 document.getElementById('archiveList').addEventListener('click', (e) => {
+  const del = e.target.closest('.archive-delete-btn');
+  if (del) { deleteQuoteFromArchive(del.dataset.quoteId); return; }
   const btn = e.target.closest('.archive-open-btn');
   if (btn) { openQuote(btn.dataset.quoteId); return; }
   // The whole row opens the quote too. The row highlights on hover, so it
@@ -6171,6 +6322,7 @@ function renderPageBreaks() {
 document.getElementById('fxRateUSD').addEventListener('input', (e) => setCurrencyRate('USD', e.target.value));
 document.getElementById('fxRateSEK').addEventListener('input', (e) => setCurrencyRate('SEK', e.target.value));
 
+document.getElementById('saveToFolderBtn').addEventListener('click', saveQuoteToCustomerFolder);
 document.getElementById('currentQuoteId').addEventListener('blur', commitQuoteIdEdit);
 document.getElementById('currentQuoteId').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }

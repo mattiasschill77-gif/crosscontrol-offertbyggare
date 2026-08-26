@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright
 
 from harness import app_page, serve
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 BUILD_DATE = "2026-08-26"
 
 
