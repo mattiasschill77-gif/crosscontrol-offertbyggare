@@ -876,3 +876,96 @@ What this settles for the design:
 ⚠️ Unchanged regardless: the copy in the `localStorage` archive is written **first and
 unconditionally**, before any file leaves the app. The customer folder is an addition,
 never a replacement, and the archive checkbox is rendered checked and disabled.
+
+---
+
+## 20. The editable quote number and issue date (v1.6.0, 2026-08-26)
+
+Zak asked for both. His own suggestion was the design that got built: *default to
+what you have now, but allow the box to be editable, just like the VAT box.* A free
+text field also gives his `year-month-customer-#` idea without a format system.
+
+### 20.1 The issue date
+
+`issueDate()` is the single reader — the screen heading, the screen validity,
+`issued_date` and `valid_until` all go through it, so the three surfaces cannot
+disagree. `TODAY` survives only as its fallback. **Validity is counted from the issue
+date**, not the machine clock, so moving the date moves the valid-until with it.
+
+A future date, or one more than 30 days back, raises a note in the panel. It is a
+**note, not an error**: backdating is legitimate and only the owner can tell a
+deliberate one from a typo. It is tested to reach neither the screen document nor
+either PDF.
+
+**This fixed a live defect.** The archive stored `term_validity_days` but no date, and
+`openQuote()` restored none, so a quote issued in August and reopened in November
+**re-dated itself to November** with a fresh validity window — the document disagreed
+with the quote that was actually sent. The record now carries `issue_date`.
+
+⚠️ **Two names on purpose.** The archive stores `issue_date`, the raw `yyyy-mm-dd`
+input value, because that is what restores a field. `buildExportObj()` carries
+`issued_date`, the **formatted** string the document prints. Do not unify them.
+
+### 20.2 The quote number
+
+The topbar badge is an input, defaulting to the generated `CC-YYYY-NNNN`. The archive
+is keyed on the number, so the edit is careful: a number already in the archive is
+**refused** and the field reverts; otherwise the existing record is **moved** to the new
+key, never copied. A higher trailing number moves the year counter so the series is set
+once rather than retyped.
+
+⚠️ **`bumpCounterTo()` must stay bounded.** `parseInt` on 23 trailing digits reaches
+`1e+23`, where `n + 1 === n`: `nextQuoteId()` would then return the same id forever and
+every new quote would overwrite the previous one in the archive — permanently, with no
+UI to reset the counter. ~320 digits reach `Infinity`, which `JSON.stringify` writes as
+`null`, restarting the series at `0001` on top of real quotes. It refuses anything that
+is not a positive safe integer, and the field carries a `maxlength`.
+
+⚠️ **`nextQuoteId()` skips numbers the archive already holds.** Importing a colleague's
+archive does not move the counter, so without this the series walks into an imported
+quote and autosave overwrites it. Only safe because the counter is bounded — otherwise
+the skip loop would never terminate.
+
+⚠️ **The number is user text now, so it must be escaped.** It is interpolated into HTML
+in `renderDoc()` (twice) and in `generate_pdf.py`. Unescaped, `2026-08-<b>HUSCO</b>-14`
+rendered as `2026-08-HUSCO-14` on screen while the pdfmake PDF printed the tags
+literally — the screen is what gets checked before sending. An archived `quote_id` of
+`<img src=x onerror=…>` also executed on open, and archives move between colleagues.
+
+⚠️ **`generate_pdf.py` imports `from html import escape as html_escape`**, not
+`import html`. `build_html()` has a local variable named `html` that shadows the module
+for the whole function; `import html` raises `UnboundLocalError` and breaks the
+WeasyPrint path outright.
+
+**No file-name sanitiser, measured rather than assumed.** With the number set to
+`CC/2026/0007`, Chrome already produces `quote-CC_2026_0007.pdf` and the export
+completes with no alert; a review confirmed `/ \ : * ? < > |` and `../../` all collapse,
+on both download paths. The document keeps the number exactly as typed, and a test
+asserts on `suggested_filename` so the claim stays checked.
+
+### 20.3 Archive export and import
+
+The exported file used to be the bare store object with no marker at all. It now carries
+`format`, `format_version`, `exported_at` and `app_version`, with the records under
+`quotes`. `readArchiveFile()` still accepts the **old bare-store shape** — those files
+are on disks and in email threads — and a file from a **newer** `format_version` is
+still read for its quotes rather than refused.
+
+⚠️ **An import never overwrites.** It used to be `{...existing, ...incoming}`, so
+imported records won every collision. Every machine starts its series at `CC-YYYY-0001`,
+so two colleagues almost certainly hold **different** quotes under the **same** number,
+and one OK click destroyed a real one. Now: an identical record is skipped (so
+re-importing your own backup is a no-op), a differing one is kept alongside under
+`<id>-imported`, and the dialog names what will happen before you commit to it.
+Identity is compared on **sorted keys**, because two versions need not write a record's
+keys in the same order.
+
+### 20.4 Tests
+
+53 in `tests/`. The guards that matter were each proven to fail with their protection
+removed: the duplicate-number refusal, the collision-safe merge, and the counter bound.
+⚠️ One test was found to be **toothless** while writing this: the file-name test could
+never fail, because Playwright saves a download to a path the test itself chooses, so
+the suggested name was never exercised. It was only noticed because eight tests passed
+against code that had never been written to disk. Assert on what the browser actually
+produced, not on what you handed it.
