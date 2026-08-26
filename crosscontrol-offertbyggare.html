@@ -4816,7 +4816,57 @@ let QUOTE_ID = null;
 // reopened later to continue negotiating, without losing the original record.
 const ARCHIVE_KEY = 'cc_quote_archive_v1';      // { [quoteId]: savedQuoteRecord }
 const COUNTER_KEY = 'cc_quote_counter_v1';      // { [year]: lastUsedNumber }
-const LAST_OPEN_KEY = 'cc_quote_last_open_v1';  // remembers which quote to resume on reload
+const LAST_OPEN_KEY = 'cc_quote_last_open_v1';
+
+// ===== CUSTOMER FOLDERS =====
+// Which folder this customer's quotes are written into. A directory handle is
+// structured-cloneable, so IndexedDB can hold one and localStorage cannot.
+const FOLDER_DB = 'cc_customer_folders_v1';
+const FOLDER_STORE = 'folders';
+
+function folderDb() {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(FOLDER_DB, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => { req.result.createObjectStore(FOLDER_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('IndexedDB is not available'));
+  });
+}
+
+async function rememberFolder(customer, handle) {
+  const key = (customer || '').trim();
+  if (!key) return;  // no customer name, nothing to remember it under
+  const db = await folderDb();
+  try {
+    await new Promise((res, rej) => {
+      const tx = db.transaction(FOLDER_STORE, 'readwrite');
+      tx.objectStore(FOLDER_STORE).put(handle, key);
+      tx.oncomplete = res;
+      tx.onerror = () => rej(tx.error);
+    });
+  } finally { db.close(); }
+}
+
+async function recallFolder(customer) {
+  const key = (customer || '').trim();
+  if (!key) return null;
+  try {
+    const db = await folderDb();
+    try {
+      return await new Promise((res, rej) => {
+        const tx = db.transaction(FOLDER_STORE, 'readonly');
+        const req = tx.objectStore(FOLDER_STORE).get(key);
+        req.onsuccess = () => res(req.result || null);
+        req.onerror = () => rej(req.error);
+      });
+    } finally { db.close(); }
+  } catch (e) {
+    // No IndexedDB on this machine, or it is blocked: ask for the folder each time
+    // rather than breaking the save.
+    return null;
+  }
+}  // remembers which quote to resume on reload
 
 function loadArchive() {
   try {
