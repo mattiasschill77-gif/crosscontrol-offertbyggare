@@ -217,6 +217,39 @@ var vfs = {
     .resizer{display:none;}
   }
 
+  /* Phones and small tablets. Measured 2026-08-26 at 390x844: the page was
+     798px wide and scrolled sideways, and ALL of that came from the top bar -
+     one flex row that refused to wrap. Everything below it already fitted,
+     because the 1000px rule above collapses the grid correctly.
+     Scope is "readable on a phone", not "usable with a thumb": the panel and
+     the document stack, and nothing is hidden that you need to find your way
+     back to a quote. */
+  @media screen and (max-width:900px){
+    .topbar{flex-wrap:wrap;gap:10px;padding:12px 16px;}
+    .topbar-left{flex-wrap:wrap;gap:12px;min-width:0;}
+    .topbar-right{width:100%;flex-wrap:wrap;justify-content:flex-start;gap:8px;}
+    .topbar-tabs{margin-left:0;}
+    .topbar-divider{display:none;}
+    /* Pure status, and the first thing worth losing when space is short. */
+    #productCountPill{display:none;}
+
+    /* The document is 780px wide with max-width:100%, so on a phone it was
+       squeezed to ~316px and the five-column price table collapsed: the header
+       cells collided and the totals ran into the page edge. Nothing overflowed
+       in DOM terms, which is why a geometric test could not see it and a
+       screenshot could.
+       Instead of squeezing it, keep the real width and scale the whole document
+       down, the way a PDF looks on a phone: proportions stay honest, and you
+       pinch to read the detail. */
+    .preview-wrap{padding:12px;}
+    #docRoot, #plDocRoot, .workspace .doc-wrap{width:780px;max-width:none;}
+  }
+  /* Bands rather than JS, so nothing can leak into the print or PDF paths.
+     Each keeps 780px x zoom inside the width it applies to. */
+  @media screen and (max-width:840px){ .doc-wrap{zoom:0.85;} }
+  @media screen and (max-width:680px){ .doc-wrap{zoom:0.68;} }
+  @media screen and (max-width:520px){ .doc-wrap{zoom:0.46;} }
+
   /* Drag handle between the control panel and the preview. The visible line is
      1px (it replaces the panel's own right border); the grab area is the full
      6px column, which is what makes it findable with a mouse. */
