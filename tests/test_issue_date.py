@@ -100,3 +100,15 @@ def test_a_record_saved_before_this_release_still_opens():
             page.evaluate("openQuote('CC-2026-9999')")
             page.wait_for_timeout(400)
             assert page.input_value("#issueDate") == today
+
+
+def test_a_new_quote_is_dated_today_again():
+    """Starting a new quote must not inherit the previous quote's date."""
+    with serve() as url, sync_playwright() as p:
+        with _open(p, url) as (page, _alerts):
+            today = page.evaluate("new Date().toISOString().slice(0,10)")
+            page.fill("#issueDate", "2026-03-04")
+            page.wait_for_timeout(400)
+            page.evaluate("startNewQuote()")
+            page.wait_for_timeout(400)
+            assert page.input_value("#issueDate") == today

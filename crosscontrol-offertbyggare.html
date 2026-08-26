@@ -903,6 +903,15 @@ var vfs = {
   /* ---- 7. Top bar: status reads as status, actions read as actions -------- */
   .pill{ border-radius:20px; font-size:10px; letter-spacing:0.02em; }
   .quote-id-badge{ font-size:11px; }
+  /* The quote number is editable in place. It should read as part of the badge,
+     not as a form field, until you touch it. */
+  .quote-id-input{
+    font:inherit; color:inherit; background:transparent;
+    border:1px solid transparent; border-radius:3px;
+    padding:1px 3px; margin:0; min-width:9ch;
+  }
+  .quote-id-input:hover{ border-color:var(--panel-line); }
+  .quote-id-input:focus{ border-color:var(--cc-orange); outline:none; background:#fff; }
   .topbar-tab{ transition:color 140ms var(--ease), border-color 140ms var(--ease); }
 
   /* ---- 8. Icons: inline SVG replacing emoji ------------------------------- */
@@ -1090,7 +1099,7 @@ var vfs = {
     </div>
   </div>
   <div class="topbar-right">
-    <span class="quote-id-badge">Quote <span id="currentQuoteId">—</span></span>
+    <span class="quote-id-badge">Quote <input type="text" id="currentQuoteId" class="quote-id-input" aria-label="Quote number" spellcheck="false" autocomplete="off"></span>
     <button class="topbar-btn" id="newQuoteBtn">+ New quote</button>
     <button class="topbar-btn" id="openArchiveBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Archive</button>
     <span class="pill" id="productCountPill">0 products loaded</span>
@@ -4944,6 +4953,9 @@ function openQuote(quoteId) {
 // Starts a brand new quote with a fresh sequential number.
 function startNewQuote() {
   QUOTE_ID = nextQuoteId();
+  // A new quote is dated today, whatever date the previous one carried.
+  document.getElementById('issueDate').value = todayInputValue();
+  renderIssueDateNote();
   cart = [];
   appendices = [];
   nextLineId = 1;
@@ -4959,8 +4971,64 @@ function startNewQuote() {
 
 function updateQuoteIdDisplay() {
   const el = document.getElementById('currentQuoteId');
-  if (el) el.textContent = QUOTE_ID;
+  if (!el) return;
+  el.value = QUOTE_ID || '';
+  el.style.width = Math.max(9, (QUOTE_ID || '').length + 1) + 'ch';
 }
+
+// Zak asked for this: CC-2026-0001 tells the customer they are the first quote
+// of the year. His own suggestion was the right one - default to the generated
+// number, let the box be edited, same as the VAT note. Free text also gives his
+// year-month-customer-# format without building a format system for it.
+//
+// The hazard is the archive, which is keyed on the number. An edit must move the
+// record, never copy it, and must never land on top of a different quote.
+function commitQuoteIdEdit() {
+  const el = document.getElementById('currentQuoteId');
+  const typed = el.value.trim();
+  const previous = QUOTE_ID;
+  if (!typed) { updateQuoteIdDisplay(); return; }
+  if (typed === previous) { updateQuoteIdDisplay(); return; }
+
+  const store = loadArchive();
+  if (Object.prototype.hasOwnProperty.call(store, typed)) {
+    updateQuoteIdDisplay();
+    alert(`Quote ${typed} already exists in the archive. The number was not changed.`);
+    return;
+  }
+  if (Object.prototype.hasOwnProperty.call(store, previous)) {
+    store[typed] = Object.assign({}, store[previous], { quote_id: typed });
+    delete store[previous];
+    saveArchiveStore(store);
+  }
+  QUOTE_ID = typed;
+  localStorage.setItem(LAST_OPEN_KEY, QUOTE_ID);
+  bumpCounterTo(typed);
+  updateQuoteIdDisplay();
+  renderAll();
+  renderArchiveList();
+}
+
+// A number typed once should carry the series rather than being retyped on every
+// quote. Only an upward move counts, and only for the current year's counter.
+function bumpCounterTo(id) {
+  const m = String(id).match(/(\d+)\s*$/);
+  if (!m) return;
+  const typed = parseInt(m[1], 10);
+  const year = new Date().getFullYear();
+  let counters = {};
+  try { counters = JSON.parse(localStorage.getItem(COUNTER_KEY) || '{}'); } catch (e) { counters = {}; }
+  if (typed > (counters[year] || 0)) {
+    counters[year] = typed;
+    localStorage.setItem(COUNTER_KEY, JSON.stringify(counters));
+  }
+}
+
+// No file-name sanitiser here, deliberately. Measured 2026-08-26: with the number
+// set to "CC/2026/0007", Chrome's own download handling already turns the suggested
+// name into "quote-CC_2026_0007.pdf" and the export completes with no alert. A
+// sanitiser of ours would sit in the file looking like a protection that nothing
+// needs. The document keeps the number exactly as typed.
 
 // ----- Archive panel UI -----
 function openArchivePanel() {
@@ -6012,6 +6080,12 @@ function renderPageBreaks() {
 
 document.getElementById('fxRateUSD').addEventListener('input', (e) => setCurrencyRate('USD', e.target.value));
 document.getElementById('fxRateSEK').addEventListener('input', (e) => setCurrencyRate('SEK', e.target.value));
+
+document.getElementById('currentQuoteId').addEventListener('blur', commitQuoteIdEdit);
+document.getElementById('currentQuoteId').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+  if (e.key === 'Escape') { updateQuoteIdDisplay(); e.target.blur(); }
+});
 
 document.getElementById('issueDate').addEventListener('input', () => { renderAll(); renderIssueDateNote(); });
 document.getElementById('issueDate').addEventListener('change', () => { renderAll(); renderIssueDateNote(); });
