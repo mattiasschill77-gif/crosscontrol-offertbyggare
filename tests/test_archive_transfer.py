@@ -36,7 +36,7 @@ def test_the_export_carries_a_format_marker(tmp_path):
             live = _archive_of(page)
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["format"] == "cc-quote-archive"
-    assert payload["format_version"] == 1
+    assert payload["format_version"] == 2
     assert payload["app_version"]
     assert payload["exported_at"]
     assert set(payload["quotes"].keys()) == set(live.keys())

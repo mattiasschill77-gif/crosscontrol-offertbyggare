@@ -376,10 +376,11 @@ SESSION_HANDOFF_2026-08-20.md, both in the repo."*
 the decisions taken, what is still open and why, and the traps that cost time.
 This file (HANDOFF.md) stays the durable architecture reference.
 
-**Current status (2026-08-20): live build `c5000ac`.** Three items are open —
-manufacturing cost exists for 1 of 86 products, the price list archive is
-write-only, and the 2024 workbook has a duplicate part number at two prices.
-See `SESSION_HANDOFF_2026-08-20.md` §4.
+**Current status (2026-08-31): v1.7.2, 91 tests.** Two items remain open —
+manufacturing cost exists for 1 of 86 products, and the 2024 workbook has a
+duplicate part number at two prices (§12). The price list archive is no longer
+one of them — see §23. ⚠️ The line this replaces still claimed `c5000ac` from
+2026-08-20 three releases later; a status line in a handoff goes stale silently.
 
 **(2026-08-14, historical): there was no known open bug.** The §4 PDF-download
 bug is fixed and click-verified, and the three features Zak asked for (§9) are
@@ -588,7 +589,9 @@ opens that quote, while ignoring clicks that land on a real control
 ⚠️ **Lesson worth keeping:** adding hover feedback to something makes a promise.
 If you give an element a hover state, wire its click — or don't give it one.
 
-## 14. ⚠️ OPEN BUG — the price list archive is write-only
+## 14. ✅ FIXED 2026-08-31 (v1.7.2) — the price list archive was write-only
+
+**Fixed in §23.** The section below is the historical record of the defect.
 
 `plSaveToArchive()` writes to `localStorage` under `cc_pricelist_archive_v1`,
 mints an id (`PL-2026-0001`) and confirms with a toast. **Nothing ever reads it
@@ -1093,3 +1096,90 @@ preview must show what the customer gets.
 **Confirmed on the owner's own iPhone**, which is what settles the one thing the emulator
 could not: Safari honours the `zoom` used for the scaling. Chromium with an iPhone
 viewport is not Safari; keep using a real phone as the gate for anything visual here.
+
+---
+
+## 23. The export block folds, and the price list archive is real (v1.7.2, 2026-08-31)
+
+Two owner requests, taken together as one release.
+
+### 23.1 The export block folds
+
+`.generate-bar` sits **outside** `.panel-scroll`, so it is a fixed footer of the
+control panel: 331px that could never be scrolled away, permanently crowding out
+the controls above it. It folds now. Collapsed keeps the saved-status line and the
+primary Download button and hides the four secondary actions with their hints:
+**381px → 129px measured, 252px recovered.**
+
+`aria-expanded` on the toggle is the single source of state — the CSS reads the
+attribute directly (`.generate-bar-toggle[aria-expanded="false"] ~ .generate-bar-extras`),
+so there is no class that can disagree with it. Remembered per machine in
+`cc_export_expanded_v1`, the same pattern as `cc_panel_width_v1`.
+
+⚠️ **The default is expanded**, which is why all 77 pre-existing tests stayed valid.
+Keep it that way: a colleague who never touches the toggle must see the build they
+had before.
+
+The new CSS sits beside the original `.generate-bar` rules, **not** in the Tier A
+override block — it declares a new component rather than overriding an old one, so
+the "delete the block to revert the look" contract (§10/CLAUDE.md) still holds.
+
+### 23.2 The price list archive
+
+The store existed since 2026-08-17 and **nothing ever read it back** (§14). It is a
+real archive now: the drawer has **Quotes / Price lists** tabs, rows Open and Delete
+exactly like quote rows, and price lists ride in `Export full archive (.json)`.
+
+The record gained two fields it could not restore without:
+
+- `basisColumn` — without it a reopened list silently fell back to List price. It
+  would look right and be **priced wrong**, which is the worst kind of defect this
+  tool can have.
+- `mkByPart` — so the Margin (TG) card survives a reopen. ⚠️ **INTERNAL.** This is the
+  newest path by which cost could reach a customer document;
+  `test_cost_never_reaches_the_price_list_pdf_or_the_excel` scans the decompressed
+  PDF text and the workbook XML, and proves itself non-vacuous first by asserting
+  the cost really is on the internal card.
+
+**Saving a bound list updates it in place** rather than piling up near-identical
+entries. `PL_ID` holds the binding, and it is **released** in two places, because
+silently overwriting one customer's list with another's is the only way this could
+lose real work: retyping the customer name, and `Clear all`. `PL_ID` is in memory
+only, so a reload also unbinds — deliberately, the safe direction.
+
+Import reuses `mergeArchives`, which now takes an id field (`quote_id` for quotes,
+`id` for price lists). Price lists collide exactly the way quotes do — every machine
+starts at `PL-YYYY-0001` — so the never-overwrite rule of §20.3 applies unchanged.
+`ARCHIVE_FORMAT_VERSION` is **2**; a v1 file simply has no `pricelists` key, which is
+not an error, and a v1 file still imports.
+
+### 23.3 The trap, and it is a general one
+
+⚠️ **`.archive-list` is `display:flex`, and an author `display` rule beats the UA
+stylesheet's `[hidden]{display:none}`.** Setting `.hidden` on the list therefore did
+nothing and **both archives rendered stacked in the same tab** — a quote sitting in
+the Price lists tab. Every scripted check was green, including the one that had just
+confirmed the tab switch ran, because the switch *did* run; only the hiding failed.
+A screenshot caught it. Fixed with an explicit `.archive-list[hidden]{display:none;}`.
+
+This is the same lesson as §22: **look at the screen.** A geometric or attribute-level
+assertion cannot see a layout that is wrong but well-formed.
+
+### 23.4 Tests
+
+**91**, up from 77. Every new guard was proven to go red with the thing it protects
+broken — fourteen deliberate breaks in total.
+
+⚠️ Two honest limits, recorded rather than papered over:
+
+1. The cost-leak breaks prove the **scanners detect a cost value** in the PDF and in
+   the workbook. They do not enumerate every conceivable leak path.
+2. `plOpenFromArchive`'s `basisColumn || 'list'` **cannot be broken independently** —
+   `plPopulateBasisOptions()` already defaults an unknown basis to `list`. It is kept
+   as belt-and-braces so the state does not depend on another function's side effect,
+   but do not read the passing test as proof that *that* line is load-bearing. The
+   pre-1.7.2 test's real teeth are `mkByPart`, which was proven failable.
+
+⚠️ **Bumping `APP_VERSION` turns three tests red on purpose.** `test_version.py` pins
+the version deliberately, so a bump is a conscious act; `test_archive_transfer.py`
+pins `format_version`. Update the pins, do not loosen the assertions.
