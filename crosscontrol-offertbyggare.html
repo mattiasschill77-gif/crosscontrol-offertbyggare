@@ -571,6 +571,30 @@ var vfs = {
   .generate-btn:hover{background:var(--cc-orange-dark);}
   .print-hint{font-size:10.5px;color:var(--panel-text-dim);text-align:center;margin-top:8px;font-family:Arial,sans-serif;}
 
+  /* The export block is a fixed footer of the panel - it sits outside
+     .panel-scroll, so its ~280px can never be scrolled away and on a laptop
+     screen it permanently crowded out the controls above it. It folds now.
+     Collapsed keeps the two things you look for, the saved-status line and the
+     primary Download button, and hides the secondary actions with their hints.
+     Driven straight off aria-expanded so the state has one source, not two.
+     Remembered per machine, like the panel width. */
+  .generate-bar-toggle{
+    display:flex;align-items:center;width:100%;
+    background:none;border:none;padding:0 0 10px;margin:0;cursor:pointer;
+    font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:11px;
+    text-transform:uppercase;letter-spacing:0.08em;color:var(--panel-text-dim);
+  }
+  .generate-bar-toggle:hover{color:var(--cc-orange-dark);}
+  /* Self-contained rather than reusing .cc-ico, so the chevron keeps its size
+     if the Tier A override block is ever folded in and deleted. */
+  .gen-chevron{
+    width:12px;height:12px;flex:0 0 auto;margin-right:7px;
+    stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+    transition:transform 140ms ease;
+  }
+  .generate-bar-toggle[aria-expanded="false"] .gen-chevron{transform:rotate(-90deg);}
+  .generate-bar-toggle[aria-expanded="false"] ~ .generate-bar-extras{display:none;}
+
   /* ===== RIGHT: PREVIEW ===== */
   .preview-wrap{
     background:var(--panel-bg-2);
@@ -1377,14 +1401,19 @@ var vfs = {
     </div>
 
     <div class="generate-bar">
+      <button class="generate-bar-toggle" id="exportToggleBtn" aria-expanded="true" aria-controls="exportExtras">
+        <svg class="gen-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>Export &amp; save
+      </button>
       <div class="archive-status" id="archiveStatus">Not saved yet</div>
       <button class="generate-btn" id="downloadPdfBtn"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>Download quote as PDF</button>
+      <div class="generate-bar-extras" id="exportExtras">
       <div class="print-hint">Vector PDF with header &amp; footer on every page. No setup needed.</div>
       <button class="generate-btn" id="saveToFolderBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;"><svg class="cc-ico" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Save to customer folder…</button>
       <div class="print-hint">Writes the PDF straight into that customer’s folder and remembers it. A copy is always kept in the Archive.</div>
       <button class="generate-btn" onclick="window.print()" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:10px;">Print via browser (quick preview)</button>
       <button class="generate-btn" id="exportJsonBtn" style="background:transparent;border:1px solid var(--panel-line);color:var(--ink-700);margin-top:8px;">Export quote data (.json)</button>
       <div class="print-hint">JSON is for generating a PDF locally with <code>generate_pdf.py</code></div>
+      </div>
     </div>
   </div>
 
@@ -4135,8 +4164,8 @@ window._poppinsFontsB64 = {
 // file names of the delivered copies outside git must be set to match by hand -
 // nothing enforces that. This repo file deliberately keeps its unversioned name.
 // Never rendered to the customer.
-const APP_VERSION = '1.7.1';
-const APP_BUILD_DATE = '2026-08-26';
+const APP_VERSION = '1.7.2';
+const APP_BUILD_DATE = '2026-08-31';
 
 const QUOTE_FORECAST_TEXT =
   'This quotation is made subject to the customer having submitted a rolling forecast ' +
@@ -7946,6 +7975,28 @@ function ccToast(msg) {
 window.addEventListener('beforeunload', () => {
   if (QUOTE_ID) localStorage.setItem(LAST_OPEN_KEY, QUOTE_ID);
 });
+
+// ===== The export block folds =====
+// It is a fixed footer of the panel, so its height can never be scrolled away.
+// Collapsed keeps the status line and the Download button; the secondary actions
+// and their hints hide. aria-expanded is the single source of state - the CSS
+// reads it directly, so there is no class that can disagree with the attribute.
+// The default is expanded, so nothing moves for anyone who never touches it.
+(function () {
+  var KEY = 'cc_export_expanded_v1';
+  var btn = document.getElementById('exportToggleBtn');
+  if (!btn) return;
+  function apply(expanded, persist) {
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (persist) { try { localStorage.setItem(KEY, expanded ? '1' : '0'); } catch (e) {} }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  apply(saved !== '0', false);
+  btn.addEventListener('click', function () {
+    apply(btn.getAttribute('aria-expanded') !== 'true', true);
+  });
+})();
 
 // ===== Resizable control panel =====
 // The left panel used to be a hard 420px. It is now a CSS variable the user can
