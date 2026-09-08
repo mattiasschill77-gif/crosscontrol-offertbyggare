@@ -4,7 +4,7 @@
 This file covers only this session: what shipped, what was decided, what is still open, and
 the traps that cost time.
 
-**Build: v1.8.0, 114 tests.** Branch A is merged and pushed (`9c0bf12`). Branch B
+**Build: v1.8.0, 119 tests.** Branch A is merged and pushed (`9c0bf12`). Branch B
 (`feat/v1.8-quote-changes`) is complete and unmerged, **pending the device gate in §6**.
 
 ---
@@ -16,11 +16,12 @@ the traps that cost time.
 2. Four changes: one price list PDF defect and three colleague requests. All four were
    designed against a mockup and **approved before any code was written** —
    https://claude.ai/code/artifact/6f68afde-c37e-4d8c-af83-76a85fa538e5
-3. Two **pre-existing** defects were found by rendering the PDF and looking at it — blank
-   column headers on every family but the first, and **73 of 129 prices broken in half**.
-   Both were in the shipped v1.7.2 build, both are fixed (§4), and **neither was caused by
-   the requested work**. Both were the same root cause: an array shared by reference across
-   every family's table, which pdfmake mutates during layout.
+3. **Four pre-existing defects were found by looking at output, not by tests** — blank
+   column headers on every family but the first, **73 of 129 prices broken in half**,
+   printed totals that did not multiply out, and a panel that kept the old currency after
+   a currency change. All four were in the shipped v1.7.2 build, all four are fixed (§4),
+   and **none was caused by the requested work**. Two of them shared one root cause: an
+   array passed by reference to every family's table, which pdfmake mutates during layout.
 
 ---
 
@@ -82,9 +83,11 @@ corrected in `72da31e` rather than left claiming what they originally claimed.
 
 ---
 
-## 4. Two pre-existing defects found by looking at the render
+## 4. Four pre-existing defects, all found by looking at the output
 
-Neither was caused by this work; both were in the shipped v1.7.2 PDF.
+None was caused by this work; all were in the shipped v1.7.2 build. Every one was found
+by rendering the document and looking at it, or by the owner reviewing a real quote on
+screen — not one of them by a test.
 
 **Fixed — the column header appeared on the first family only.** `cols` was one array of cell
 objects pushed **by reference** into every family's table, and pdfmake writes layout state
@@ -98,8 +101,19 @@ on the next. **73 of 129 prices, 57% of the list**, in the shipped v1.7.2 build.
 
 ⚠️ The cause was not the column width: `widths` was one array shared by reference across every
 family's table, and pdfmake replaces its entries in place with annotated objects during layout.
-Every family was sized from CCpilot VI's numbers. Same class of bug as the shared `cols` above,
-found the same way — by looking at the render. `HANDOFF.md` §26.
+Every family was sized from CCpilot VI's numbers. Same class of bug as the shared `cols` above.
+`HANDOFF.md` §26.
+
+**Fixed — the printed numbers did not multiply out.** A USD quote printed unit $1,042.29,
+qty 15, total $15,634.30; 15 x 1,042.29 is $15,634.35. The unit price and the line total were
+rounded to cents independently. Pre-existing, reproduced on the v1.7.2 tag, and found by the
+owner looking at a real quote rather than by any test. `HANDOFF.md` §27.
+
+Two smaller things from the same review, both fixed: the left panel kept the old currency when
+the dropdown changed (the shared listener calls renderDoc() only, while the FX rate box called
+renderAll()), and the Unit price box showed the tier price as a placeholder so an untouched
+line looked like an overridden one.
+
 
 ---
 

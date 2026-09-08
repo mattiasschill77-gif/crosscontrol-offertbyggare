@@ -1394,3 +1394,46 @@ of the extracted PDF text may be nothing but one or two digits, which is what a 
 break leaves behind. It first asserts the document contains at least 20 four-figure prices, so
 it cannot pass on a fixture that never exercises the wide families. Proven to fail by sharing
 the widths array again.
+
+## 27. The printed numbers did not multiply out (v1.8.0, 2026-09-08)
+
+Found by the owner reviewing a real quote on screen, not by any test.
+
+A quote in USD printed:
+
+    CCpilot V1000, 2CAN    UNIT $1,042.29    QTY 15    TOTAL $15,634.30
+
+**15 x 1,042.29 is $15,634.35.** A customer checking the multiplication got a different
+number from the one they were being invoiced for.
+
+⚠️ **Pre-existing — reproduced on the v1.7.2 tag**, so every converted-currency quote ever
+sent carried it. EUR quotes were always exact, which is why it survived so long.
+
+**Cause.** Prices are held in EUR and converted at display time by `fmtMoney`. The unit
+price and the line total were each rounded to cents **independently**: 965.08 EUR at 1.08
+is 1042.2864, which prints as $1,042.29 (rounded up), while the total printed
+15 x 1042.2864 = $15,634.296 -> $15,634.30. Two correct roundings that contradict each other.
+
+**Fix.** `computeLine` now derives the line total from the unit price **as the customer sees
+it** — converted, rounded to cents, then carried back to EUR — via
+`lineTotalFromDisplayedUnit()`. The document's own figures multiply out. In EUR the rate is
+1, so a EUR quote is byte-identical to before; a test pins that.
+
+⚠️ **Do not "simplify" `lineTotal` back to `finalUnitPrice * item.qty`.** That is the defect.
+`tests/test_money_consistency.py` parses the printed figures back out of the screen document
+and the PDF and multiplies them; it goes red in USD and SEK with the old expression, and
+stays green in EUR, which is how you know the guard is discriminating rather than lucky.
+
+### 27.1 Two smaller things from the same review
+
+**The left panel went stale on a currency change.** The row still read `@ €965.08` and held a
+Unit price figure in euros while the document said $1,042.29. The shared field listener calls
+`renderDoc()` only, so the panel was never rebuilt — yet editing the **FX rate** box called
+`renderAll()`, so the two halves of the Currency card behaved differently. `#currencySelect`
+now has its own `renderAll()` listener. Pre-existing; the new Unit price input made it visible,
+because a stale number in an editable box reads as a value someone typed.
+
+**The Unit price box looked pre-filled.** Its placeholder was the tier price, duplicating the
+`@ price` label directly above it, so a line with nothing typed looked like a line with an
+override. The placeholder now reads `tier price`, and the label above says `tier @ ...` so it
+names itself. The box is empty unless a price was actually typed.
