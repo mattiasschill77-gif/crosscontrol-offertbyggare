@@ -123,11 +123,9 @@ line looked like an overridden one.
 - 🟠 **No automated guard for the list-price flag in `generate_pdf.py`.** Verified by hand
   (both states exported, rendered PDF text read) but a regression there would not be caught.
   The break-pass script reports it as SKIP rather than omitting it.
-- 🟠 **`generate_pdf.py` escapes only the quote number.** `cust_name`, `cust_contact`,
-  `cust_country`, `line['description']` and `line['note']` are all interpolated **raw** into the
-  HTML WeasyPrint renders. The new address field is escaped; the pre-existing ones are not.
-  Pre-existing, whole-file, and out of scope for a change about addresses — but it is a real
-  gap in a customer-facing path and deserves its own branch.
+- ✅ **`generate_pdf.py` escaping — FIXED** on `fix/weasyprint-escaping` after v1.8.0 was
+  tagged. It escaped one value and interpolated 17 raw; all 17 are now escaped at the point
+  of read. `HANDOFF.md` §28.
 - 🟠 `C000082-26` is still duplicated in the 2024 workbook at €61.00 and €45.00
   (`HANDOFF.md` §12). The app warns; the fix belongs in the workbook.
 

@@ -1437,3 +1437,43 @@ because a stale number in an editable box reads as a value someone typed.
 `@ price` label directly above it, so a line with nothing typed looked like a line with an
 override. The placeholder now reads `tier price`, and the label above says `tier @ ...` so it
 names itself. The box is empty unless a price was actually typed.
+
+## 28. Escaping on the WeasyPrint path (2026-09-08, after v1.8.0)
+
+`generate_pdf.py` escaped **one** value — the quote number — and interpolated **17 others
+raw** into the HTML it hands WeasyPrint: the customer name, contact and country, every
+product description, part number and line note, the volume-tier labels and sublabels,
+appendix names, the T&C file name, the signer's name and title, the payment and delivery
+terms, the VAT note and the dates.
+
+Every one of those is free text a colleague can type, and archives move between colleagues.
+§20.2 already recorded that an archived `quote_id` of `<img src=x onerror=…>` executes on
+open; that hole was closed for the quote number in v1.6.0 and left open for the rest of the
+document.
+
+⚠️ **Escaping is applied AT THE POINT OF READ, not at each interpolation.** `cust_name`,
+`qty_heading`, `terms` and the rest come out of `offer` already escaped, so every f-string
+below them is safe by construction. Patch the 17 call sites instead and the next person to
+write `{cust_name}` in a new block silently reopens it.
+
+⚠️ **An HTML fallback must be applied AFTER escaping.** `sig.get('signer_name') or '&nbsp;'`
+escaped as a unit prints a literal `&amp;nbsp;` on an empty signer line. Same for the
+volume-tier `label or "&nbsp;"`. Both are covered by a test.
+
+⚠️ **`html_escape`, never `html.escape`** — `build_html` has a local variable named `html`
+that shadows the module for the whole function (§20.2). `import html` inside it raises
+`UnboundLocalError` and breaks the whole WeasyPrint path.
+
+**The guards assert on `build_html`'s output, not on a rendered PDF.** A PDF cannot
+distinguish `<b>x</b>` printed as text from `<b>x</b>` interpreted as markup — by the time
+it is a PDF the evidence is gone. One test does go to a real PDF, to prove the payload
+survives as *visible* text. Proven able to fail: reverting a single field's escaping turns
+three of the five guards red.
+
+**The case that matters more day to day than injection does:** `Wilson & Sons Ltd` is an
+ordinary customer name. It must reach the page with a real ampersand and no `&amp;` visible,
+which is a correctness requirement, not a security one — and it is tested.
+
+⚠️ **The in-browser app was already safe** — `renderDoc()` and `plRenderDoc()` escape through
+`escapeHtml`, and the pdfmake builder passes strings as text nodes rather than markup. This
+was the WeasyPrint path only.
