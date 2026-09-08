@@ -101,19 +101,45 @@ def test_use_tier_price_clears_the_override():
     assert not disabled
 
 
-def test_the_typed_price_is_stored_in_eur_and_converts_with_the_currency():
+def test_a_price_typed_in_another_currency_is_stored_in_eur():
+    """⚠️ The price must be typed while a NON-EUR currency is selected.
+
+    An earlier version of this test typed it in EUR, where fxOut() is 1 and the
+    division is a no-op - so it passed with the conversion deleted. The Task 10
+    break pass caught it. Type in SEK, and the stored value has to come back as
+    EUR or nothing here holds.
+    """
     with serve() as url, sync_playwright() as p:
         with app_page(p, url) as (page, _alerts):
-            _line_with_override(page)
             page.select_option("#currencySelect", "SEK")
-            page.wait_for_timeout(400)
+            page.wait_for_timeout(300)
             rate = page.evaluate("CURRENCY_RATES.SEK.rate")
+            assert rate > 1, "the fixture rate must not be 1 or this proves nothing"
+
+            page.evaluate(f"addProductToCart({PART!r})")
+            page.wait_for_timeout(300)
+            line_id = page.evaluate(
+                "() => { const it = cart.find(c => c.partNumber === %r);"
+                "  it.qty = 150; renderAll(); return it.lineId; }" % PART
+            )
+            typed_sek = round(245.00 * rate, 2)
+            _row(page, line_id).locator('[data-action="unitprice"]').fill(str(typed_sek))
+            page.wait_for_timeout(400)
+            stored = page.evaluate(
+                "cart.find(c => c.partNumber === %r).unitPriceOverride" % PART
+            )
+
+            # Back to EUR: the line must read 245.00, not the SEK figure.
+            page.select_option("#currencySelect", "EUR")
+            page.wait_for_timeout(300)
             computed = page.evaluate(
                 "computeLine(cart.find(c => c.partNumber === %r))" % PART
             )
-    assert rate > 1, "the fixture rate must not be 1 or this proves nothing"
+
+    assert round(stored, 2) == 245.00, \
+        f"typed {typed_sek} kr at {rate} SEK/EUR; stored {stored} instead of 245.00 EUR"
     assert round(computed["finalUnitPrice"], 2) == 245.00, \
-        "the stored value must stay EUR - a currency switch converts, never reinterprets"
+        "a currency switch must convert an override, never reinterpret it"
 
 
 def test_the_typed_price_and_the_total_reach_the_pdf(tmp_path):
@@ -170,13 +196,17 @@ def test_cost_and_margin_never_reach_the_quote_pdf(tmp_path):
                 MK_SEK,
             )
             page.wait_for_timeout(400)
-            panel = _row(page, line_id).inner_text()
+            # ⚠️ inner_text() does NOT include an <input>'s value, so reading the
+            # row's text and searching for the cost finds nothing, and the
+            # non-vacuity check then fails against correct code. Read the field.
+            mk_field = _row(page, line_id).locator('[data-action="mk"]').input_value()
+            margin_row = _row(page, line_id).locator('[data-computed="tgrow"]').inner_text()
             pdf = download_quote_pdf(page, alerts, tmp_path / "quote.pdf")
 
-    flat_panel = panel.replace(",", "").replace(" ", "").replace(" ", "")
-    assert MK_NEEDLE in flat_panel, \
-        "the cost is not even on the internal card - this probe proves nothing"
-    assert "Margin" in panel, "the margin row is missing - this probe proves nothing"
+    assert MK_NEEDLE in mk_field.replace(",", "").replace(" ", ""), \
+        f"the cost is not on the internal card ({mk_field!r}) - this probe proves nothing"
+    assert "Margin" in margin_row, \
+        f"the margin row is missing ({margin_row!r}) - this probe proves nothing"
 
     pages = page_texts(pdf)
     flat_pdf = " ".join(pages).replace(",", "").replace(" ", "").replace(" ", "")
