@@ -5588,6 +5588,13 @@ function getCurrency() {
   const el = document.getElementById('currencySelect');
   return el ? el.value : 'EUR';
 }
+// ⚠️ The shared field listener calls renderDoc() only, so changing the currency left
+// the LEFT PANEL showing the old currency - "@ €965.08" beside a document reading
+// $1,042.29, and a Unit price box holding a figure in the wrong currency. Editing the
+// FX rate already called renderAll(); the dropdown now does too, so both halves of the
+// Currency card behave the same way.
+document.getElementById('currencySelect').addEventListener('change', () => renderAll());
+
 function setCurrencyRate(code, value) {
   if (code === 'EUR') return; // EUR is always the fixed base rate
   let v = parseFloat(String(value).replace(',', '.'));
@@ -5915,6 +5922,22 @@ function setCustomField(lineId, field, value) {
 }
 
 // ===== PRICING CALC =====
+// Round a EUR amount to whole cents OF THE DISPLAY CURRENCY, and give the result
+// back in EUR. fmtMoney(x) and fmtMoney(centsInDisplayCurrency(x)) print the same
+// string; the difference is that the second one multiplies out exactly.
+function centsInDisplayCurrency(eur) {
+  const rate = fxOut();
+  return Math.round(eur * rate * 100) / 100 / rate;
+}
+
+// The line total the document prints: quantity times the unit price the customer
+// can actually read, not times the unrounded one behind it.
+function lineTotalFromDisplayedUnit(unitEur, qty) {
+  const rate = fxOut();
+  const unitCents = Math.round(unitEur * rate * 100) / 100;
+  return Math.round(unitCents * qty * 100) / 100 / rate;
+}
+
 function computeLine(item) {
   if (item.isCustom) {
     const unitPrice = item.customUnitPrice || 0;
@@ -5931,7 +5954,14 @@ function computeLine(item) {
   const finalUnitPrice = item.unitPriceOverride != null
     ? item.unitPriceOverride
     : tierPrice * (1 - item.extraDiscountPct / 100);
-  const lineTotal = finalUnitPrice * item.qty;
+  // ⚠️ The line total is derived from the unit price AS THE CUSTOMER SEES IT -
+  // converted to the display currency and rounded to cents - and then carried back
+  // to EUR. Multiplying the raw EUR figure and rounding the product separately made
+  // the document contradict itself: 965.08 EUR at 1.08 prints $1,042.29, but
+  // 15 x 1042.2864 printed $15,634.30 while 15 x 1,042.29 is $15,634.35.
+  // A price quote whose own numbers do not multiply out is not defensible.
+  // In EUR the rate is 1, so nothing changes for a EUR quote.
+  const lineTotal = lineTotalFromDisplayedUnit(finalUnitPrice, item.qty);
   return { tierPrice, finalUnitPrice, lineTotal };
 }
 
@@ -6035,7 +6065,7 @@ function renderProductList() {
         <label>Qty</label>
         <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty"
                aria-label="Quantity for ${escapeAttr(item.description)}">
-        <label style="margin-left:auto;color:var(--panel-text-dim)" data-computed="tierprice">@ ${fmtEUR(tierPrice)}</label>
+        <label style="margin-left:auto;color:var(--panel-text-dim)" data-computed="tierprice">tier @ ${fmtEUR(tierPrice)}</label>
       </div>
 
       <span class="field-tiny-label">Volume tier</span>
@@ -6043,7 +6073,7 @@ function renderProductList() {
 
       <div class="unitprice-row">
         <label>Unit price</label>
-        <input type="text" inputmode="decimal" placeholder="${(tierPrice * fxOut()).toFixed(2)}"
+        <input type="text" inputmode="decimal" placeholder="tier price"
                value="${hasOverride ? (item.unitPriceOverride * fxOut()).toFixed(2) : ''}"
                data-line-id="${item.lineId}" data-action="unitprice"
                aria-label="Unit price for ${escapeAttr(item.description)}">
@@ -6195,7 +6225,7 @@ function updateProductRowComputed(lineId) {
     if (hasOverride) discEl.value = item.extraDiscountPct;
   }
   const upEl = row.querySelector('[data-action="unitprice"]');
-  if (upEl) upEl.placeholder = (tierPrice * fxOut()).toFixed(2);
+  if (upEl) upEl.placeholder = "tier price";
 
   if (item.isCustom) {
     const lt = row.querySelector('[data-computed="linetotal"]');
@@ -6205,7 +6235,7 @@ function updateProductRowComputed(lineId) {
 
   // Tier price label
   const tp = row.querySelector('[data-computed="tierprice"]');
-  if (tp) tp.textContent = `@ ${fmtEUR(tierPrice)}`;
+  if (tp) tp.textContent = `tier @ ${fmtEUR(tierPrice)}`;
 
   // Margin (GM) row
   const tgHolder = row.querySelector('[data-computed="tgrow"]');
