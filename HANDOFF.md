@@ -370,17 +370,28 @@ with open('crosscontrol-offertbyggare.html', 'w', encoding='utf-8') as f:
 ## 8. Quick-reference: what to say to pick this up cleanly in a new session
 
 *"Continue work on the CrossControl Offertbyggare — read HANDOFF.md, then
-SESSION_HANDOFF_2026-08-20.md, both in the repo."*
+SESSION_HANDOFF_2026-09-08.md, both in the repo."*
 
-`SESSION_HANDOFF_2026-08-20.md` covers the 08-14 → 08-20 stretch: what shipped,
-the decisions taken, what is still open and why, and the traps that cost time.
-This file (HANDOFF.md) stays the durable architecture reference.
+**`SESSION_HANDOFF_2026-09-08.md` is the newest** and the one to read: v1.8.0, what
+is still undelivered, and the device gate that has to run before it is. Read
+`SESSION_HANDOFF_2026-08-20.md` too if you need the 08-14 → 08-20 stretch, which is
+where the price list tab, the TG card and the cost importer came from. This file
+(HANDOFF.md) stays the durable architecture reference.
 
-**Current status (2026-08-31): v1.7.2, 91 tests.** Two items remain open —
-manufacturing cost exists for 1 of 86 products, and the 2024 workbook has a
-duplicate part number at two prices (§12). The price list archive is no longer
-one of them — see §23. ⚠️ The line this replaces still claimed `c5000ac` from
-2026-08-20 three releases later; a status line in a handoff goes stale silently.
+**Current status (2026-09-08): v1.8.0, 114 tests — BUILT, NOT DELIVERED.**
+`fix/pricelist-pdf-pagination` is merged (`9c0bf12`); `feat/v1.8-quote-changes` is
+complete and **unmerged, pending the device gate**. The three copies outside git are
+still v1.7.2. See `SESSION_HANDOFF_2026-09-08.md` §6 for the gate and §7 for the
+release steps.
+
+Open: manufacturing cost exists for 1 of 86 products; the 2024 workbook has a
+duplicate part number at two prices (§12); the price list's NET PRICE column is too
+narrow and wraps four-digit prices (§25.4, owner decision); and `generate_pdf.py`
+escapes only the quote number, leaving the other interpolated fields raw.
+
+⚠️ Two earlier versions of this line went stale — one claimed `c5000ac` three
+releases later, one claimed v1.7.2 after v1.8.0 was built. A status line in a handoff
+goes stale silently. **Update it or delete it.**
 
 **(2026-08-14, historical): there was no known open bug.** The §4 PDF-download
 bug is fixed and click-verified, and the three features Zak asked for (§9) are
@@ -1206,7 +1217,12 @@ reference** into every family's table. pdfmake writes layout state (`_width`, `_
 onto cells as it renders, so the column labels appeared on the **first family only** and
 every family after it got a blank row of the right height. This was in the shipped v1.7.2
 PDF and was found by *looking at the render*, not by any assertion. `makeCols()` returns
-fresh objects now; only `widths` is shared, and those are plain strings.
+fresh objects now.
+
+⚠️ **And so does `makeWidths()`.** This paragraph originally ended "only `widths` is
+shared, and those are plain strings". **That was wrong.** They are strings on the way
+in and pdfmake REPLACES them in place with annotated objects on the way out, so every
+family table was laid out with the FIRST family's column widths. See §26.
 
 **3. A measured `pageBreakBefore`.** ⚠️ **`headerRows: 2` does NOT keep the header with the
 body's first row.** pdfmake renders both header rows at a page foot and starts the body on
@@ -1244,3 +1260,180 @@ it is an owner decision.
 
 The three exclusions of §18.2 stand: rows fragmenting across a page edge, the `§` T&C block
 splitting, and the trailing footer-only page are all untouched.
+
+## 25. The address, the optional list price and the typed unit price (v1.8.0, 2026-09-08)
+
+Three colleague requests, relayed by the owner, designed against a mockup and approved before
+any code was written. The mockup is at
+https://claude.ai/code/artifact/6f68afde-c37e-4d8c-af83-76a85fa538e5 and the spec and plan are
+in `docs/specs/` and `docs/plans/` under `2026-09-08-v1.8-…`.
+
+### 25.1 The customer address
+
+One multi-line box under Company on **both** tabs (`#custAddress`, `#plCustAddress`), bounded
+at **300 characters** with the existing counter, printing as typed.
+
+- Carried as `customer.address` in the export object, `customer_address` in the quote archive
+  record and `customerAddress` in the price list meta. ⚠️ **Three names on purpose**, the same
+  split §20.1 already documents: the record stores what restores a field, the export carries
+  what the document prints.
+- Rendered on **four** surfaces: `renderDoc()`, the pdfmake quote, `generate_pdf.py`, and the
+  price list (screen + pdfmake). Escaped on every one — an archived record carrying markup
+  executes on open, and archives move between colleagues (§20.2).
+- An empty address renders nothing at all, so a blank field leaves all four surfaces identical
+  to v1.7.2.
+
+⚠️ **The price list's `Prepared for X · attn: Y` subtitle is GONE**, replaced by the quote's TO
+block — the owner's call on 2026-09-08 was that both documents get the same treatment.
+`Prepared by` is a different field (the KAM) and did not move. The `.billto` rules are widened
+to `#plDocRoot` in the **original** CSS, not in the Tier A override block, because this is a new
+surface for an existing component and "delete the block to revert the look" must keep holding.
+
+### 25.2 The optional List Price column
+
+`#showListPrice` in the Terms section, **checked by default** — a colleague who never finds it
+sees the build they had. Off removes the column *and* the `+ N% negotiated discount` tag on the
+screen and in both PDF paths: a discount advertised off a price the customer can no longer see
+is worse than either alone.
+
+- `show_list_price` in the export and the archive record. `openQuote` restores it with
+  `rec.show_list_price !== false`, so a record written before v1.8.0 reopens as ON, which is how
+  it was sent.
+- ⚠️ **The pdfmake `widths` array must shrink with the column** or pdfmake throws.
+- ⚠️ It sits beside `#includeForecast` in Terms, **not** in the "Document options" card the
+  mockup drew. There is no such section — `#includeSignature` lives in the signature block and
+  `#includeForecast` in Terms — and inventing one would have moved two working controls.
+
+### 25.3 A typed unit price over a volume tier
+
+`unitPriceOverride` on a cart line — a number in **EUR**, or `null`. `computeLine()` returns it
+as `finalUnitPrice` when set, so margin, the line total and both PDFs follow with no further
+change. Four owner decisions, all from 2026-09-08:
+
+1. **The typed price wins.** Extra discount is cleared and `disabled` while an override is set,
+   so one number decides the price. `Use tier price` restores both.
+2. **⚠ deviation shows on ANY difference from the tier price**, above it as well as below, with
+   the signed percentage. One `deviationState()` serves the template and the computed-only path
+   so the two cannot drift.
+3. **A tier chip click keeps the typed price.** ⚠️ `setTier` deliberately does not touch
+   `unitPriceOverride` — a stray click must never destroy a negotiated number. It carries a
+   comment saying so; do not "tidy" it into clearing the override.
+4. The customer document is unchanged in shape and says nothing about an override.
+
+⚠️ **The price is typed in the DISPLAYED currency and stored in EUR**, divided by `fxOut()` on
+the way in — a new one-line accessor for the multiplier `fmtMoney` already applies on the way
+out. Without it, 245 typed under SEK would be stored as 245 EUR. A currency switch therefore
+*converts* an override rather than reinterpreting it.
+
+⚠️ **Do not re-render the row on input.** The controls are always in the markup and toggled by
+class, and `updateProductRowComputed` keeps them in step. The plan originally called for
+`renderAll()` so the disabled state and the button could appear; that rebuilds the row's
+`<input>` elements and loses the caret after one character, which is the exact thing
+`updateProductRowComputed` exists to prevent (its own comment says so). Verified by typing
+`245.00` one character at a time and asserting focus, value and caret — no `fill()`-based test
+can see this.
+
+### 25.4 Tests — 114, and every new guard proven able to fail
+
+Ten protections were broken on purpose and the guard that should catch each one was run.
+**Eight went red immediately. Two stayed green, and both were the test's fault:**
+
+1. The currency test typed the price while **EUR** was selected, where `fxOut()` is 1 and the
+   division is a no-op — it passed with the conversion deleted. It types in **SEK** now.
+2. The cost-leak probe searched the row's `inner_text()` for the cost. ⚠️ **`inner_text()` does
+   not include an `<input>`'s value**, so the cost was never in the string and the non-vacuity
+   assertion failed against correct code. It reads the field's value directly.
+
+The second matters beyond itself: a cost scan that cannot see the cost on the internal card
+would report "cost never reaches the PDF" about a page that never had a cost on it.
+
+⚠️ **One gap, named rather than hidden: there is no automated guard for the list-price flag in
+`generate_pdf.py`.** It was verified by hand — both states exported and the rendered PDF text
+read, `LIST PRICE` and `526.76` present when on and both absent when off — but nothing in the
+suite would catch a regression. The break-pass script reports it as SKIP with the reason.
+
+### 25.5 The trap that cost the most time
+
+⚠️ **`CLAUDE.md` says "Bash heredocs mangle edit scripts here. Write the script to a file, then
+run it." That is not advice.** A scripted edit written as a heredoc turned `split('\n')` into a
+real line break and broke the entire app script — every test failed, including four that had
+passed minutes earlier.
+
+The failure signature is worth remembering: **previously-green tests going red is "the app is
+broken", not "this feature is wrong".** That pointed at a page error rather than at the feature
+being built, and `node --check` on the inline script found it in one step. Syntax-check the app
+script after any scripted edit; the suite reports a parse error as a wall of unrelated failures.
+
+## 26. The price list's NET PRICE column broke prices in half (v1.8.0, 2026-09-08)
+
+Four-figure prices printed as `€2,438.6` on one line and `0` on the next. **Measured on the
+shipped v1.7.2 build: 73 of 129 prices were broken — 57% of a customer-facing price list.**
+
+⚠️ **The cause was not the column width. It was a shared array**, the same class of bug as the
+shared `cols` in §24 and found the same way — by rendering the PDF and looking at it.
+
+`widths` was built once and passed by reference to every family's table. **pdfmake REPLACES
+the entries of that array in place with annotated objects** (`_minWidth`, `_maxWidth`,
+`_calcWidth`) during layout. Probed across 18 family tables, every one reported *identical*
+widths to twelve decimal places — they were the same objects, computed once from CCpilot VI.
+
+CCpilot VI's prices are ~40pt wide. CCpilot V1200's are wider. So every family after the first
+was laid out with a NET PRICE column sized for someone else's numbers, and its prices
+overflowed and broke mid-number. The NET PRICE column measured `_calcWidth` 43.64 against a
+`_maxWidth` of 44.35 — **short by 0.71pt.**
+
+Fixed by `makeWidths()`, a factory called once per family, exactly like `makeCols()`.
+`columnCount` is taken once for the band's `colSpan`, which is safe because the column *count*
+is stable even though the width *objects* are not.
+
+⚠️ **Do not fold either factory back into a shared constant**, and do not "fix" this class of
+symptom by hardcoding a width — the width was never the problem.
+
+The guard (`tests/test_pricelist_columns.py`) asserts on the symptom a customer sees: no line
+of the extracted PDF text may be nothing but one or two digits, which is what a mid-number
+break leaves behind. It first asserts the document contains at least 20 four-figure prices, so
+it cannot pass on a fixture that never exercises the wide families. Proven to fail by sharing
+the widths array again.
+
+## 27. The printed numbers did not multiply out (v1.8.0, 2026-09-08)
+
+Found by the owner reviewing a real quote on screen, not by any test.
+
+A quote in USD printed:
+
+    CCpilot V1000, 2CAN    UNIT $1,042.29    QTY 15    TOTAL $15,634.30
+
+**15 x 1,042.29 is $15,634.35.** A customer checking the multiplication got a different
+number from the one they were being invoiced for.
+
+⚠️ **Pre-existing — reproduced on the v1.7.2 tag**, so every converted-currency quote ever
+sent carried it. EUR quotes were always exact, which is why it survived so long.
+
+**Cause.** Prices are held in EUR and converted at display time by `fmtMoney`. The unit
+price and the line total were each rounded to cents **independently**: 965.08 EUR at 1.08
+is 1042.2864, which prints as $1,042.29 (rounded up), while the total printed
+15 x 1042.2864 = $15,634.296 -> $15,634.30. Two correct roundings that contradict each other.
+
+**Fix.** `computeLine` now derives the line total from the unit price **as the customer sees
+it** — converted, rounded to cents, then carried back to EUR — via
+`lineTotalFromDisplayedUnit()`. The document's own figures multiply out. In EUR the rate is
+1, so a EUR quote is byte-identical to before; a test pins that.
+
+⚠️ **Do not "simplify" `lineTotal` back to `finalUnitPrice * item.qty`.** That is the defect.
+`tests/test_money_consistency.py` parses the printed figures back out of the screen document
+and the PDF and multiplies them; it goes red in USD and SEK with the old expression, and
+stays green in EUR, which is how you know the guard is discriminating rather than lucky.
+
+### 27.1 Two smaller things from the same review
+
+**The left panel went stale on a currency change.** The row still read `@ €965.08` and held a
+Unit price figure in euros while the document said $1,042.29. The shared field listener calls
+`renderDoc()` only, so the panel was never rebuilt — yet editing the **FX rate** box called
+`renderAll()`, so the two halves of the Currency card behaved differently. `#currencySelect`
+now has its own `renderAll()` listener. Pre-existing; the new Unit price input made it visible,
+because a stale number in an editable box reads as a value someone typed.
+
+**The Unit price box looked pre-filled.** Its placeholder was the tier price, duplicating the
+`@ price` label directly above it, so a line with nothing typed looked like a line with an
+override. The placeholder now reads `tier price`, and the label above says `tier @ ...` so it
+names itself. The box is empty unless a price was actually typed.

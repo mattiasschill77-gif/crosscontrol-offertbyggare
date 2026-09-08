@@ -447,6 +447,28 @@ var vfs = {
     color:var(--warn);font-weight:700;padding:6px 6px;border-radius:var(--radius);
     font-size:12.5px;font-family:Arial,sans-serif;
   }
+  .unitprice-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .unitprice-row label{font-size:11px;color:var(--panel-text-dim);white-space:nowrap;}
+  .unitprice-row input{
+    width:88px;background:#ffffff;border:1px solid var(--panel-line);
+    color:var(--ink-900);padding:6px 8px;border-radius:var(--radius);font-size:12.5px;
+    font-family:Arial,sans-serif;
+  }
+  .hintline{font-size:10px;color:var(--panel-text-dim);margin:0 0 9px;}
+  /* An explicit display:none for the hidden state: an author display rule beats the
+     UA stylesheet's [hidden]{display:none}, which is how two archives once rendered
+     stacked in one tab (HANDOFF.md §23.3). */
+  .hintline.hidden{display:none;}
+  .linkbtn{
+    margin-left:auto;font-size:10px;color:var(--cc-orange-dark);
+    border:1px solid var(--cc-orange);background:transparent;border-radius:var(--radius);
+    padding:3px 7px;font-family:'Poppins',Arial,sans-serif;font-weight:700;
+    letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;
+  }
+  .linkbtn.hidden{display:none;}
+  .linkbtn:focus-visible{outline:none;box-shadow:var(--focus-ring);}
+  .extra-discount-row input:disabled{background:var(--panel-bg-2);color:var(--panel-text-dim);cursor:not-allowed;}
+
   .extra-flag{
     font-size:9.5px;color:var(--warn);background:var(--warn-bg);
     padding:3px 7px;border-radius:10px;margin-left:auto;
@@ -674,16 +696,20 @@ var vfs = {
 
   /* Bill-to block: the customer is who the quote is FOR, so it reads as a
      proper addressee rather than a muted sub-line. */
-  .doc-title-bar .billto{margin:0 0 10px;}
-  .doc-title-bar .billto .lbl{
+  .doc-title-bar .billto, #plDocRoot .billto{margin:0 0 10px;}
+  .doc-title-bar .billto .lbl, #plDocRoot .billto .lbl{
     font-family:'Poppins',Arial,sans-serif;font-size:9.5px;font-weight:700;
     text-transform:uppercase;letter-spacing:0.14em;color:var(--cc-orange-dark);margin-bottom:3px;
   }
-  .doc-title-bar .billto .name{
+  .doc-title-bar .billto .name, #plDocRoot .billto .name{
     font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:16px;
     color:var(--ink-900);line-height:1.25;
   }
-  .doc-title-bar .billto .sub{
+  .doc-title-bar .billto .addr, #plDocRoot .billto .addr{
+    font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);
+    line-height:1.45;margin-top:3px;white-space:pre-line;
+  }
+  .doc-title-bar .billto .sub, #plDocRoot .billto .sub{
     font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);margin-top:2px;
   }
 
@@ -1245,6 +1271,12 @@ var vfs = {
           <label for="custName">Company</label>
           <input type="text" id="custName" placeholder="e.g. Husco">
         </div>
+        <div class="field">
+          <label for="custAddress">Address</label>
+          <textarea id="custAddress" rows="3" maxlength="300"
+                    placeholder="e.g. Marine House, Dock Road&#10;Birkenhead&#10;CH41 1LQ"></textarea>
+          <span class="char-count hidden" id="custAddressCount" aria-hidden="true"></span>
+        </div>
         <div class="field-row">
           <div class="field">
             <label for="custContact">Contact person</label>
@@ -1390,6 +1422,12 @@ var vfs = {
         </div>
         <div class="term-row">
           <label class="pl-toggle-row" style="margin-top:0;">
+            <input type="checkbox" id="showListPrice" checked>
+            Show list price column <span style="color:var(--panel-text-dim)">(off = unit price only)</span>
+          </label>
+        </div>
+        <div class="term-row">
+          <label class="pl-toggle-row" style="margin-top:0;">
             <input type="checkbox" id="includeForecast" checked>
             State the 12-month forecast condition
           </label>
@@ -1464,6 +1502,11 @@ var vfs = {
       <div class="panel-section">
         <div class="panel-label"><span>Customer &amp; document</span></div>
         <div class="pl-field"><label for="plCustName">Customer name</label><input type="text" id="plCustName" placeholder="e.g. Caudwell Marine Ltd"></div>
+        <div class="pl-field">
+          <label for="plCustAddress">Address</label>
+          <textarea id="plCustAddress" rows="3" maxlength="300"
+                    placeholder="e.g. Marine House, Dock Road&#10;Birkenhead&#10;CH41 1LQ"></textarea>
+        </div>
         <div class="pl-field"><label for="plCustContact">Contact (optional)</label><input type="text" id="plCustContact" placeholder="attn: name"></div>
         <div class="pl-two">
           <div class="pl-field"><label for="plPreparedBy">Prepared by</label><input type="text" id="plPreparedBy" placeholder="Your name"></div>
@@ -4187,8 +4230,8 @@ window._poppinsFontsB64 = {
 // file names of the delivered copies outside git must be set to match by hand -
 // nothing enforces that. This repo file deliberately keeps its unversioned name.
 // Never rendered to the customer.
-const APP_VERSION = '1.7.2';
-const APP_BUILD_DATE = '2026-08-31';
+const APP_VERSION = '1.8.0';
+const APP_BUILD_DATE = '2026-09-08';
 
 const QUOTE_FORECAST_TEXT =
   'This quotation is made subject to the customer having submitted a rolling forecast ' +
@@ -4441,6 +4484,10 @@ function buildPdfDocDefinition(offer) {
   const office = PDF_OFFICES[officeKey] || PDF_OFFICES.alfta;
   const cust = offer.customer || {};
   const custName = cust.name || '[Customer name not specified]';
+  const custAddress = (cust.address || '').trim();
+  // Records and exports written before v1.8.0 carry no such key: default ON,
+  // because that is the document they were sent as.
+  const showListPrice = offer.show_list_price !== false;
 
   // Only reference the 'Poppins' font family if it actually got registered with pdfMake
   // (see registerPdfFonts). If registration failed for any reason — e.g. a future pdfmake
@@ -4468,7 +4515,7 @@ function buildPdfDocDefinition(offer) {
   // Header row
   tableBody.push([
     { text: 'PRODUCT', style: 'th' },
-    { text: 'LIST PRICE', style: 'thRight' },
+    ...(showListPrice ? [{ text: 'LIST PRICE', style: 'thRight' }] : []),
     { text: 'UNIT PRICE', style: 'thRight' },
     { text: qtyHeading, style: 'thRight' },
     { text: 'TOTAL', style: 'thRight' },
@@ -4483,7 +4530,7 @@ function buildPdfDocDefinition(offer) {
     if (isCustom) tags.push('Custom item');
     else if (line.tier_label) tags.push(`Tier ${line.tier_label} units`);
     if (tags.length) productStack.push({ text: tags.join('   '), style: 'tierTag' });
-    if (line.extra_discount_pct > 0) productStack.push({ text: `+ ${line.extra_discount_pct}% negotiated discount`, style: 'discountTag' });
+    if (showListPrice && line.extra_discount_pct > 0) productStack.push({ text: `+ ${line.extra_discount_pct}% negotiated discount`, style: 'discountTag' });
     if (line.note) productStack.push({ text: line.note, style: 'lineNote', margin: [0, 4, 0, 0] });
 
     const listPriceCell = isCustom
@@ -4492,7 +4539,7 @@ function buildPdfDocDefinition(offer) {
 
     tableBody.push([
       { stack: productStack },
-      listPriceCell,
+      ...(showListPrice ? [listPriceCell] : []),
       { text: pdfFmtMoney(line.final_unit_price_eur, currency, rate), style: 'finalPrice', alignment: 'right' },
       { text: String(line.qty), alignment: 'right', fontSize: 10 },
       { text: pdfFmtMoney(line.line_total_eur, currency, rate), style: 'finalPrice', alignment: 'right' },
@@ -4604,6 +4651,7 @@ function buildPdfDocDefinition(offer) {
     { text: 'PRICE QUOTE', style: 'h1', margin: [0, 0, 0, 6] },
     { text: 'TO', font: HEAD_FONT, fontSize: 8, bold: true, color: PDF_ORANGE_DARK, characterSpacing: 1.2, margin: [0, 0, 0, 3] },
     { text: custName, font: HEAD_FONT, fontSize: 14, bold: true, color: PDF_INK, margin: [0, 0, 0, 2] },
+    ...(custAddress ? [{ text: custAddress, style: 'meta', lineHeight: 1.25, margin: [0, 0, 0, 2] }] : []),
     ...(custSub ? [{ text: custSub, style: 'meta', margin: [0, 0, 0, 2] }] : []),
     { text: `Issued ${offer.issued_date}`, style: 'meta', margin: [0, 0, 0, 16] },
 
@@ -4613,7 +4661,7 @@ function buildPdfDocDefinition(offer) {
   // Standard product table + totals (only when there are standard lines)
   if (standardLines.length) {
     content.push({
-      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+      table: { headerRows: 1, widths: showListPrice ? ['*', 'auto', 'auto', 'auto', 'auto'] : ['*', 'auto', 'auto', 'auto'], body: tableBody },
       layout: {
         hLineWidth: (i, node) => (i === 0 ? 0 : (i === 1 ? 1.2 : 0.5)),
         vLineWidth: () => 0,
@@ -4897,7 +4945,7 @@ const OFFICES = {
 const OFFICE_SHARED = { email: 'info@crosscontrol.com', web: 'www.crosscontrol.com' };
 
 // ===== STATE =====
-let cart = []; // { partNumber, description, group, listPrice, tiers, tierLabels, selectedTier, qty, extraDiscountPct, negotiationMargin, mkSek, mkSekOverride }
+let cart = []; // { partNumber, description, group, listPrice, tiers, tierLabels, selectedTier, qty, extraDiscountPct, unitPriceOverride, negotiationMargin, mkSek, mkSekOverride }
 let appendices = []; // { name, size }
 
 // QUOTE_ID is now assigned via the storage system (see ARCHIVE section below) —
@@ -5074,6 +5122,8 @@ function buildQuoteSnapshot() {
     saved_at: new Date().toISOString(),
     customer_name: document.getElementById('custName').value.trim(),
     customer_contact: document.getElementById('custContact').value.trim(),
+    customer_address: document.getElementById('custAddress').value.trim(),
+    show_list_price: document.getElementById('showListPrice').checked,
     customer_country: document.getElementById('custCountry').value.trim(),
     sender_office: document.getElementById('senderOffice').value,
     currency: getCurrency(),
@@ -5161,6 +5211,8 @@ function openQuote(quoteId) {
   QUOTE_ID = rec.quote_id;
   document.getElementById('custName').value = rec.customer_name || '';
   document.getElementById('custContact').value = rec.customer_contact || '';
+  document.getElementById('custAddress').value = rec.customer_address || '';
+  document.getElementById('showListPrice').checked = rec.show_list_price !== false;
   document.getElementById('custCountry').value = rec.customer_country || '';
   document.getElementById('senderOffice').value = rec.sender_office || 'alfta';
   document.getElementById('currencySelect').value = rec.currency || 'EUR';
@@ -5204,6 +5256,8 @@ function startNewQuote() {
   nextLineId = 1;
   document.getElementById('custName').value = '';
   document.getElementById('custContact').value = '';
+  document.getElementById('custAddress').value = '';
+  document.getElementById('showListPrice').checked = true;
   document.getElementById('custCountry').value = '';
   updateQuoteIdDisplay();
   closeArchivePanel();
@@ -5534,6 +5588,13 @@ function getCurrency() {
   const el = document.getElementById('currencySelect');
   return el ? el.value : 'EUR';
 }
+// ⚠️ The shared field listener calls renderDoc() only, so changing the currency left
+// the LEFT PANEL showing the old currency - "@ €965.08" beside a document reading
+// $1,042.29, and a Unit price box holding a figure in the wrong currency. Editing the
+// FX rate already called renderAll(); the dropdown now does too, so both halves of the
+// Currency card behave the same way.
+document.getElementById('currencySelect').addEventListener('change', () => renderAll());
+
 function setCurrencyRate(code, value) {
   if (code === 'EUR') return; // EUR is always the fixed base rate
   let v = parseFloat(String(value).replace(',', '.'));
@@ -5550,6 +5611,12 @@ function fmtMoney(eurAmount){
 }
 // Backward-compatible alias used throughout the codebase.
 function fmtEUR(n){ return fmtMoney(n); }
+
+// The multiplier fmtMoney applies on the way out. A unit price is TYPED in the
+// displayed currency, so it divides by this on the way in and is stored in EUR
+// like every other price on a line - which is what makes a currency switch
+// convert an override instead of reinterpreting it.
+function fxOut(){ return (CURRENCY_RATES[getCurrency()] || CURRENCY_RATES.EUR).rate; }
 
 // Format a custom volume-tier price. These are entered VERBATIM in the currently
 // selected display currency (the US KAM types the exact figure the customer should
@@ -5660,6 +5727,7 @@ function addProductToCart(partNumber) {
     tiers: p.tiers,
     tierLabels,
     selectedTier: tierLabels[0] || null,
+    unitPriceOverride: null,   // EUR, or null = use the tier price
     qty: (tierLabels.length && p.tiers[tierLabels[0]] && p.tiers[tierLabels[0]].moq) || 1,
     extraDiscountPct: 0,
     negotiationMargin: p.negotiation_margin,
@@ -5685,6 +5753,7 @@ function addCustomLine() {
     tiers: {},
     tierLabels: [],
     selectedTier: null,
+    unitPriceOverride: null,   // unused on a custom line: it has its own price
     qty: 1,
     extraDiscountPct: 0,
     negotiationMargin: null,
@@ -5703,6 +5772,31 @@ function removeFromCart(lineId) {
   renderAll();
 }
 
+// A unit price typed over the tier price. Stored in EUR; the field is typed in
+// the DISPLAYED currency, so it divides by fxOut() on the way in.
+function setUnitPriceOverride(lineId, raw) {
+  const item = cart.find(c => c.lineId === lineId);
+  if (!item) return;
+  const txt = String(raw).trim().replace(',', '.');
+  const typed = parseFloat(txt);
+  if (txt === '' || !isFinite(typed) || typed < 0) {
+    item.unitPriceOverride = null;
+  } else {
+    item.unitPriceOverride = typed / fxOut();
+    item.extraDiscountPct = 0;   // the typed price wins; one number sets the price
+  }
+}
+
+function clearUnitPriceOverride(lineId) {
+  const item = cart.find(c => c.lineId === lineId);
+  if (!item) return;
+  item.unitPriceOverride = null;
+  renderAll();
+}
+
+// ⚠️ setTier deliberately does NOT touch unitPriceOverride. Clicking a chip changes
+// the reference price, the MOQ and the document's tier tag; a stray click must never
+// destroy a price someone negotiated and typed. (Owner's call, 2026-09-08.)
 function setTier(lineId, tierLabel) {
   const item = cart.find(c => c.lineId === lineId);
   if (!item) return;
@@ -5828,6 +5922,22 @@ function setCustomField(lineId, field, value) {
 }
 
 // ===== PRICING CALC =====
+// Round a EUR amount to whole cents OF THE DISPLAY CURRENCY, and give the result
+// back in EUR. fmtMoney(x) and fmtMoney(centsInDisplayCurrency(x)) print the same
+// string; the difference is that the second one multiplies out exactly.
+function centsInDisplayCurrency(eur) {
+  const rate = fxOut();
+  return Math.round(eur * rate * 100) / 100 / rate;
+}
+
+// The line total the document prints: quantity times the unit price the customer
+// can actually read, not times the unrounded one behind it.
+function lineTotalFromDisplayedUnit(unitEur, qty) {
+  const rate = fxOut();
+  const unitCents = Math.round(unitEur * rate * 100) / 100;
+  return Math.round(unitCents * qty * 100) / 100 / rate;
+}
+
 function computeLine(item) {
   if (item.isCustom) {
     const unitPrice = item.customUnitPrice || 0;
@@ -5838,8 +5948,20 @@ function computeLine(item) {
   const tierPrice = item.tierLabels.length
     ? (item.tiers[item.selectedTier]?.price_eur ?? item.listPrice)
     : item.listPrice;
-  const finalUnitPrice = tierPrice * (1 - item.extraDiscountPct / 100);
-  const lineTotal = finalUnitPrice * item.qty;
+  // A typed price WINS over the tier price and over any extra discount. The
+  // discount field is cleared and disabled while an override is set, so the two
+  // can never both be in play - one number decides the price.
+  const finalUnitPrice = item.unitPriceOverride != null
+    ? item.unitPriceOverride
+    : tierPrice * (1 - item.extraDiscountPct / 100);
+  // ⚠️ The line total is derived from the unit price AS THE CUSTOMER SEES IT -
+  // converted to the display currency and rounded to cents - and then carried back
+  // to EUR. Multiplying the raw EUR figure and rounding the product separately made
+  // the document contradict itself: 965.08 EUR at 1.08 prints $1,042.29, but
+  // 15 x 1042.2864 printed $15,634.30 while 15 x 1,042.29 is $15,634.35.
+  // A price quote whose own numbers do not multiply out is not defensible.
+  // In EUR the rate is 1, so nothing changes for a EUR quote.
+  const lineTotal = lineTotalFromDisplayedUnit(finalUnitPrice, item.qty);
   return { tierPrice, finalUnitPrice, lineTotal };
 }
 
@@ -5874,6 +5996,18 @@ function computeTG(item, finalUnitPriceEur) {
 }
 
 // ===== RENDER: CART PANEL =====
+// One rule for both mechanisms: the flag marks a price that is not the tier price,
+// whether it got there by discount or by being typed. ABOVE the tier counts too - it
+// is still off-list, and a reviewer should see the price was set by hand.
+function deviationState(item, tierPrice) {
+  if (item.unitPriceOverride != null && tierPrice > 0) {
+    const delta = (item.unitPriceOverride - tierPrice) / tierPrice * 100;
+    if (Math.abs(delta) < 0.05) return { show: false, label: '' };
+    return { show: true, label: ` ${delta > 0 ? '+' : ''}${delta.toFixed(1)}%` };
+  }
+  return { show: item.extraDiscountPct > 0, label: '' };
+}
+
 function renderProductList() {
   const container = document.getElementById('productList');
   document.getElementById('productsAddedCount').textContent = cart.length + ' selected';
@@ -5899,7 +6033,8 @@ function renderProductList() {
       </div>`;
     }).join('') : '';
 
-    const showFlag = item.extraDiscountPct > 0;
+    const devFlag = deviationState(item, tierPrice);
+    const hasOverride = item.unitPriceOverride != null;
     const mkSek = (item.mkSekOverride != null) ? item.mkSekOverride : item.mkSek;
     const mkIsOverride = item.mkSekOverride != null;
     const mkIsFromExcel = !mkIsOverride && item.mkSek != null;
@@ -5930,18 +6065,31 @@ function renderProductList() {
         <label>Qty</label>
         <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty"
                aria-label="Quantity for ${escapeAttr(item.description)}">
-        <label style="margin-left:auto;color:var(--panel-text-dim)" data-computed="tierprice">@ ${fmtEUR(tierPrice)}</label>
+        <label style="margin-left:auto;color:var(--panel-text-dim)" data-computed="tierprice">tier @ ${fmtEUR(tierPrice)}</label>
       </div>
 
       <span class="field-tiny-label">Volume tier</span>
       <div class="tier-select-row">${tierChips || '<div style="font-size:10.5px;color:var(--panel-text-dim);padding:4px 0;">Fixed price (accessory/cable)</div>'}</div>
 
+      <div class="unitprice-row">
+        <label>Unit price</label>
+        <input type="text" inputmode="decimal" placeholder="tier price"
+               value="${hasOverride ? (item.unitPriceOverride * fxOut()).toFixed(2) : ''}"
+               data-line-id="${item.lineId}" data-action="unitprice"
+               aria-label="Unit price for ${escapeAttr(item.description)}">
+        <span style="color:var(--panel-text-dim);font-size:11px;">${curSymbol}</span>
+        <button type="button" class="linkbtn ${hasOverride ? '' : 'hidden'}" data-line-id="${item.lineId}"
+                data-action="clear-override">Use tier price</button>
+      </div>
+      <div class="hintline ${hasOverride ? '' : 'hidden'}" data-computed="override-hint">Typed price. Extra discount is cleared while it is set.</div>
+
       <div class="extra-discount-row">
         <label>Extra discount</label>
         <input type="text" inputmode="decimal" value="${item.extraDiscountPct}" data-line-id="${item.lineId}" data-action="discount"
+               ${hasOverride ? 'disabled' : ''}
                aria-label="Extra discount percentage for ${escapeAttr(item.description)}">
         <span style="color:var(--panel-text-dim);font-size:11px;">%</span>
-        <span class="extra-flag ${showFlag ? 'show' : ''}" data-computed="deviation">⚠ deviation</span>
+        <span class="extra-flag ${devFlag.show ? 'show' : ''}" data-computed="deviation">⚠ deviation${devFlag.label}</span>
       </div>
 
       <div class="mk-row">
@@ -6055,9 +6203,29 @@ function updateProductRowComputed(lineId) {
 
   const { tierPrice, finalUnitPrice, lineTotal } = computeLine(item);
 
-  // Deviation flag (both standard and custom rows)
+  // Deviation flag (both standard and custom rows) - one rule, shared with the
+  // template via deviationState so the two paths cannot disagree.
+  const dev = deviationState(item, tierPrice);
   const flag = row.querySelector('[data-computed="deviation"]');
-  if (flag) flag.classList.toggle('show', item.extraDiscountPct > 0);
+  if (flag) {
+    flag.classList.toggle('show', dev.show);
+    flag.textContent = `⚠ deviation${dev.label}`;
+  }
+
+  // The override's companion controls. Toggled here rather than by re-rendering the
+  // row, because rebuilding the <input> would lose the caret mid-typing.
+  const hasOverride = item.unitPriceOverride != null;
+  const clearBtn = row.querySelector('[data-action="clear-override"]');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !hasOverride);
+  const hint = row.querySelector('[data-computed="override-hint"]');
+  if (hint) hint.classList.toggle('hidden', !hasOverride);
+  const discEl = row.querySelector('[data-action="discount"]');
+  if (discEl) {
+    discEl.disabled = hasOverride;
+    if (hasOverride) discEl.value = item.extraDiscountPct;
+  }
+  const upEl = row.querySelector('[data-action="unitprice"]');
+  if (upEl) upEl.placeholder = "tier price";
 
   if (item.isCustom) {
     const lt = row.querySelector('[data-computed="linetotal"]');
@@ -6067,7 +6235,7 @@ function updateProductRowComputed(lineId) {
 
   // Tier price label
   const tp = row.querySelector('[data-computed="tierprice"]');
-  if (tp) tp.textContent = `@ ${fmtEUR(tierPrice)}`;
+  if (tp) tp.textContent = `tier @ ${fmtEUR(tierPrice)}`;
 
   // Margin (GM) row
   const tgHolder = row.querySelector('[data-computed="tgrow"]');
@@ -6096,6 +6264,8 @@ function updateProductRowComputed(lineId) {
 document.getElementById('productList').addEventListener('click', (e) => {
   const tierChip = e.target.closest('.tier-chip');
   if (tierChip) { setTier(parseInt(tierChip.dataset.lineId), tierChip.dataset.tier); return; }
+  const clearOv = e.target.closest('[data-action="clear-override"]');
+  if (clearOv) { clearUnitPriceOverride(parseInt(clearOv.dataset.lineId)); return; }
   const removeBtn = e.target.closest('[data-action="remove"]');
   if (removeBtn) { removeFromCart(parseInt(removeBtn.dataset.lineId)); return; }
   const vAdd = e.target.closest('[data-action="vtier-add"]');
@@ -6112,6 +6282,7 @@ document.getElementById('productList').addEventListener('change', (e) => {
 document.getElementById('productList').addEventListener('input', (e) => {
   const lineId = parseInt(e.target.dataset.lineId);
   if (e.target.dataset.vfield) { setVolumeTierField(lineId, parseInt(e.target.dataset.idx), e.target.dataset.vfield, e.target.value); return; }
+  if (e.target.dataset.action === 'unitprice') { setUnitPriceOverride(lineId, e.target.value); updateProductRowComputed(lineId); return; }
   if (e.target.dataset.action === 'discount') setExtraDiscount(lineId, e.target.value);
   if (e.target.dataset.action === 'qty') setQty(lineId, e.target.value);
   if (e.target.dataset.action === 'mk') setMkOverride(lineId, e.target.value);
@@ -6151,6 +6322,8 @@ function renderDoc() {
   const custName = document.getElementById('custName').value.trim();
   const custContact = document.getElementById('custContact').value.trim();
   const custCountry = document.getElementById('custCountry').value.trim();
+  const custAddress = document.getElementById('custAddress').value.trim();
+  const showListPrice = document.getElementById('showListPrice').checked;
   const termPayment = document.getElementById('termPayment').value;
   const incotermCode = document.getElementById('termIncoterm').value;
   const incotermLocation = document.getElementById('termIncotermLocation').value.trim();
@@ -6202,10 +6375,10 @@ function renderDoc() {
           <div class="pname">${escapeHtml(item.description) || '<span style="color:#a8a39a;">Untitled custom item</span>'}</div>
           ${item.partNumber ? `<div class="psku">${escapeHtml(item.partNumber)}</div>` : ''}
           <span class="tier-tag custom-tag">Custom item</span>
-          ${hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
+          ${showListPrice && hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
           ${noteHtml}
         </td>
-        <td class="num"><span class="strike">—</span></td>
+        ${showListPrice ? '<td class="num"><span class="strike">—</span></td>' : ''}
         <td class="num finalprice">${fmtEUR(finalUnitPrice)}</td>
         <td class="num">${item.qty}</td>
         <td class="num finalprice">${fmtEUR(lineTotal)}</td>
@@ -6218,10 +6391,10 @@ function renderDoc() {
           <div class="pname">${escapeHtml(item.description)}</div>
           <div class="psku">${escapeHtml(item.partNumber)}</div>
           ${item.tierLabels.length ? `<span class="tier-tag">Tier ${escapeHtml(item.selectedTier)} units</span>` : ''}
-          ${hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
+          ${showListPrice && hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
           ${noteHtml}
         </td>
-        <td class="num"><span class="strike">${fmtEUR(item.listPrice)}</span></td>
+        ${showListPrice ? `<td class="num"><span class="strike">${fmtEUR(item.listPrice)}</span></td>` : ''}
         <td class="num finalprice">${fmtEUR(finalUnitPrice)}</td>
         <td class="num">${item.qty}</td>
         <td class="num finalprice">${fmtEUR(lineTotal)}</td>
@@ -6255,6 +6428,7 @@ function renderDoc() {
   const custBlock = `<div class="billto">
         <div class="lbl">To</div>
         <div class="name">${custName ? escapeHtml(custName) : '[Customer name not specified]'}</div>
+        ${custAddress ? `<div class="addr">${escapeHtml(custAddress)}</div>` : ''}
         ${custSubParts.length ? `<div class="sub">${custSubParts.join(' &nbsp;·&nbsp; ')}</div>` : ''}
       </div>`;
 
@@ -6330,7 +6504,7 @@ function renderDoc() {
         <thead>
           <tr>
             <th>Product</th>
-            <th class="num">List Price</th>
+            ${showListPrice ? '<th class="num">List Price</th>' : ''}
             <th class="num">Unit Price</th>
             <th class="num">${escapeHtml(qtyHeading)}</th>
             <th class="num">Total</th>
@@ -6445,7 +6619,7 @@ function renderPageBreaks() {
 }
 
 // ===== RE-RENDER ON FORM CHANGES =====
-['custName','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast'].forEach(id => {
+['custName','custAddress','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast','showListPrice'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
   el.addEventListener('change', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
@@ -6508,6 +6682,7 @@ function buildExportObj() {
   const custName = document.getElementById('custName').value.trim();
   const custContact = document.getElementById('custContact').value.trim();
   const custCountry = document.getElementById('custCountry').value.trim();
+  const custAddress = document.getElementById('custAddress').value.trim();
   const termPayment = document.getElementById('termPayment').value;
   const incotermCode = document.getElementById('termIncoterm').value;
   const incotermLocation = document.getElementById('termIncotermLocation').value.trim();
@@ -6525,6 +6700,7 @@ function buildExportObj() {
       is_custom: !!item.isCustom,
       list_price_eur: item.isCustom ? null : item.listPrice,
       tier_label: item.tierLabels.length ? item.selectedTier : null,
+      unit_price_override_eur: item.unitPriceOverride,
       tier_price_eur: round2(tierPrice),
       extra_discount_pct: item.extraDiscountPct,
       final_unit_price_eur: round2(finalUnitPrice),
@@ -6554,7 +6730,8 @@ function buildExportObj() {
     currency_rate: CURRENCY_RATES[currency].rate,
     price_currency: currency, // currency in which verbatim custom volume-tier prices are entered
     qty_heading: (document.getElementById('qtyHeading').value.trim()) || 'Qty',
-    customer: { name: custName, contact: custContact, country: custCountry },
+    customer: { name: custName, address: custAddress, contact: custContact, country: custCountry },
+    show_list_price: document.getElementById('showListPrice').checked,
     terms: { payment: termPayment, delivery: termDelivery, vat_note: document.getElementById('vatNote').value.trim() },
     signature: {
       include: document.getElementById('includeSignature').checked,
@@ -7282,10 +7459,15 @@ function buildPricelistDocDefinition(meta, groups, opts) {
 
   // ---- Title block ----
   content.push({ text: 'CUSTOMER PRICE LIST', style: 'title', margin: [0, 0, 0, 2] });
-  const sub = [];
-  if (meta.customerName) sub.push(`Prepared for ${meta.customerName}`);
-  if (meta.customerContact) sub.push(`attn: ${meta.customerContact}`);
-  content.push({ text: sub.join('  ·  ') || ' ', style: 'subtitle', margin: [0, 0, 0, 10] });
+  if (meta.customerName || meta.customerAddress || meta.customerContact) {
+    content.push({ text: 'TO', font: 'Poppins', fontSize: 8, bold: true, color: PL_ORANGE_DARK, characterSpacing: 1.2, margin: [0, 2, 0, 3] });
+    if (meta.customerName) content.push({ text: meta.customerName, font: 'Poppins', fontSize: 14, bold: true, color: PL_INK, margin: [0, 0, 0, 2] });
+    if (meta.customerAddress) content.push({ text: meta.customerAddress, style: 'subtitle', lineHeight: 1.25, margin: [0, 0, 0, 2] });
+    if (meta.customerContact) content.push({ text: `attn: ${meta.customerContact}`, style: 'subtitle', margin: [0, 0, 0, 10] });
+    else content.push({ text: ' ', margin: [0, 0, 0, 8] });
+  } else {
+    content.push({ text: ' ', style: 'subtitle', margin: [0, 0, 0, 10] });
+  }
 
   // ---- Meta strip (price basis / vat / lead time / currency) ----
   const metaRows = [];
@@ -7316,17 +7498,32 @@ function buildPricelistDocDefinition(meta, groups, opts) {
 
   // ---- Column layout for product tables ----
   // PRODUCT | [LIST] | [DISC%] | NET | [MOQ] | [STATUS]
-  // ⚠️ A FRESH header row per family, not one shared array. pdfmake mutates cell
-  // objects during layout (it writes _width/_calcWidth/_span onto them), so a single
-  // `cols` array pushed by reference into every family's table rendered its labels on
-  // the FIRST family only - every family after it got a blank row of the right height
-  // and no column names. Only the widths are shared; those are plain strings.
-  const widths = [];
-  widths.push('*');
-  if (showDiscount) { widths.push('auto'); widths.push('auto'); }
-  widths.push('auto');
-  if (showMoq) widths.push('auto');
-  if (showStatus) widths.push('auto');
+  // ⚠️ A FRESH header row AND a fresh widths array per family. pdfmake mutates both
+  // during layout: it writes _width/_calcWidth/_span onto cell objects, and it
+  // REPLACES the entries of the widths array in place with annotated objects.
+  //
+  // Sharing either one silently laid every family out with the FIRST family's
+  // measurements. Two visible symptoms, both shipped in v1.7.2 and both found by
+  // rendering the PDF and looking at it rather than by any assertion:
+  //   - cols shared  -> the column labels appeared on the first family only, and
+  //                     every family after it got a blank row of the right height.
+  //   - widths shared -> every family got CCpilot VI's column widths. CCpilot VI's
+  //                     prices are ~40pt wide, CCpilot V1200's are wider, so a
+  //                     four-digit price overflowed a column sized for someone
+  //                     else's numbers and broke mid-number: "€2,438.6" then "0".
+  //
+  // ⚠️ Do NOT "optimise" either factory back into a shared constant. The strings are
+  // strings on the way in and objects on the way out.
+  const makeWidths = () => {
+    const widths = ['*'];
+    if (showDiscount) { widths.push('auto'); widths.push('auto'); }
+    widths.push('auto');
+    if (showMoq) widths.push('auto');
+    if (showStatus) widths.push('auto');
+    return widths;
+  };
+  // The column COUNT is stable, so the band's colSpan can be taken once.
+  const columnCount = makeWidths().length;
 
   const makeCols = () => {
     const cols = [{ text: 'PRODUCT', style: 'th' }];
@@ -7353,10 +7550,10 @@ function buildPricelistDocDefinition(meta, groups, opts) {
     // margin [6,…] against the table's own paddingLeft of 6 keeps the band text at
     // the same 12pt inset it had when it lived in its own table.
     const bandRow = [{
-      text: headParts, colSpan: widths.length, fillColor: PL_GREY_BG,
+      text: headParts, colSpan: columnCount, fillColor: PL_GREY_BG,
       margin: [6, 5, 6, 5], border: [false, false, false, false],
     }];
-    while (bandRow.length < widths.length) bandRow.push({});
+    while (bandRow.length < columnCount) bandRow.push({});
 
     // Product rows
     const body = [bandRow, makeCols()];
@@ -7379,7 +7576,7 @@ function buildPricelistDocDefinition(meta, groups, opts) {
       // foot of a page and start the body on the next one - measured, not assumed -
       // so the callback is what actually stops a dangling heading.
       headlineLevel: PL_FAMILY_HEADLINE,
-      table: { headerRows: 2, widths, body },
+      table: { headerRows: 2, widths: makeWidths(), body },
       layout: {
         // i is the line ABOVE row i. 0 = table top, 1 = band/column-header seam,
         // 2 = the orange rule under the column header, then hairlines.
@@ -7626,6 +7823,7 @@ function plGatherMeta(){
   const cur = plEl('plCurrency').value;
   return {
     customerName: plEl('plCustName').value.trim(),
+    customerAddress: plEl('plCustAddress').value.trim(),
     customerContact: plEl('plCustContact').value.trim(),
     preparedBy: plEl('plPreparedBy').value.trim(),
     preparedByTitle: plEl('plPreparedTitle').value.trim(),
@@ -7674,10 +7872,19 @@ function plRenderDoc(){
   const showD = meta.showDiscount, showM = meta.showMoq, showS = meta.showStatus;
   let h = '';
   h += '<h1 class="pl-doc-title">Customer Price List</h1>';
-  const sub = [];
-  if (meta.customerName) sub.push('Prepared for ' + escapeHtml(meta.customerName));
-  if (meta.customerContact) sub.push('attn: ' + escapeHtml(meta.customerContact));
-  h += '<div class="pl-doc-sub">' + (sub.join('&nbsp; · &nbsp;') || '&nbsp;') + '</div>';
+  // The quote's TO block, not a "Prepared for" subtitle - the owner's call on
+  // 2026-09-08 was that both documents get the same treatment. "Prepared by" is a
+  // different field (the KAM) and is untouched.
+  if (meta.customerName || meta.customerAddress || meta.customerContact) {
+    h += '<div class="billto">'
+       + '<div class="lbl">To</div>'
+       + (meta.customerName ? '<div class="name">' + escapeHtml(meta.customerName) + '</div>' : '')
+       + (meta.customerAddress ? '<div class="addr">' + escapeHtml(meta.customerAddress) + '</div>' : '')
+       + (meta.customerContact ? '<div class="sub">attn: ' + escapeHtml(meta.customerContact) + '</div>' : '')
+       + '</div>';
+  } else {
+    h += '<div class="pl-doc-sub">&nbsp;</div>';
+  }
 
   const metaRows = [];
   if (meta.showRevision && meta.revision) metaRows.push(['Revision', meta.revision]);
@@ -7974,6 +8181,9 @@ function plDownloadXlsx(){
     const aoa = [];
     aoa.push(['CrossControl — Customer Price List']);
     if (meta.customerName) aoa.push(['Prepared for', meta.customerName + (meta.customerContact ? '  (attn: ' + meta.customerContact + ')' : '')]);
+    if (meta.customerAddress) {
+      meta.customerAddress.split('\n').forEach((ln, i) => aoa.push([i === 0 ? 'Address' : '', ln]));
+    }
     if (meta.showRevision && meta.revision) aoa.push(['Revision', meta.revision]);
     if (meta.validUntil) aoa.push(['Valid until', meta.validUntil]);
     aoa.push(['Currency', cur + (cur !== 'EUR' ? ' (1 EUR = ' + rate + ' ' + cur + ')' : '')]);
@@ -8077,7 +8287,8 @@ function plSaveToArchive(){
 // Records written before 1.7.2 carry no basisColumn and no mkByPart. Default them
 // rather than assume they are there.
 const PL_META_FIELDS = {
-  plCustName:'customerName', plCustContact:'customerContact', plPreparedBy:'preparedBy',
+  plCustName:'customerName', plCustAddress:'customerAddress',
+  plCustContact:'customerContact', plPreparedBy:'preparedBy',
   plPreparedTitle:'preparedByTitle', plRevision:'revision', plValidUntil:'validUntil',
   plCurrency:'currency', plPriceBasis:'priceBasis', plVatNote:'vatNote',
   plLeadTime:'leadTime', plConfidentiality:'confidentialityNote', plTermsText:'termsText',
@@ -8189,7 +8400,7 @@ plEl('plBasisColumn').addEventListener('change', (e) => {
 });
 plPopulateBasisOptions();
 [
-  'plCustName','plCustContact','plPreparedBy','plPreparedTitle','plRevision','plValidUntil',
+  'plCustName','plCustAddress','plCustContact','plPreparedBy','plPreparedTitle','plRevision','plValidUntil',
   'plPriceBasis','plVatNote','plLeadTime','plConfidentiality','plTermsText',
 ].forEach(id => plEl(id).addEventListener('input', plRenderDoc));
 [

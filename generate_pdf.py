@@ -91,6 +91,7 @@ def build_html(offer, logo_path):
     cust_name = cust.get('name') or '[Customer name not specified]'
     cust_contact = cust.get('contact', '')
     cust_country = cust.get('country', '')
+    cust_address = (cust.get('address') or '').strip()
 
     office_key = offer.get('sender_office') or 'alfta'
     office = OFFICES.get(office_key, OFFICES['alfta'])
@@ -103,10 +104,18 @@ def build_html(offer, logo_path):
     if cust_country:
         _sub_parts.append(cust_country)
     _sub = " &nbsp;·&nbsp; ".join(_sub_parts)
+    # html_escape, NOT a bare `html` module reference: build_html has a local
+    # variable named `html` that shadows the module for this whole function
+    # (HANDOFF.md §20.2). Only the new field is escaped here - the pre-existing
+    # ones are not, which is recorded in the plan as noticed-but-out-of-scope.
+    _addr_html = ''
+    if cust_address:
+        _addr_html = f'<div class="addr">{html_escape(cust_address)}</div>'
     cust_line = (
         '<div class="billto">'
         '<div class="lbl">To</div>'
         f'<div class="name">{cust_name}</div>'
+        + _addr_html
         + (f'<div class="sub">{_sub}</div>' if _sub else '')
         + '</div>'
     )
@@ -115,6 +124,8 @@ def build_html(offer, logo_path):
     currency_rate = offer.get('currency_rate')  # explicit rate from the app, if provided
     price_currency = offer.get('price_currency', currency)  # verbatim currency for custom-tier prices
     qty_heading = (offer.get('qty_heading') or 'Qty').strip() or 'Qty'
+    # Exports written before v1.8.0 carry no such key: default ON.
+    show_list_price = offer.get('show_list_price', True) is not False
 
     # Split: standard lines (normal table + counted in total) vs custom volume-tier lines (own matrix)
     all_lines = offer.get('lines', [])
@@ -130,12 +141,15 @@ def build_html(offer, logo_path):
         elif line.get('tier_label'):
             tier_tag = f'<span class="tier-tag">Tier {line["tier_label"]} units</span>'
         discount_tag = ''
-        if line.get('extra_discount_pct', 0) > 0:
+        if show_list_price and line.get('extra_discount_pct', 0) > 0:
             discount_tag = f'<span class="discount-tag">+ {line["extra_discount_pct"]}% negotiated discount</span>'
         note_html = ''
         if line.get('note'):
             note_html = f'<div class="line-note">{line["note"]}</div>'
-        list_price_cell = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate)}</span>'
+        list_price_cell = ''
+        if show_list_price:
+            _inner = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate)}</span>'
+            list_price_cell = f'<td class="num">{_inner}</td>'
         part_number_html = f'<div class="psku">{line["part_number"]}</div>' if line.get('part_number') else ''
         rows_html += f"""
         <tr>
@@ -146,7 +160,7 @@ def build_html(offer, logo_path):
             {discount_tag}
             {note_html}
           </td>
-          <td class="num">{list_price_cell}</td>
+          {list_price_cell}
           <td class="num finalprice">{fmt_money(line['final_unit_price_eur'], currency, currency_rate)}</td>
           <td class="num">{line['qty']}</td>
           <td class="num finalprice">{fmt_money(line['line_total_eur'], currency, currency_rate)}</td>
@@ -252,7 +266,7 @@ def build_html(offer, logo_path):
         products_table_html = f"""
       <table class="quote-table">
         <thead><tr>
-          <th>Product</th><th class="num">List Price</th><th class="num">Unit Price</th>
+          <th>Product</th>{'<th class="num">List Price</th>' if show_list_price else ''}<th class="num">Unit Price</th>
           <th class="num">{qty_heading}</th><th class="num">Total</th>
         </tr></thead>
         <tbody>{rows_html}</tbody>
@@ -351,6 +365,8 @@ def build_html(offer, logo_path):
   .doc-title-bar .billto .name {{
     font-family:'Poppins',Arial,sans-serif; font-weight:700; font-size:15px; color:{INK}; line-height:1.25;
   }}
+  .doc-title-bar .billto .addr {{ font-size:11px; color:{INK_DIM}; line-height:1.45;
+                                  margin-top:3px; white-space:pre-line; }}
   .doc-title-bar .billto .sub {{ font-size:11px; color:{INK_DIM}; margin-top:2px; }}
   .doc-body {{ padding: 0; }}
   .section-eyebrow {{
