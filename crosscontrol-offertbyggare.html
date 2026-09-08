@@ -447,6 +447,28 @@ var vfs = {
     color:var(--warn);font-weight:700;padding:6px 6px;border-radius:var(--radius);
     font-size:12.5px;font-family:Arial,sans-serif;
   }
+  .unitprice-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .unitprice-row label{font-size:11px;color:var(--panel-text-dim);white-space:nowrap;}
+  .unitprice-row input{
+    width:88px;background:#ffffff;border:1px solid var(--panel-line);
+    color:var(--ink-900);padding:6px 8px;border-radius:var(--radius);font-size:12.5px;
+    font-family:Arial,sans-serif;
+  }
+  .hintline{font-size:10px;color:var(--panel-text-dim);margin:0 0 9px;}
+  /* An explicit display:none for the hidden state: an author display rule beats the
+     UA stylesheet's [hidden]{display:none}, which is how two archives once rendered
+     stacked in one tab (HANDOFF.md §23.3). */
+  .hintline.hidden{display:none;}
+  .linkbtn{
+    margin-left:auto;font-size:10px;color:var(--cc-orange-dark);
+    border:1px solid var(--cc-orange);background:transparent;border-radius:var(--radius);
+    padding:3px 7px;font-family:'Poppins',Arial,sans-serif;font-weight:700;
+    letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;
+  }
+  .linkbtn.hidden{display:none;}
+  .linkbtn:focus-visible{outline:none;box-shadow:var(--focus-ring);}
+  .extra-discount-row input:disabled{background:var(--panel-bg-2);color:var(--panel-text-dim);cursor:not-allowed;}
+
   .extra-flag{
     font-size:9.5px;color:var(--warn);background:var(--warn-bg);
     padding:3px 7px;border-radius:10px;margin-left:auto;
@@ -4923,7 +4945,7 @@ const OFFICES = {
 const OFFICE_SHARED = { email: 'info@crosscontrol.com', web: 'www.crosscontrol.com' };
 
 // ===== STATE =====
-let cart = []; // { partNumber, description, group, listPrice, tiers, tierLabels, selectedTier, qty, extraDiscountPct, negotiationMargin, mkSek, mkSekOverride }
+let cart = []; // { partNumber, description, group, listPrice, tiers, tierLabels, selectedTier, qty, extraDiscountPct, unitPriceOverride, negotiationMargin, mkSek, mkSekOverride }
 let appendices = []; // { name, size }
 
 // QUOTE_ID is now assigned via the storage system (see ARCHIVE section below) —
@@ -5583,6 +5605,12 @@ function fmtMoney(eurAmount){
 // Backward-compatible alias used throughout the codebase.
 function fmtEUR(n){ return fmtMoney(n); }
 
+// The multiplier fmtMoney applies on the way out. A unit price is TYPED in the
+// displayed currency, so it divides by this on the way in and is stored in EUR
+// like every other price on a line - which is what makes a currency switch
+// convert an override instead of reinterpreting it.
+function fxOut(){ return (CURRENCY_RATES[getCurrency()] || CURRENCY_RATES.EUR).rate; }
+
 // Format a custom volume-tier price. These are entered VERBATIM in the currently
 // selected display currency (the US KAM types the exact figure the customer should
 // see, as in Zak's Komatsu quote), so — unlike fmtMoney — no fx conversion is applied.
@@ -5692,6 +5720,7 @@ function addProductToCart(partNumber) {
     tiers: p.tiers,
     tierLabels,
     selectedTier: tierLabels[0] || null,
+    unitPriceOverride: null,   // EUR, or null = use the tier price
     qty: (tierLabels.length && p.tiers[tierLabels[0]] && p.tiers[tierLabels[0]].moq) || 1,
     extraDiscountPct: 0,
     negotiationMargin: p.negotiation_margin,
@@ -5717,6 +5746,7 @@ function addCustomLine() {
     tiers: {},
     tierLabels: [],
     selectedTier: null,
+    unitPriceOverride: null,   // unused on a custom line: it has its own price
     qty: 1,
     extraDiscountPct: 0,
     negotiationMargin: null,
@@ -5735,6 +5765,31 @@ function removeFromCart(lineId) {
   renderAll();
 }
 
+// A unit price typed over the tier price. Stored in EUR; the field is typed in
+// the DISPLAYED currency, so it divides by fxOut() on the way in.
+function setUnitPriceOverride(lineId, raw) {
+  const item = cart.find(c => c.lineId === lineId);
+  if (!item) return;
+  const txt = String(raw).trim().replace(',', '.');
+  const typed = parseFloat(txt);
+  if (txt === '' || !isFinite(typed) || typed < 0) {
+    item.unitPriceOverride = null;
+  } else {
+    item.unitPriceOverride = typed / fxOut();
+    item.extraDiscountPct = 0;   // the typed price wins; one number sets the price
+  }
+}
+
+function clearUnitPriceOverride(lineId) {
+  const item = cart.find(c => c.lineId === lineId);
+  if (!item) return;
+  item.unitPriceOverride = null;
+  renderAll();
+}
+
+// ⚠️ setTier deliberately does NOT touch unitPriceOverride. Clicking a chip changes
+// the reference price, the MOQ and the document's tier tag; a stray click must never
+// destroy a price someone negotiated and typed. (Owner's call, 2026-09-08.)
 function setTier(lineId, tierLabel) {
   const item = cart.find(c => c.lineId === lineId);
   if (!item) return;
@@ -5870,7 +5925,12 @@ function computeLine(item) {
   const tierPrice = item.tierLabels.length
     ? (item.tiers[item.selectedTier]?.price_eur ?? item.listPrice)
     : item.listPrice;
-  const finalUnitPrice = tierPrice * (1 - item.extraDiscountPct / 100);
+  // A typed price WINS over the tier price and over any extra discount. The
+  // discount field is cleared and disabled while an override is set, so the two
+  // can never both be in play - one number decides the price.
+  const finalUnitPrice = item.unitPriceOverride != null
+    ? item.unitPriceOverride
+    : tierPrice * (1 - item.extraDiscountPct / 100);
   const lineTotal = finalUnitPrice * item.qty;
   return { tierPrice, finalUnitPrice, lineTotal };
 }
@@ -5906,6 +5966,18 @@ function computeTG(item, finalUnitPriceEur) {
 }
 
 // ===== RENDER: CART PANEL =====
+// One rule for both mechanisms: the flag marks a price that is not the tier price,
+// whether it got there by discount or by being typed. ABOVE the tier counts too - it
+// is still off-list, and a reviewer should see the price was set by hand.
+function deviationState(item, tierPrice) {
+  if (item.unitPriceOverride != null && tierPrice > 0) {
+    const delta = (item.unitPriceOverride - tierPrice) / tierPrice * 100;
+    if (Math.abs(delta) < 0.05) return { show: false, label: '' };
+    return { show: true, label: ` ${delta > 0 ? '+' : ''}${delta.toFixed(1)}%` };
+  }
+  return { show: item.extraDiscountPct > 0, label: '' };
+}
+
 function renderProductList() {
   const container = document.getElementById('productList');
   document.getElementById('productsAddedCount').textContent = cart.length + ' selected';
@@ -5931,7 +6003,8 @@ function renderProductList() {
       </div>`;
     }).join('') : '';
 
-    const showFlag = item.extraDiscountPct > 0;
+    const devFlag = deviationState(item, tierPrice);
+    const hasOverride = item.unitPriceOverride != null;
     const mkSek = (item.mkSekOverride != null) ? item.mkSekOverride : item.mkSek;
     const mkIsOverride = item.mkSekOverride != null;
     const mkIsFromExcel = !mkIsOverride && item.mkSek != null;
@@ -5968,12 +6041,25 @@ function renderProductList() {
       <span class="field-tiny-label">Volume tier</span>
       <div class="tier-select-row">${tierChips || '<div style="font-size:10.5px;color:var(--panel-text-dim);padding:4px 0;">Fixed price (accessory/cable)</div>'}</div>
 
+      <div class="unitprice-row">
+        <label>Unit price</label>
+        <input type="text" inputmode="decimal" placeholder="${(tierPrice * fxOut()).toFixed(2)}"
+               value="${hasOverride ? (item.unitPriceOverride * fxOut()).toFixed(2) : ''}"
+               data-line-id="${item.lineId}" data-action="unitprice"
+               aria-label="Unit price for ${escapeAttr(item.description)}">
+        <span style="color:var(--panel-text-dim);font-size:11px;">${curSymbol}</span>
+        <button type="button" class="linkbtn ${hasOverride ? '' : 'hidden'}" data-line-id="${item.lineId}"
+                data-action="clear-override">Use tier price</button>
+      </div>
+      <div class="hintline ${hasOverride ? '' : 'hidden'}" data-computed="override-hint">Typed price. Extra discount is cleared while it is set.</div>
+
       <div class="extra-discount-row">
         <label>Extra discount</label>
         <input type="text" inputmode="decimal" value="${item.extraDiscountPct}" data-line-id="${item.lineId}" data-action="discount"
+               ${hasOverride ? 'disabled' : ''}
                aria-label="Extra discount percentage for ${escapeAttr(item.description)}">
         <span style="color:var(--panel-text-dim);font-size:11px;">%</span>
-        <span class="extra-flag ${showFlag ? 'show' : ''}" data-computed="deviation">⚠ deviation</span>
+        <span class="extra-flag ${devFlag.show ? 'show' : ''}" data-computed="deviation">⚠ deviation${devFlag.label}</span>
       </div>
 
       <div class="mk-row">
@@ -6087,9 +6173,29 @@ function updateProductRowComputed(lineId) {
 
   const { tierPrice, finalUnitPrice, lineTotal } = computeLine(item);
 
-  // Deviation flag (both standard and custom rows)
+  // Deviation flag (both standard and custom rows) - one rule, shared with the
+  // template via deviationState so the two paths cannot disagree.
+  const dev = deviationState(item, tierPrice);
   const flag = row.querySelector('[data-computed="deviation"]');
-  if (flag) flag.classList.toggle('show', item.extraDiscountPct > 0);
+  if (flag) {
+    flag.classList.toggle('show', dev.show);
+    flag.textContent = `⚠ deviation${dev.label}`;
+  }
+
+  // The override's companion controls. Toggled here rather than by re-rendering the
+  // row, because rebuilding the <input> would lose the caret mid-typing.
+  const hasOverride = item.unitPriceOverride != null;
+  const clearBtn = row.querySelector('[data-action="clear-override"]');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !hasOverride);
+  const hint = row.querySelector('[data-computed="override-hint"]');
+  if (hint) hint.classList.toggle('hidden', !hasOverride);
+  const discEl = row.querySelector('[data-action="discount"]');
+  if (discEl) {
+    discEl.disabled = hasOverride;
+    if (hasOverride) discEl.value = item.extraDiscountPct;
+  }
+  const upEl = row.querySelector('[data-action="unitprice"]');
+  if (upEl) upEl.placeholder = (tierPrice * fxOut()).toFixed(2);
 
   if (item.isCustom) {
     const lt = row.querySelector('[data-computed="linetotal"]');
@@ -6128,6 +6234,8 @@ function updateProductRowComputed(lineId) {
 document.getElementById('productList').addEventListener('click', (e) => {
   const tierChip = e.target.closest('.tier-chip');
   if (tierChip) { setTier(parseInt(tierChip.dataset.lineId), tierChip.dataset.tier); return; }
+  const clearOv = e.target.closest('[data-action="clear-override"]');
+  if (clearOv) { clearUnitPriceOverride(parseInt(clearOv.dataset.lineId)); return; }
   const removeBtn = e.target.closest('[data-action="remove"]');
   if (removeBtn) { removeFromCart(parseInt(removeBtn.dataset.lineId)); return; }
   const vAdd = e.target.closest('[data-action="vtier-add"]');
@@ -6144,6 +6252,7 @@ document.getElementById('productList').addEventListener('change', (e) => {
 document.getElementById('productList').addEventListener('input', (e) => {
   const lineId = parseInt(e.target.dataset.lineId);
   if (e.target.dataset.vfield) { setVolumeTierField(lineId, parseInt(e.target.dataset.idx), e.target.dataset.vfield, e.target.value); return; }
+  if (e.target.dataset.action === 'unitprice') { setUnitPriceOverride(lineId, e.target.value); updateProductRowComputed(lineId); return; }
   if (e.target.dataset.action === 'discount') setExtraDiscount(lineId, e.target.value);
   if (e.target.dataset.action === 'qty') setQty(lineId, e.target.value);
   if (e.target.dataset.action === 'mk') setMkOverride(lineId, e.target.value);
@@ -6561,6 +6670,7 @@ function buildExportObj() {
       is_custom: !!item.isCustom,
       list_price_eur: item.isCustom ? null : item.listPrice,
       tier_label: item.tierLabels.length ? item.selectedTier : null,
+      unit_price_override_eur: item.unitPriceOverride,
       tier_price_eur: round2(tierPrice),
       extra_discount_pct: item.extraDiscountPct,
       final_unit_price_eur: round2(finalUnitPrice),
