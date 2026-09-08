@@ -4,15 +4,22 @@
 This file covers only this session: what shipped, what was decided, what is still open, and
 the traps that cost time.
 
-**Build: v1.8.0, 119 tests.** Branch A is merged and pushed (`9c0bf12`). Branch B
-(`feat/v1.8-quote-changes`) is complete and unmerged, **pending the device gate in §6**.
+**Build: v1.8.2, 125 tests.** Three releases went out today from a starting point of
+v1.7.2 — **v1.8.0** (the three requests + four pre-existing document defects), **v1.8.1**
+(escaping on the WeasyPrint path) and **v1.8.2** (the Unit price row spacing). All merged,
+tagged and pushed; all three delivery folders carry v1.8.2.
+
+🔴 **The device gate (§6) has still not been run.** It was skipped on the owner's decision at
+each release, not forgotten.
 
 ---
 
 ## 0. Start here if you are picking this up cold
 
-1. **Nothing has been delivered.** The three copies outside git are still v1.7.2. The device
-   gate (§6) has not been run, and Branch B is not merged.
+1. **Everything is delivered and tagged**, and the device gate has still not been run. The
+   delivery folders now use one folder per release — `v1.8.2\` is current, with `v1.8.1\`,
+   `v1.8.0\` and `v1.7.2\` kept beside it as fallbacks. Each is self-contained: the app plus
+   everything `generate_pdf.py` reads by relative path.
 2. Four changes: one price list PDF defect and three colleague requests. All four were
    designed against a mockup and **approved before any code was written** —
    https://claude.ai/code/artifact/6f68afde-c37e-4d8c-af83-76a85fa538e5
@@ -42,6 +49,19 @@ the traps that cost time.
 | `ed2a470` | **The optional List Price column** |
 | `d8709cb` | **The typed unit price** |
 | `9354758` | Two toothless probes, fixed |
+| `de62927` | Bump to v1.8.0 |
+| `64bd397` | HANDOFF §25 and the session handoff |
+| `1688a2b` | **The NET PRICE column — 73 of 129 prices were breaking in half** |
+| `d226eac` | HANDOFF §26, correcting the claim that caused it |
+| `afc61a9` | **Three fixes from the owner's screenshot review** — the arithmetic, the stale panel, the placeholder |
+| `f053a98` | HANDOFF §27 |
+| `cf8fc57` | **Merge → `main`, tagged `v1.8.0`, pushed** |
+| `f38e4f1` | **Escaping: 17 raw fields on the WeasyPrint path** |
+| `c995fd2` | HANDOFF §28 |
+| `c387cfb` | Bump to v1.8.1 |
+| `c96bccf` | **Merge → `main`, tagged `v1.8.1`, pushed** |
+| `8c073d9` | **The Unit price row collided with the tier chips** |
+| `a1752b5` | **Merge → `main`, tagged `v1.8.2`, pushed** |
 
 ---
 
@@ -115,11 +135,38 @@ renderAll()), and the Unit price box showed the tier price as a placeholder so a
 line looked like an overridden one.
 
 
+### 4b. One defect that was NOT pre-existing — I introduced it
+
+**v1.8.2 — the Unit price row collided with the tier chips.** Reported by the owner from a
+screenshot of the delivered build.
+
+When the Unit price row was added in v1.8.0 I gave it `margin-bottom` but **no
+`margin-top`**, making it the only control in the line card without separation above it.
+Measured: the tier chips row ended at y=1270.6 and the Unit price row began at y=1270.6 — a
+**zero-pixel gap**, where `.extra-discount-row` and `.mk-row` both use 10px. The input's 3px
+focus ring then painted into the chip pills, which is why it read as an overlap rather than
+as tight spacing, and why it was most visible with the field focused.
+
+Fixed with `margin-top:10px` to match its siblings. ⚠️ **Deliberately no `border-top`** — the
+unit price belongs *with* the tier it overrides, so it is spaced apart from the chips but not
+divided from them the way Extra discount and Mfg. cost are.
+
+⚠️ The guard asserts **geometry**: the gap must be at least the focus ring's 3px, at three
+panel widths, with the field focused. No text or attribute assertion can see a collision.
+Proven able to fail by removing the margin, which reproduces the screenshot exactly.
+
+**Worth drawing the lesson out:** this shipped in v1.8.0 through a suite of 114 tests, a full
+visual review of the line card, and a screenshot I looked at myself and described as matching
+the mockup. It took the owner opening the real delivered build to see it.
+
 ---
 
 ## 5. Still open
 
-- 🔴 **The device gate has not been run** (§6). Nothing is merged, tagged or delivered.
+- 🔴 **The device gate has not been run** (§6). Everything else IS merged, tagged and
+  delivered — the gate is the only step of the release sequence still outstanding, and after
+  a day in which five defects were found by looking at output and none by the suite, it is
+  the step most likely to pay for itself.
 - 🟠 **No automated guard for the list-price flag in `generate_pdf.py`.** Verified by hand
   (both states exported, rendered PDF text read) but a regression there would not be caught.
   The break-pass script reports it as SKIP rather than omitting it.
@@ -131,33 +178,66 @@ line looked like an overridden one.
 
 ---
 
-## 6. The device gate — what the owner must run before delivery
+## 6. The device gate — still outstanding, now against v1.8.2
 
-Not the dev server. **Double-click the delivered file** and, in that build:
+Delivery went ahead without it on the owner's decision, so this is now a check on a build
+that is already in the delivery folders rather than a gate before it gets there.
 
-1. Build a quote with an address, a typed unit price and List Price **off**. Export the pdfmake
-   PDF. Check the address sits under the company name and no list price appears anywhere.
-2. `Export quote data (.json)`, then `python generate_pdf.py <file>.json` — the WeasyPrint PDF
-   must match the screen.
-3. Build a price list with an address. Export the PDF **and** the Excel. Check the TO block, and
-   flick through the page breaks: no family name should be the last thing on a page.
-4. Reopen a quote saved before today from the archive: it must still show its List Price column.
+Not the dev server. **Double-click**
+`Desktop\CC Quote Builder (QB)\v1.8.2\crosscontrol-offertbyggare-v1.8.2.html`
+and in that build:
 
-Two UI defects in v1.7.0 were found by looking at the screen and by nothing else.
+1. **A quote in USD or SEK.** Check that the printed unit price times the quantity equals the
+   printed total. This is the defect the owner caught by eye in v1.8.0 and it had been wrong
+   in every converted-currency quote ever sent — the arithmetic changed in `afc61a9`, so it
+   is the single most valuable thing to confirm on real hardware.
+2. Build a quote with an address, a typed unit price and List Price **off**. Export the
+   pdfmake PDF: the address sits under the company name and no list price appears anywhere.
+3. `Export quote data (.json)`, then `python generate_pdf.py <file>.json` from inside the
+   v1.8.2 folder — the WeasyPrint PDF must match the screen. A customer name containing `&`
+   is worth testing here; that path was escaping only the quote number until v1.8.1.
+4. Build a price list with an address. Export the PDF **and** the Excel. Check the TO block,
+   then flick through every page: no family name may be the last thing on a page, and every
+   price must read whole — 73 of 129 were breaking mid-number before `1688a2b`.
+5. Reopen a quote saved before today from the archive: it must still show its List Price
+   column, because records written before v1.8.0 carry no such field.
+
+⚠️ **Why this matters more than the test count.** The suite went from 91 to 125 today. **Five**
+customer-facing defects were found in the same period — four pre-existing, one mine — and
+**every one was found by looking at rendered output or by the owner reviewing a screen. None
+by a test.** Two UI defects in v1.7.0 were found the same way. The suite is good at holding
+fixes in place and has never once been the thing that found a problem here.
 
 ---
 
-## 7. Then, and only then
+## 7. The release, as it actually went
 
-1. `git checkout main && git merge --no-ff feat/v1.8-quote-changes`
-2. `git tag v1.8.0 && git push origin main --tags`
-3. Copy `crosscontrol-offertbyggare.html` as **`crosscontrol-offertbyggare-v1.8.0.html`** to
-   Delivery, the Demo kit and the Prototypes mirror, and **verify each by md5**.
-4. Replace the previous versioned file in each folder — never leave two — and update
-   `START HERE.txt` in the demo kit, because the file name it names has changed.
+All three releases are merged, tagged, pushed and delivered. `main` is at `a1752b5`,
+tagged **v1.8.2**, and every copy outside git carries md5 `e42d2e53…`.
 
-⚠️ `CC QB Prototypes\Current build - for comparison.html` is frozen on purpose as the "before"
-half of the comparison. **Never refresh it.**
+⚠️ **The delivery layout changed today, at the owner's request: one folder per release.**
+
+    Delivery  /  Demo kit
+    ├── v1.8.2\   <- current; START HERE.txt points here
+    ├── v1.8.1\
+    ├── v1.8.0\
+    └── v1.7.2\
+
+Each folder holds the app **and** `generate_pdf.py`, `cc-logo.svg` and both Poppins files,
+because `generate_pdf.py` reads those by relative path — a version folder without them
+renders using whatever sits beside the *parent* copy instead.
+
+⚠️ **`v1.7.2\` deliberately holds v1.7.2's OWN `generate_pdf.py`**, taken from the git tag.
+Today's version knows about `customer.address` and `show_list_price`; shipping it beside the
+1.7.2 build would be shipping a mismatched pair.
+
+⚠️ The Prototypes mirror keeps its fixed `Live build (mirror).html` name on purpose — it is
+the moving half of a pair with `Current build - for comparison.html`, which is **frozen and
+must never be refreshed** (verified untouched at md5 `b34b1ecf…` after every copy today).
+
+**For the next release:** bump `APP_VERSION`, tag, then create `v<version>\` with the app and
+those four companions, verify by md5, and repoint `START HERE.txt`. Do not delete the previous
+folders; they are the fallback.
 
 ---
 
