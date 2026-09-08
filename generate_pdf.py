@@ -87,11 +87,17 @@ def fmt_raw(amount, currency='EUR'):
 
 
 def build_html(offer, logo_path):
+    # ⚠️ Everything below is escaped AT THE POINT OF READ. Every f-string in this
+    # function interpolates these variables directly, so escaping here is what makes
+    # the whole document safe - and a new use of one of them cannot reopen the hole.
+    # Archives move between colleagues, and a quote_id of <img src=x onerror=...> was
+    # already proven to execute on open (HANDOFF.md §20.2); the same is true of every
+    # other free-text field a colleague can type.
     cust = offer.get('customer', {})
-    cust_name = cust.get('name') or '[Customer name not specified]'
-    cust_contact = cust.get('contact', '')
-    cust_country = cust.get('country', '')
-    cust_address = (cust.get('address') or '').strip()
+    cust_name = html_escape(cust.get('name') or '') or '[Customer name not specified]'
+    cust_contact = html_escape(cust.get('contact', '') or '')
+    cust_country = html_escape(cust.get('country', '') or '')
+    cust_address = html_escape((cust.get('address') or '').strip())
 
     office_key = offer.get('sender_office') or 'alfta'
     office = OFFICES.get(office_key, OFFICES['alfta'])
@@ -110,7 +116,7 @@ def build_html(offer, logo_path):
     # ones are not, which is recorded in the plan as noticed-but-out-of-scope.
     _addr_html = ''
     if cust_address:
-        _addr_html = f'<div class="addr">{html_escape(cust_address)}</div>'
+        _addr_html = f'<div class="addr">{cust_address}</div>'
     cust_line = (
         '<div class="billto">'
         '<div class="lbl">To</div>'
@@ -123,7 +129,7 @@ def build_html(offer, logo_path):
     currency = offer.get('currency', 'EUR')
     currency_rate = offer.get('currency_rate')  # explicit rate from the app, if provided
     price_currency = offer.get('price_currency', currency)  # verbatim currency for custom-tier prices
-    qty_heading = (offer.get('qty_heading') or 'Qty').strip() or 'Qty'
+    qty_heading = html_escape((offer.get('qty_heading') or 'Qty').strip() or 'Qty')
     # Exports written before v1.8.0 carry no such key: default ON.
     show_list_price = offer.get('show_list_price', True) is not False
 
@@ -139,22 +145,22 @@ def build_html(offer, logo_path):
         if is_custom:
             tier_tag = '<span class="tier-tag custom-tag">Custom item</span>'
         elif line.get('tier_label'):
-            tier_tag = f'<span class="tier-tag">Tier {line["tier_label"]} units</span>'
+            tier_tag = f'<span class="tier-tag">Tier {html_escape(str(line["tier_label"]))} units</span>'
         discount_tag = ''
         if show_list_price and line.get('extra_discount_pct', 0) > 0:
             discount_tag = f'<span class="discount-tag">+ {line["extra_discount_pct"]}% negotiated discount</span>'
         note_html = ''
         if line.get('note'):
-            note_html = f'<div class="line-note">{line["note"]}</div>'
+            note_html = f'<div class="line-note">{html_escape(str(line["note"]))}</div>'
         list_price_cell = ''
         if show_list_price:
             _inner = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate)}</span>'
             list_price_cell = f'<td class="num">{_inner}</td>'
-        part_number_html = f'<div class="psku">{line["part_number"]}</div>' if line.get('part_number') else ''
+        part_number_html = f'<div class="psku">{html_escape(str(line["part_number"]))}</div>' if line.get('part_number') else ''
         rows_html += f"""
         <tr>
           <td>
-            <div class="pname">{line['description'] or 'Untitled custom item'}</div>
+            <div class="pname">{html_escape(str(line['description'] or '')) or 'Untitled custom item'}</div>
             {part_number_html}
             {tier_tag}
             {discount_tag}
@@ -171,9 +177,11 @@ def build_html(offer, logo_path):
     for line in matrix_lines:
         tiers = line.get('volume_tiers', []) or []
         if tiers:
+            # escape first, fall back to &nbsp; after - the other way round would
+            # escape the non-breaking space into visible text
             head_cells = "".join(
-                f'<th>{(vt.get("label") or "&nbsp;")}'
-                + (f'<span class="vm-sub">{vt["sublabel"]}</span>' if vt.get('sublabel') else '')
+                f'<th>{html_escape(str(vt.get("label") or "")) or "&nbsp;"}'
+                + (f'<span class="vm-sub">{html_escape(str(vt["sublabel"]))}</span>' if vt.get('sublabel') else '')
                 + '</th>'
                 for vt in tiers
             )
@@ -183,11 +191,11 @@ def build_html(offer, logo_path):
         else:
             head_cells = '<th style="color:#a8a39a;font-weight:400;">No tiers defined yet</th>'
             price_cells = '<td style="color:#a8a39a;">—</td>'
-        sku_html = f'<span class="vm-sku">· {line["part_number"]}</span>' if line.get('part_number') else ''
-        note_html = f'<div class="vm-note">{line["note"]}</div>' if line.get('note') else ''
+        sku_html = f'<span class="vm-sku">· {html_escape(str(line["part_number"]))}</span>' if line.get('part_number') else ''
+        note_html = f'<div class="vm-note">{html_escape(str(line["note"]))}</div>' if line.get('note') else ''
         matrix_html += f"""
       <div class="volume-matrix">
-        <div class="vm-head">{line['description'] or 'Product'} {sku_html}</div>
+        <div class="vm-head">{html_escape(str(line['description'] or '')) or 'Product'} {sku_html}</div>
         <table>
           <thead><tr><th class="vm-rowlabel">&nbsp;</th>{head_cells}</tr></thead>
           <tbody><tr><td class="vm-rowlabel">Unit price</td>{price_cells}</tr></tbody>
@@ -197,9 +205,9 @@ def build_html(offer, logo_path):
 
     appendix_html = ""
     for name in offer.get('appendices', []):
-        appendix_html += f'<div class="appendix-note">📎 Appendix: {name}</div>'
+        appendix_html += f'<div class="appendix-note">📎 Appendix: {html_escape(str(name))}</div>'
 
-    tc_filename = offer.get('tc_filename', 'CrossControl Standard Terms & Conditions 2023')
+    tc_filename = html_escape(offer.get('tc_filename', 'CrossControl Standard Terms & Conditions 2023'))
     # Mirrors QUOTE_FORECAST_TEXT in crosscontrol-offertbyggare.html - change both.
     forecast_html = ""
     if offer.get('forecast_condition'):
@@ -225,8 +233,9 @@ def build_html(offer, logo_path):
     signature_html = ""
     sig = offer.get('signature', {})
     if sig.get('include', True):
-        signer_name = sig.get('signer_name', '') or '&nbsp;'
-        signer_title = sig.get('signer_title', '') or '&nbsp;'
+        # escape first, fall back to &nbsp; after
+        signer_name = html_escape(sig.get('signer_name', '') or '') or '&nbsp;'
+        signer_title = html_escape(sig.get('signer_title', '') or '') or '&nbsp;'
         cust_for_sig = cust_name if cust_name != '[Customer name not specified]' else 'Customer'
         signature_html = f"""
       <div class="signature-block">
@@ -257,7 +266,8 @@ def build_html(offer, logo_path):
             svg_raw = f.read()
         logo_svg = svg_raw.split('?>', 1)[1].strip() if '?>' in svg_raw else svg_raw
 
-    terms = offer.get('terms', {})
+    terms = {k: (html_escape(v) if isinstance(v, str) else v)
+             for k, v in (offer.get('terms', {}) or {}).items()}
     currency_label = CURRENCY_RATES.get(currency, CURRENCY_RATES['EUR'])['label']
 
     # Standard product table + totals only render when there are standard (non custom-tier) lines
@@ -286,7 +296,7 @@ def build_html(offer, logo_path):
 
     build_footer_html = f"""
   <div class="doc-footer">
-    <div class="valid-line"><span class="valid">Valid until {offer['valid_until']}</span></div>
+    <div class="valid-line"><span class="valid">Valid until {html_escape(str(offer['valid_until']))}</span></div>
     <div class="footer-addresses">
       <div class="office-col {'active' if office_key == 'alfta' else ''}">
         <b>CrossControl (HQ)</b>
@@ -487,7 +497,7 @@ def build_html(offer, logo_path):
   <div class="doc-title-bar">
     <h1>Price Quote</h1>
     {cust_line}
-    <div class="meta">Issued {offer['issued_date']}</div>
+    <div class="meta">Issued {html_escape(str(offer['issued_date']))}</div>
   </div>
 
   <div class="doc-body">
@@ -501,7 +511,7 @@ def build_html(offer, logo_path):
       <div class="terms-grid">
         <div class="term-item"><b>Payment terms</b>{terms.get('payment','')}</div>
         <div class="term-item"><b>Delivery terms</b>{terms.get('delivery','')}</div>
-        <div class="term-item"><b>Validity</b>This quote is valid until {offer['valid_until']}</div>
+        <div class="term-item"><b>Validity</b>This quote is valid until {html_escape(str(offer['valid_until']))}</div>
         <div class="term-item"><b>Currency</b>{currency_label}</div>
         {vat_term_html}
       </div>
