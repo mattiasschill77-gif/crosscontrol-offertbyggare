@@ -1183,3 +1183,64 @@ broken — fourteen deliberate breaks in total.
 ⚠️ **Bumping `APP_VERSION` turns three tests red on purpose.** `test_version.py` pins
 the version deliberately, so a bump is a conscious act; `test_archive_transfer.py`
 pins `format_version`. Update the pins, do not loosen the assertions.
+
+## 24. The price list PDF's family heading (v1.8.0, 2026-09-08)
+
+`buildPricelistDocDefinition` pushed each family as **two independent content nodes** — a
+one-row table holding the grey band, then the product table with `headerRows: 1`. Nothing
+tied them, so a page break could fall between them: the band printed at the foot of one page
+and its products opened the next with no heading above them. Reproduced before the fix on
+page 3 of a full price list — band at y=721.6, last product row at y=684.2.
+
+The fix has **three** parts, and the first is not sufficient on its own.
+
+**1. One table per family with `headerRows: 2`** — row 0 the band with `colSpan` across every
+column, row 1 the column header, products after.
+
+⚠️ Header rows repeat, so a family spanning a break now reprints its name at the top of the
+continuation page, above the column header. Deliberate, and approved by the owner
+2026-09-08 before the change.
+
+**2. A fresh header row per family.** `cols` was ONE array of cell objects pushed **by
+reference** into every family's table. pdfmake writes layout state (`_width`, `_calcWidth`)
+onto cells as it renders, so the column labels appeared on the **first family only** and
+every family after it got a blank row of the right height. This was in the shipped v1.7.2
+PDF and was found by *looking at the render*, not by any assertion. `makeCols()` returns
+fresh objects now; only `widths` is shared, and those are plain strings.
+
+**3. A measured `pageBreakBefore`.** ⚠️ **`headerRows: 2` does NOT keep the header with the
+body's first row.** pdfmake renders both header rows at a page foot and starts the body on
+the next page, leaving a band *and* a column header dangling under nothing. That was
+**assumed rather than measured**, passed the guard once by luck of layout, and went red the
+moment part 2 changed the row heights. A family table is tagged
+`headlineLevel: 'plFamily'` and moves whole when the page has too little room left.
+
+`PL_FAMILY_MIN_BLOCK` is **120pt**, measured from a generated PDF rather than estimated:
+`startPosition` carries `pageInnerHeight` and `verticalRatio`, so room left is
+`pageInnerHeight * (1 - verticalRatio)`. In a full 129-item list the four dangling families
+had **2.4, 60.9, 74.9 and 76.1pt** left; the closest legitimate multi-page family had
+**148.8pt**; band + column header is 77.7pt and one product row 36.3pt. 120 sits in the
+middle of a clean 77–148pt separation.
+
+⚠️ **Re-measure the threshold if the band, the column header or the row padding changes.**
+
+⚠️ **Still not `unbreakable`, still not `dontBreakRows`.** Both discard content that outgrows
+a page body (§18.2). `pageBreakBefore` relocates a node and never holds or clips one.
+
+⚠️ The guard locates the band by **font**, not by string. Product descriptions contain the
+family name ("CCpilot V1200, LinX Base") in Roboto; only the band is Poppins. A text-only
+search matches the descriptions and passes vacuously. It is proven able to fail by
+neutralising `PL_FAMILY_MIN_BLOCK` to 0.
+
+**Lesson, and it is the same one as §22 and §23.3: look at the render.** The suite went green
+on a fix whose central assumption was false. What exposed it was rendering the PDF to PNG and
+looking — which is also the only thing that found the blank column headers that had been
+shipping since August.
+
+⚠️ **Reported, not fixed — the NET PRICE column is too narrow.** Four-digit prices break
+mid-number (`€1,002.8` then `0` on the next line) and the "NET PRICE" header wraps. Identical
+in v1.7.2, so not caused by this work. Widening it reflows every price list already sent, so
+it is an owner decision.
+
+The three exclusions of §18.2 stand: rows fragmenting across a page edge, the `§` T&C block
+splitting, and the trailing footer-only page are all untouched.

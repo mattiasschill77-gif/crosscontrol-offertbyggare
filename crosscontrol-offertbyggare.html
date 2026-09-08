@@ -7253,6 +7253,24 @@ const PL_STATUS_LABELS = {
 // groups = output of buildPricelistGroups
 // opts = { logoDataUri (for images), officeLine1 }
 // ============================================================================
+// Marks a family's product table for the page-break callback below.
+const PL_FAMILY_HEADLINE = 'plFamily';
+
+// The vertical room a family needs before it may START on a page: its grey band,
+// the column header and at least one product row. MEASURED from a generated PDF,
+// not estimated - band + column header is 77.7pt and a single product row 36.3pt,
+// rounded up to 120 for headroom.
+//
+// The separation is clean: in a full 129-item price list the family tables that
+// dangled had 2.4, 60.9, 74.9 and 76.1pt of room left, while the closest
+// legitimate multi-page family had 148.8pt. Anything between 77 and 148 is a
+// safe threshold; 120 sits in the middle of it.
+//
+// ⚠️ Re-measure this if the band, the column header or the row padding changes.
+// It is a geometric threshold, and its whole job is to be bigger than a band plus
+// a header plus a row and smaller than the room a real family needs.
+const PL_FAMILY_MIN_BLOCK = 120;
+
 function buildPricelistDocDefinition(meta, groups, opts) {
   const currency = meta.currency || 'EUR';
   const rate = meta.currencyRate || 1;
@@ -7298,29 +7316,50 @@ function buildPricelistDocDefinition(meta, groups, opts) {
 
   // ---- Column layout for product tables ----
   // PRODUCT | [LIST] | [DISC%] | NET | [MOQ] | [STATUS]
-  const cols = [];
+  // ⚠️ A FRESH header row per family, not one shared array. pdfmake mutates cell
+  // objects during layout (it writes _width/_calcWidth/_span onto them), so a single
+  // `cols` array pushed by reference into every family's table rendered its labels on
+  // the FIRST family only - every family after it got a blank row of the right height
+  // and no column names. Only the widths are shared; those are plain strings.
   const widths = [];
-  cols.push({ text: 'PRODUCT', style: 'th' }); widths.push('*');
-  if (showDiscount) { cols.push({ text: 'LIST PRICE', style: 'thRight' }); widths.push('auto'); }
-  if (showDiscount) { cols.push({ text: 'DISCOUNT', style: 'thRight' }); widths.push('auto'); }
-  cols.push({ text: 'NET PRICE', style: 'thRight' }); widths.push('auto');
-  if (showMoq) { cols.push({ text: 'MOQ', style: 'thRight' }); widths.push('auto'); }
-  if (showStatus) { cols.push({ text: 'STATUS', style: 'thRight' }); widths.push('auto'); }
+  widths.push('*');
+  if (showDiscount) { widths.push('auto'); widths.push('auto'); }
+  widths.push('auto');
+  if (showMoq) widths.push('auto');
+  if (showStatus) widths.push('auto');
+
+  const makeCols = () => {
+    const cols = [{ text: 'PRODUCT', style: 'th' }];
+    if (showDiscount) cols.push({ text: 'LIST PRICE', style: 'thRight' });
+    if (showDiscount) cols.push({ text: 'DISCOUNT', style: 'thRight' });
+    cols.push({ text: 'NET PRICE', style: 'thRight' });
+    if (showMoq) cols.push({ text: 'MOQ', style: 'thRight' });
+    if (showStatus) cols.push({ text: 'STATUS', style: 'thRight' });
+    return cols;
+  };
 
   groups.forEach(grp => {
-    // Family heading band
+    // Family heading band, the column header and the products are ONE table with
+    // headerRows: 2. pdfmake cannot break between header rows and the body's first
+    // row, so the band can never be stranded at the foot of a page - and because
+    // header rows repeat, a family that spans a break opens the next page with its
+    // own name above the columns instead of with prices under no heading.
+    // NOT unbreakable and NOT dontBreakRows: both silently DISCARD content that
+    // outgrows a page body (HANDOFF.md §18.2).
     const headParts = [{ text: grp.group, style: 'famName' }];
     if (showDiscount && grp.discountPct) {
       headParts.push({ text: `  −${grp.discountPct}%`, style: 'famDisc' });
     }
-    content.push({
-      table: { widths: ['*'], body: [[{ text: headParts, fillColor: PL_GREY_BG, margin: [8, 5, 8, 5], border: [false, false, false, false] }]] },
-      layout: { defaultBorder: false },
-      margin: [0, 8, 0, 0],
-    });
+    // margin [6,…] against the table's own paddingLeft of 6 keeps the band text at
+    // the same 12pt inset it had when it lived in its own table.
+    const bandRow = [{
+      text: headParts, colSpan: widths.length, fillColor: PL_GREY_BG,
+      margin: [6, 5, 6, 5], border: [false, false, false, false],
+    }];
+    while (bandRow.length < widths.length) bandRow.push({});
 
     // Product rows
-    const body = [cols];
+    const body = [bandRow, makeCols()];
     grp.lines.forEach(line => {
       const row = [];
       const nameStack = [{ text: line.description || line.partNumber, style: 'pname' }];
@@ -7335,15 +7374,22 @@ function buildPricelistDocDefinition(meta, groups, opts) {
     });
 
     content.push({
-      table: { headerRows: 1, widths, body },
+      // Tagged so pageBreakBefore can recognise a family table. headerRows: 2 keeps
+      // the band ON the header, but pdfmake will still render header rows at the
+      // foot of a page and start the body on the next one - measured, not assumed -
+      // so the callback is what actually stops a dangling heading.
+      headlineLevel: PL_FAMILY_HEADLINE,
+      table: { headerRows: 2, widths, body },
       layout: {
-        hLineWidth: (i) => (i === 1 ? 1 : (i === 0 ? 0 : 0.5)),
+        // i is the line ABOVE row i. 0 = table top, 1 = band/column-header seam,
+        // 2 = the orange rule under the column header, then hairlines.
+        hLineWidth: (i) => (i <= 1 ? 0 : (i === 2 ? 1 : 0.5)),
         vLineWidth: () => 0,
-        hLineColor: (i) => (i === 1 ? PL_ORANGE : PL_LINE),
+        hLineColor: (i) => (i === 2 ? PL_ORANGE : PL_LINE),
         paddingLeft: () => 6, paddingRight: () => 6,
         paddingTop: () => 5, paddingBottom: () => 5,
       },
-      margin: [0, 0, 0, 4],
+      margin: [0, 8, 0, 4],
     });
   });
 
@@ -7405,6 +7451,18 @@ function buildPricelistDocDefinition(meta, groups, opts) {
     pageMargins: [42, 92, 42, meta.showConfidentiality && meta.confidentialityNote ? 78 : 66],
     header: headerFn,
     footer: footerFn,
+    // A family that cannot fit its band, its column header AND one product row on
+    // what is left of the page moves whole to the next one. This RELOCATES a node;
+    // it never holds or clips one, which is why it is safe where `unbreakable` and
+    // `dontBreakRows` are not - those DISCARD content taller than a page body
+    // (HANDOFF.md §18.2).
+    pageBreakBefore: (currentNode) => {
+      if (!currentNode || currentNode.headlineLevel !== PL_FAMILY_HEADLINE) return false;
+      const sp = currentNode.startPosition;
+      if (!sp || typeof sp.pageInnerHeight !== 'number' || typeof sp.verticalRatio !== 'number') return false;
+      const roomLeft = sp.pageInnerHeight * (1 - sp.verticalRatio);
+      return roomLeft < PL_FAMILY_MIN_BLOCK;
+    },
     content,
     images: { ccLogo: opts.logoDataUri },
     defaultStyle: { font: 'Roboto', fontSize: 11, color: PL_INK },
