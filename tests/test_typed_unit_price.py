@@ -212,3 +212,44 @@ def test_cost_and_margin_never_reach_the_quote_pdf(tmp_path):
     flat_pdf = " ".join(pages).replace(",", "").replace(" ", "").replace(" ", "")
     assert MK_NEEDLE not in flat_pdf, "manufacturing cost reached the customer's PDF"
     assert "Margin" not in " ".join(pages), "the margin label reached the customer's PDF"
+
+
+def test_the_unit_price_row_does_not_collide_with_the_tier_chips():
+    """Reported by the owner from a screenshot: the Unit price box looked like it
+    overlapped the volume-tier pills.
+
+    The row had NO top margin while every sibling (.extra-discount-row, .mk-row)
+    has 10px, so it sat flush against the chips - measured 0px gap - and the
+    input's 3px focus ring bled up into them.
+
+    Asserted geometrically at three panel widths, with the field FOCUSED, because
+    the focus ring is what made a zero gap read as a collision. No text assertion
+    can see this.
+    """
+    RING = 3   # --focus-ring spreads 3px beyond the input on every side
+
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            line_id = page.evaluate(
+                "() => { cart = []; renderAll(); addProductToCart(%r);"
+                "  const it = cart.find(c => c.partNumber === %r);"
+                "  it.qty = 15; renderAll(); return it.lineId; }" % (PART, PART)
+            )
+            page.wait_for_timeout(300)
+            row = _row(page, line_id)
+            row.locator('[data-action="unitprice"]').click()
+            page.wait_for_timeout(200)
+
+            for panel in (420, 560, 700):
+                page.evaluate(
+                    "(w) => document.documentElement.style.setProperty('--panel-w', w + 'px')",
+                    panel,
+                )
+                page.wait_for_timeout(250)
+                chips = row.locator(".tier-select-row").bounding_box()
+                unit = row.locator(".unitprice-row").bounding_box()
+                gap = unit["y"] - (chips["y"] + chips["height"])
+                assert gap >= RING, (
+                    f"panel {panel}px: only {gap:.1f}px between the tier chips and the "
+                    f"Unit price row - the {RING}px focus ring overlaps the chips"
+                )
