@@ -674,20 +674,20 @@ var vfs = {
 
   /* Bill-to block: the customer is who the quote is FOR, so it reads as a
      proper addressee rather than a muted sub-line. */
-  .doc-title-bar .billto{margin:0 0 10px;}
-  .doc-title-bar .billto .lbl{
+  .doc-title-bar .billto, #plDocRoot .billto{margin:0 0 10px;}
+  .doc-title-bar .billto .lbl, #plDocRoot .billto .lbl{
     font-family:'Poppins',Arial,sans-serif;font-size:9.5px;font-weight:700;
     text-transform:uppercase;letter-spacing:0.14em;color:var(--cc-orange-dark);margin-bottom:3px;
   }
-  .doc-title-bar .billto .name{
+  .doc-title-bar .billto .name, #plDocRoot .billto .name{
     font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:16px;
     color:var(--ink-900);line-height:1.25;
   }
-  .doc-title-bar .billto .addr{
+  .doc-title-bar .billto .addr, #plDocRoot .billto .addr{
     font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);
     line-height:1.45;margin-top:3px;white-space:pre-line;
   }
-  .doc-title-bar .billto .sub{
+  .doc-title-bar .billto .sub, #plDocRoot .billto .sub{
     font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);margin-top:2px;
   }
 
@@ -1474,6 +1474,11 @@ var vfs = {
       <div class="panel-section">
         <div class="panel-label"><span>Customer &amp; document</span></div>
         <div class="pl-field"><label for="plCustName">Customer name</label><input type="text" id="plCustName" placeholder="e.g. Caudwell Marine Ltd"></div>
+        <div class="pl-field">
+          <label for="plCustAddress">Address</label>
+          <textarea id="plCustAddress" rows="3" maxlength="300"
+                    placeholder="e.g. Marine House, Dock Road&#10;Birkenhead&#10;CH41 1LQ"></textarea>
+        </div>
         <div class="pl-field"><label for="plCustContact">Contact (optional)</label><input type="text" id="plCustContact" placeholder="attn: name"></div>
         <div class="pl-two">
           <div class="pl-field"><label for="plPreparedBy">Prepared by</label><input type="text" id="plPreparedBy" placeholder="Your name"></div>
@@ -7300,10 +7305,15 @@ function buildPricelistDocDefinition(meta, groups, opts) {
 
   // ---- Title block ----
   content.push({ text: 'CUSTOMER PRICE LIST', style: 'title', margin: [0, 0, 0, 2] });
-  const sub = [];
-  if (meta.customerName) sub.push(`Prepared for ${meta.customerName}`);
-  if (meta.customerContact) sub.push(`attn: ${meta.customerContact}`);
-  content.push({ text: sub.join('  ·  ') || ' ', style: 'subtitle', margin: [0, 0, 0, 10] });
+  if (meta.customerName || meta.customerAddress || meta.customerContact) {
+    content.push({ text: 'TO', font: 'Poppins', fontSize: 8, bold: true, color: PL_ORANGE_DARK, characterSpacing: 1.2, margin: [0, 2, 0, 3] });
+    if (meta.customerName) content.push({ text: meta.customerName, font: 'Poppins', fontSize: 14, bold: true, color: PL_INK, margin: [0, 0, 0, 2] });
+    if (meta.customerAddress) content.push({ text: meta.customerAddress, style: 'subtitle', lineHeight: 1.25, margin: [0, 0, 0, 2] });
+    if (meta.customerContact) content.push({ text: `attn: ${meta.customerContact}`, style: 'subtitle', margin: [0, 0, 0, 10] });
+    else content.push({ text: ' ', margin: [0, 0, 0, 8] });
+  } else {
+    content.push({ text: ' ', style: 'subtitle', margin: [0, 0, 0, 10] });
+  }
 
   // ---- Meta strip (price basis / vat / lead time / currency) ----
   const metaRows = [];
@@ -7644,6 +7654,7 @@ function plGatherMeta(){
   const cur = plEl('plCurrency').value;
   return {
     customerName: plEl('plCustName').value.trim(),
+    customerAddress: plEl('plCustAddress').value.trim(),
     customerContact: plEl('plCustContact').value.trim(),
     preparedBy: plEl('plPreparedBy').value.trim(),
     preparedByTitle: plEl('plPreparedTitle').value.trim(),
@@ -7692,10 +7703,19 @@ function plRenderDoc(){
   const showD = meta.showDiscount, showM = meta.showMoq, showS = meta.showStatus;
   let h = '';
   h += '<h1 class="pl-doc-title">Customer Price List</h1>';
-  const sub = [];
-  if (meta.customerName) sub.push('Prepared for ' + escapeHtml(meta.customerName));
-  if (meta.customerContact) sub.push('attn: ' + escapeHtml(meta.customerContact));
-  h += '<div class="pl-doc-sub">' + (sub.join('&nbsp; · &nbsp;') || '&nbsp;') + '</div>';
+  // The quote's TO block, not a "Prepared for" subtitle - the owner's call on
+  // 2026-09-08 was that both documents get the same treatment. "Prepared by" is a
+  // different field (the KAM) and is untouched.
+  if (meta.customerName || meta.customerAddress || meta.customerContact) {
+    h += '<div class="billto">'
+       + '<div class="lbl">To</div>'
+       + (meta.customerName ? '<div class="name">' + escapeHtml(meta.customerName) + '</div>' : '')
+       + (meta.customerAddress ? '<div class="addr">' + escapeHtml(meta.customerAddress) + '</div>' : '')
+       + (meta.customerContact ? '<div class="sub">attn: ' + escapeHtml(meta.customerContact) + '</div>' : '')
+       + '</div>';
+  } else {
+    h += '<div class="pl-doc-sub">&nbsp;</div>';
+  }
 
   const metaRows = [];
   if (meta.showRevision && meta.revision) metaRows.push(['Revision', meta.revision]);
@@ -7992,6 +8012,9 @@ function plDownloadXlsx(){
     const aoa = [];
     aoa.push(['CrossControl — Customer Price List']);
     if (meta.customerName) aoa.push(['Prepared for', meta.customerName + (meta.customerContact ? '  (attn: ' + meta.customerContact + ')' : '')]);
+    if (meta.customerAddress) {
+      meta.customerAddress.split('\n').forEach((ln, i) => aoa.push([i === 0 ? 'Address' : '', ln]));
+    }
     if (meta.showRevision && meta.revision) aoa.push(['Revision', meta.revision]);
     if (meta.validUntil) aoa.push(['Valid until', meta.validUntil]);
     aoa.push(['Currency', cur + (cur !== 'EUR' ? ' (1 EUR = ' + rate + ' ' + cur + ')' : '')]);
@@ -8095,7 +8118,8 @@ function plSaveToArchive(){
 // Records written before 1.7.2 carry no basisColumn and no mkByPart. Default them
 // rather than assume they are there.
 const PL_META_FIELDS = {
-  plCustName:'customerName', plCustContact:'customerContact', plPreparedBy:'preparedBy',
+  plCustName:'customerName', plCustAddress:'customerAddress',
+  plCustContact:'customerContact', plPreparedBy:'preparedBy',
   plPreparedTitle:'preparedByTitle', plRevision:'revision', plValidUntil:'validUntil',
   plCurrency:'currency', plPriceBasis:'priceBasis', plVatNote:'vatNote',
   plLeadTime:'leadTime', plConfidentiality:'confidentialityNote', plTermsText:'termsText',
@@ -8207,7 +8231,7 @@ plEl('plBasisColumn').addEventListener('change', (e) => {
 });
 plPopulateBasisOptions();
 [
-  'plCustName','plCustContact','plPreparedBy','plPreparedTitle','plRevision','plValidUntil',
+  'plCustName','plCustAddress','plCustContact','plPreparedBy','plPreparedTitle','plRevision','plValidUntil',
   'plPriceBasis','plVatNote','plLeadTime','plConfidentiality','plTermsText',
 ].forEach(id => plEl(id).addEventListener('input', plRenderDoc));
 [

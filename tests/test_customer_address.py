@@ -82,3 +82,61 @@ def test_the_address_is_escaped_on_screen_and_in_the_pdf(tmp_path):
     assert "&lt;b&gt;Road&lt;/b&gt;" in html
     assert "<b>Road</b>" in text, "the tags must be visible as text, not swallowed"
     assert "<b>Road</b>" in page_texts(pdf)[0]
+
+
+PL_ADDRESS = "Marine House, Dock Road\nBirkenhead\nCH41 1LQ"
+
+
+def _pricelist_with_address(page):
+    page.evaluate("switchView('pricelist')")
+    page.fill("#plCustName", "Caudwell Marine Ltd")
+    page.fill("#plCustContact", "James Caudwell")
+    page.fill("#plCustAddress", PL_ADDRESS)
+    page.evaluate(
+        """() => {
+            plSections(PRICE_DATA)[0].products.slice(0, 4)
+                .forEach(p => PL.selection[p.part_number] = true);
+            plRenderAll();
+        }"""
+    )
+    page.wait_for_timeout(400)
+
+
+def test_the_price_list_shows_a_to_block_not_a_prepared_for_line():
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            _pricelist_with_address(page)
+            doc = page.inner_text("#plDocRoot")
+    assert "Prepared for" not in doc, "the subtitle line should have been replaced"
+    assert "Caudwell Marine Ltd" in doc
+    assert "Dock Road" in doc
+    assert "attn: James Caudwell" in doc
+
+
+def test_the_address_reaches_the_price_list_pdf(tmp_path):
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            _pricelist_with_address(page)
+            with page.expect_download(timeout=30000) as dl:
+                page.click("#plDownloadPdfBtn")
+            pdf = tmp_path / "pricelist.pdf"
+            dl.value.save_as(str(pdf))
+            assert not alerts, f"alert fired during export: {alerts}"
+    first = page_texts(pdf)[0]
+    assert "Caudwell Marine Ltd" in first
+    assert "Dock Road" in first
+    assert "CH41 1LQ" in first
+
+
+def test_the_price_list_address_survives_the_archive():
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            _pricelist_with_address(page)
+            page.click("#plSaveBtn")
+            page.wait_for_timeout(300)
+            pl_id = page.evaluate("PL_ID")
+            page.fill("#plCustAddress", "")
+            page.evaluate(f"plOpenFromArchive({pl_id!r})")
+            page.wait_for_timeout(400)
+            restored = page.input_value("#plCustAddress")
+    assert restored == PL_ADDRESS
