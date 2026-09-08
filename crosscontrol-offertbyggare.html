@@ -447,7 +447,12 @@ var vfs = {
     color:var(--warn);font-weight:700;padding:6px 6px;border-radius:var(--radius);
     font-size:12.5px;font-family:Arial,sans-serif;
   }
-  .unitprice-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  /* margin-top matches .extra-discount-row and .mk-row: without it this row sat
+     FLUSH against the tier chips (measured: 0px gap where every sibling has 10px),
+     and the input's 3px focus ring bled up into the chip pills so the box read as
+     overlapping them. No border-top on purpose - the unit price belongs WITH the
+     tier it overrides, so it is spaced apart but not divided from it. */
+  .unitprice-row{display:flex;align-items:center;gap:8px;margin-top:10px;margin-bottom:4px;}
   .unitprice-row label{font-size:11px;color:var(--panel-text-dim);white-space:nowrap;}
   .unitprice-row input{
     width:88px;background:#ffffff;border:1px solid var(--panel-line);
@@ -4230,7 +4235,7 @@ window._poppinsFontsB64 = {
 // file names of the delivered copies outside git must be set to match by hand -
 // nothing enforces that. This repo file deliberately keeps its unversioned name.
 // Never rendered to the customer.
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.8.2';
 const APP_BUILD_DATE = '2026-09-08';
 
 const QUOTE_FORECAST_TEXT =
