@@ -1400,6 +1400,12 @@ var vfs = {
         </div>
         <div class="term-row">
           <label class="pl-toggle-row" style="margin-top:0;">
+            <input type="checkbox" id="showListPrice" checked>
+            Show list price column <span style="color:var(--panel-text-dim)">(off = unit price only)</span>
+          </label>
+        </div>
+        <div class="term-row">
+          <label class="pl-toggle-row" style="margin-top:0;">
             <input type="checkbox" id="includeForecast" checked>
             State the 12-month forecast condition
           </label>
@@ -4457,6 +4463,9 @@ function buildPdfDocDefinition(offer) {
   const cust = offer.customer || {};
   const custName = cust.name || '[Customer name not specified]';
   const custAddress = (cust.address || '').trim();
+  // Records and exports written before v1.8.0 carry no such key: default ON,
+  // because that is the document they were sent as.
+  const showListPrice = offer.show_list_price !== false;
 
   // Only reference the 'Poppins' font family if it actually got registered with pdfMake
   // (see registerPdfFonts). If registration failed for any reason — e.g. a future pdfmake
@@ -4484,7 +4493,7 @@ function buildPdfDocDefinition(offer) {
   // Header row
   tableBody.push([
     { text: 'PRODUCT', style: 'th' },
-    { text: 'LIST PRICE', style: 'thRight' },
+    ...(showListPrice ? [{ text: 'LIST PRICE', style: 'thRight' }] : []),
     { text: 'UNIT PRICE', style: 'thRight' },
     { text: qtyHeading, style: 'thRight' },
     { text: 'TOTAL', style: 'thRight' },
@@ -4499,7 +4508,7 @@ function buildPdfDocDefinition(offer) {
     if (isCustom) tags.push('Custom item');
     else if (line.tier_label) tags.push(`Tier ${line.tier_label} units`);
     if (tags.length) productStack.push({ text: tags.join('   '), style: 'tierTag' });
-    if (line.extra_discount_pct > 0) productStack.push({ text: `+ ${line.extra_discount_pct}% negotiated discount`, style: 'discountTag' });
+    if (showListPrice && line.extra_discount_pct > 0) productStack.push({ text: `+ ${line.extra_discount_pct}% negotiated discount`, style: 'discountTag' });
     if (line.note) productStack.push({ text: line.note, style: 'lineNote', margin: [0, 4, 0, 0] });
 
     const listPriceCell = isCustom
@@ -4508,7 +4517,7 @@ function buildPdfDocDefinition(offer) {
 
     tableBody.push([
       { stack: productStack },
-      listPriceCell,
+      ...(showListPrice ? [listPriceCell] : []),
       { text: pdfFmtMoney(line.final_unit_price_eur, currency, rate), style: 'finalPrice', alignment: 'right' },
       { text: String(line.qty), alignment: 'right', fontSize: 10 },
       { text: pdfFmtMoney(line.line_total_eur, currency, rate), style: 'finalPrice', alignment: 'right' },
@@ -4630,7 +4639,7 @@ function buildPdfDocDefinition(offer) {
   // Standard product table + totals (only when there are standard lines)
   if (standardLines.length) {
     content.push({
-      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+      table: { headerRows: 1, widths: showListPrice ? ['*', 'auto', 'auto', 'auto', 'auto'] : ['*', 'auto', 'auto', 'auto'], body: tableBody },
       layout: {
         hLineWidth: (i, node) => (i === 0 ? 0 : (i === 1 ? 1.2 : 0.5)),
         vLineWidth: () => 0,
@@ -5092,6 +5101,7 @@ function buildQuoteSnapshot() {
     customer_name: document.getElementById('custName').value.trim(),
     customer_contact: document.getElementById('custContact').value.trim(),
     customer_address: document.getElementById('custAddress').value.trim(),
+    show_list_price: document.getElementById('showListPrice').checked,
     customer_country: document.getElementById('custCountry').value.trim(),
     sender_office: document.getElementById('senderOffice').value,
     currency: getCurrency(),
@@ -5180,6 +5190,7 @@ function openQuote(quoteId) {
   document.getElementById('custName').value = rec.customer_name || '';
   document.getElementById('custContact').value = rec.customer_contact || '';
   document.getElementById('custAddress').value = rec.customer_address || '';
+  document.getElementById('showListPrice').checked = rec.show_list_price !== false;
   document.getElementById('custCountry').value = rec.customer_country || '';
   document.getElementById('senderOffice').value = rec.sender_office || 'alfta';
   document.getElementById('currencySelect').value = rec.currency || 'EUR';
@@ -5224,6 +5235,7 @@ function startNewQuote() {
   document.getElementById('custName').value = '';
   document.getElementById('custContact').value = '';
   document.getElementById('custAddress').value = '';
+  document.getElementById('showListPrice').checked = true;
   document.getElementById('custCountry').value = '';
   updateQuoteIdDisplay();
   closeArchivePanel();
@@ -6172,6 +6184,7 @@ function renderDoc() {
   const custContact = document.getElementById('custContact').value.trim();
   const custCountry = document.getElementById('custCountry').value.trim();
   const custAddress = document.getElementById('custAddress').value.trim();
+  const showListPrice = document.getElementById('showListPrice').checked;
   const termPayment = document.getElementById('termPayment').value;
   const incotermCode = document.getElementById('termIncoterm').value;
   const incotermLocation = document.getElementById('termIncotermLocation').value.trim();
@@ -6223,10 +6236,10 @@ function renderDoc() {
           <div class="pname">${escapeHtml(item.description) || '<span style="color:#a8a39a;">Untitled custom item</span>'}</div>
           ${item.partNumber ? `<div class="psku">${escapeHtml(item.partNumber)}</div>` : ''}
           <span class="tier-tag custom-tag">Custom item</span>
-          ${hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
+          ${showListPrice && hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
           ${noteHtml}
         </td>
-        <td class="num"><span class="strike">—</span></td>
+        ${showListPrice ? '<td class="num"><span class="strike">—</span></td>' : ''}
         <td class="num finalprice">${fmtEUR(finalUnitPrice)}</td>
         <td class="num">${item.qty}</td>
         <td class="num finalprice">${fmtEUR(lineTotal)}</td>
@@ -6239,10 +6252,10 @@ function renderDoc() {
           <div class="pname">${escapeHtml(item.description)}</div>
           <div class="psku">${escapeHtml(item.partNumber)}</div>
           ${item.tierLabels.length ? `<span class="tier-tag">Tier ${escapeHtml(item.selectedTier)} units</span>` : ''}
-          ${hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
+          ${showListPrice && hasDiscount ? `<span class="discount-tag">+ ${item.extraDiscountPct}% negotiated discount</span>` : ''}
           ${noteHtml}
         </td>
-        <td class="num"><span class="strike">${fmtEUR(item.listPrice)}</span></td>
+        ${showListPrice ? `<td class="num"><span class="strike">${fmtEUR(item.listPrice)}</span></td>` : ''}
         <td class="num finalprice">${fmtEUR(finalUnitPrice)}</td>
         <td class="num">${item.qty}</td>
         <td class="num finalprice">${fmtEUR(lineTotal)}</td>
@@ -6352,7 +6365,7 @@ function renderDoc() {
         <thead>
           <tr>
             <th>Product</th>
-            <th class="num">List Price</th>
+            ${showListPrice ? '<th class="num">List Price</th>' : ''}
             <th class="num">Unit Price</th>
             <th class="num">${escapeHtml(qtyHeading)}</th>
             <th class="num">Total</th>
@@ -6467,7 +6480,7 @@ function renderPageBreaks() {
 }
 
 // ===== RE-RENDER ON FORM CHANGES =====
-['custName','custAddress','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast'].forEach(id => {
+['custName','custAddress','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast','showListPrice'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
   el.addEventListener('change', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
@@ -6578,6 +6591,7 @@ function buildExportObj() {
     price_currency: currency, // currency in which verbatim custom volume-tier prices are entered
     qty_heading: (document.getElementById('qtyHeading').value.trim()) || 'Qty',
     customer: { name: custName, address: custAddress, contact: custContact, country: custCountry },
+    show_list_price: document.getElementById('showListPrice').checked,
     terms: { payment: termPayment, delivery: termDelivery, vat_note: document.getElementById('vatNote').value.trim() },
     signature: {
       include: document.getElementById('includeSignature').checked,

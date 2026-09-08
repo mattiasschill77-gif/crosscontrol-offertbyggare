@@ -124,6 +124,8 @@ def build_html(offer, logo_path):
     currency_rate = offer.get('currency_rate')  # explicit rate from the app, if provided
     price_currency = offer.get('price_currency', currency)  # verbatim currency for custom-tier prices
     qty_heading = (offer.get('qty_heading') or 'Qty').strip() or 'Qty'
+    # Exports written before v1.8.0 carry no such key: default ON.
+    show_list_price = offer.get('show_list_price', True) is not False
 
     # Split: standard lines (normal table + counted in total) vs custom volume-tier lines (own matrix)
     all_lines = offer.get('lines', [])
@@ -139,12 +141,15 @@ def build_html(offer, logo_path):
         elif line.get('tier_label'):
             tier_tag = f'<span class="tier-tag">Tier {line["tier_label"]} units</span>'
         discount_tag = ''
-        if line.get('extra_discount_pct', 0) > 0:
+        if show_list_price and line.get('extra_discount_pct', 0) > 0:
             discount_tag = f'<span class="discount-tag">+ {line["extra_discount_pct"]}% negotiated discount</span>'
         note_html = ''
         if line.get('note'):
             note_html = f'<div class="line-note">{line["note"]}</div>'
-        list_price_cell = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate)}</span>'
+        list_price_cell = ''
+        if show_list_price:
+            _inner = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate)}</span>'
+            list_price_cell = f'<td class="num">{_inner}</td>'
         part_number_html = f'<div class="psku">{line["part_number"]}</div>' if line.get('part_number') else ''
         rows_html += f"""
         <tr>
@@ -155,7 +160,7 @@ def build_html(offer, logo_path):
             {discount_tag}
             {note_html}
           </td>
-          <td class="num">{list_price_cell}</td>
+          {list_price_cell}
           <td class="num finalprice">{fmt_money(line['final_unit_price_eur'], currency, currency_rate)}</td>
           <td class="num">{line['qty']}</td>
           <td class="num finalprice">{fmt_money(line['line_total_eur'], currency, currency_rate)}</td>
@@ -261,7 +266,7 @@ def build_html(offer, logo_path):
         products_table_html = f"""
       <table class="quote-table">
         <thead><tr>
-          <th>Product</th><th class="num">List Price</th><th class="num">Unit Price</th>
+          <th>Product</th>{'<th class="num">List Price</th>' if show_list_price else ''}<th class="num">Unit Price</th>
           <th class="num">{qty_heading}</th><th class="num">Total</th>
         </tr></thead>
         <tbody>{rows_html}</tbody>
