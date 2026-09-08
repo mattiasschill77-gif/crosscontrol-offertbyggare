@@ -91,6 +91,7 @@ def build_html(offer, logo_path):
     cust_name = cust.get('name') or '[Customer name not specified]'
     cust_contact = cust.get('contact', '')
     cust_country = cust.get('country', '')
+    cust_address = (cust.get('address') or '').strip()
 
     office_key = offer.get('sender_office') or 'alfta'
     office = OFFICES.get(office_key, OFFICES['alfta'])
@@ -103,10 +104,18 @@ def build_html(offer, logo_path):
     if cust_country:
         _sub_parts.append(cust_country)
     _sub = " &nbsp;·&nbsp; ".join(_sub_parts)
+    # html_escape, NOT a bare `html` module reference: build_html has a local
+    # variable named `html` that shadows the module for this whole function
+    # (HANDOFF.md §20.2). Only the new field is escaped here - the pre-existing
+    # ones are not, which is recorded in the plan as noticed-but-out-of-scope.
+    _addr_html = ''
+    if cust_address:
+        _addr_html = f'<div class="addr">{html_escape(cust_address)}</div>'
     cust_line = (
         '<div class="billto">'
         '<div class="lbl">To</div>'
         f'<div class="name">{cust_name}</div>'
+        + _addr_html
         + (f'<div class="sub">{_sub}</div>' if _sub else '')
         + '</div>'
     )
@@ -351,6 +360,8 @@ def build_html(offer, logo_path):
   .doc-title-bar .billto .name {{
     font-family:'Poppins',Arial,sans-serif; font-weight:700; font-size:15px; color:{INK}; line-height:1.25;
   }}
+  .doc-title-bar .billto .addr {{ font-size:11px; color:{INK_DIM}; line-height:1.45;
+                                  margin-top:3px; white-space:pre-line; }}
   .doc-title-bar .billto .sub {{ font-size:11px; color:{INK_DIM}; margin-top:2px; }}
   .doc-body {{ padding: 0; }}
   .section-eyebrow {{
