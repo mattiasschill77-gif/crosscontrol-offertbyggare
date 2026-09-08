@@ -2,8 +2,8 @@ from playwright.sync_api import sync_playwright
 
 from harness import app_page, serve
 
-VERSION = "1.7.2"
-BUILD_DATE = "2026-08-31"
+VERSION = "1.8.0"
+BUILD_DATE = "2026-09-08"
 
 
 def test_version_constants_exist():
