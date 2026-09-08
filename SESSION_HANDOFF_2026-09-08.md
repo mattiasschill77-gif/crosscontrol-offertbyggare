@@ -16,8 +16,11 @@ the traps that cost time.
 2. Four changes: one price list PDF defect and three colleague requests. All four were
    designed against a mockup and **approved before any code was written** —
    https://claude.ai/code/artifact/6f68afde-c37e-4d8c-af83-76a85fa538e5
-3. Two **pre-existing** defects were found by rendering the PDF and looking at it. One is
-   fixed (§2), one is reported and deliberately not fixed (§5).
+3. Two **pre-existing** defects were found by rendering the PDF and looking at it — blank
+   column headers on every family but the first, and **73 of 129 prices broken in half**.
+   Both were in the shipped v1.7.2 build, both are fixed (§4), and **neither was caused by
+   the requested work**. Both were the same root cause: an array shared by reference across
+   every family's table, which pdfmake mutates during layout.
 
 ---
 
@@ -90,17 +93,19 @@ of the right height and no column names, in a customer-facing document. Fixed wi
 `makeCols()` factory. It was fixed here rather than deferred because `headerRows: 2` *repeats*
 that row down every long family.
 
-**Reported, not fixed — the NET PRICE column is too narrow.** Four-digit prices break
-mid-number: `€1,002.8` on one line and `0` on the next; the "NET PRICE" header wraps too.
-Identical in v1.7.2. **Widening it reflows every price list already sent, so it is an owner
-decision.** One-line change when wanted.
+**Fixed on the owner's instruction — prices broke in half.** `€2,438.6` on one line and `0`
+on the next. **73 of 129 prices, 57% of the list**, in the shipped v1.7.2 build.
+
+⚠️ The cause was not the column width: `widths` was one array shared by reference across every
+family's table, and pdfmake replaces its entries in place with annotated objects during layout.
+Every family was sized from CCpilot VI's numbers. Same class of bug as the shared `cols` above,
+found the same way — by looking at the render. `HANDOFF.md` §26.
 
 ---
 
 ## 5. Still open
 
 - 🔴 **The device gate has not been run** (§6). Nothing is merged, tagged or delivered.
-- 🟠 **The NET PRICE column width** — §4, owner decision.
 - 🟠 **No automated guard for the list-price flag in `generate_pdf.py`.** Verified by hand
   (both states exported, rendered PDF text read) but a regression there would not be caught.
   The break-pass script reports it as SKIP rather than omitting it.

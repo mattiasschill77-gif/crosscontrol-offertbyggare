@@ -1217,7 +1217,12 @@ reference** into every family's table. pdfmake writes layout state (`_width`, `_
 onto cells as it renders, so the column labels appeared on the **first family only** and
 every family after it got a blank row of the right height. This was in the shipped v1.7.2
 PDF and was found by *looking at the render*, not by any assertion. `makeCols()` returns
-fresh objects now; only `widths` is shared, and those are plain strings.
+fresh objects now.
+
+⚠️ **And so does `makeWidths()`.** This paragraph originally ended "only `widths` is
+shared, and those are plain strings". **That was wrong.** They are strings on the way
+in and pdfmake REPLACES them in place with annotated objects on the way out, so every
+family table was laid out with the FIRST family's column widths. See §26.
 
 **3. A measured `pageBreakBefore`.** ⚠️ **`headerRows: 2` does NOT keep the header with the
 body's first row.** pdfmake renders both header rows at a page foot and starts the body on
@@ -1358,3 +1363,34 @@ The failure signature is worth remembering: **previously-green tests going red i
 broken", not "this feature is wrong".** That pointed at a page error rather than at the feature
 being built, and `node --check` on the inline script found it in one step. Syntax-check the app
 script after any scripted edit; the suite reports a parse error as a wall of unrelated failures.
+
+## 26. The price list's NET PRICE column broke prices in half (v1.8.0, 2026-09-08)
+
+Four-figure prices printed as `€2,438.6` on one line and `0` on the next. **Measured on the
+shipped v1.7.2 build: 73 of 129 prices were broken — 57% of a customer-facing price list.**
+
+⚠️ **The cause was not the column width. It was a shared array**, the same class of bug as the
+shared `cols` in §24 and found the same way — by rendering the PDF and looking at it.
+
+`widths` was built once and passed by reference to every family's table. **pdfmake REPLACES
+the entries of that array in place with annotated objects** (`_minWidth`, `_maxWidth`,
+`_calcWidth`) during layout. Probed across 18 family tables, every one reported *identical*
+widths to twelve decimal places — they were the same objects, computed once from CCpilot VI.
+
+CCpilot VI's prices are ~40pt wide. CCpilot V1200's are wider. So every family after the first
+was laid out with a NET PRICE column sized for someone else's numbers, and its prices
+overflowed and broke mid-number. The NET PRICE column measured `_calcWidth` 43.64 against a
+`_maxWidth` of 44.35 — **short by 0.71pt.**
+
+Fixed by `makeWidths()`, a factory called once per family, exactly like `makeCols()`.
+`columnCount` is taken once for the band's `colSpan`, which is safe because the column *count*
+is stable even though the width *objects* are not.
+
+⚠️ **Do not fold either factory back into a shared constant**, and do not "fix" this class of
+symptom by hardcoding a width — the width was never the problem.
+
+The guard (`tests/test_pricelist_columns.py`) asserts on the symptom a customer sees: no line
+of the extracted PDF text may be nothing but one or two digits, which is what a mid-number
+break leaves behind. It first asserts the document contains at least 20 four-figure prices, so
+it cannot pass on a fixture that never exercises the wide families. Proven to fail by sharing
+the widths array again.
