@@ -683,6 +683,10 @@ var vfs = {
     font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:16px;
     color:var(--ink-900);line-height:1.25;
   }
+  .doc-title-bar .billto .addr{
+    font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);
+    line-height:1.45;margin-top:3px;white-space:pre-line;
+  }
   .doc-title-bar .billto .sub{
     font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);margin-top:2px;
   }
@@ -1244,6 +1248,12 @@ var vfs = {
         <div class="field">
           <label for="custName">Company</label>
           <input type="text" id="custName" placeholder="e.g. Husco">
+        </div>
+        <div class="field">
+          <label for="custAddress">Address</label>
+          <textarea id="custAddress" rows="3" maxlength="300"
+                    placeholder="e.g. Marine House, Dock Road&#10;Birkenhead&#10;CH41 1LQ"></textarea>
+          <span class="char-count hidden" id="custAddressCount" aria-hidden="true"></span>
         </div>
         <div class="field-row">
           <div class="field">
@@ -4441,6 +4451,7 @@ function buildPdfDocDefinition(offer) {
   const office = PDF_OFFICES[officeKey] || PDF_OFFICES.alfta;
   const cust = offer.customer || {};
   const custName = cust.name || '[Customer name not specified]';
+  const custAddress = (cust.address || '').trim();
 
   // Only reference the 'Poppins' font family if it actually got registered with pdfMake
   // (see registerPdfFonts). If registration failed for any reason — e.g. a future pdfmake
@@ -4604,6 +4615,7 @@ function buildPdfDocDefinition(offer) {
     { text: 'PRICE QUOTE', style: 'h1', margin: [0, 0, 0, 6] },
     { text: 'TO', font: HEAD_FONT, fontSize: 8, bold: true, color: PDF_ORANGE_DARK, characterSpacing: 1.2, margin: [0, 0, 0, 3] },
     { text: custName, font: HEAD_FONT, fontSize: 14, bold: true, color: PDF_INK, margin: [0, 0, 0, 2] },
+    ...(custAddress ? [{ text: custAddress, style: 'meta', lineHeight: 1.25, margin: [0, 0, 0, 2] }] : []),
     ...(custSub ? [{ text: custSub, style: 'meta', margin: [0, 0, 0, 2] }] : []),
     { text: `Issued ${offer.issued_date}`, style: 'meta', margin: [0, 0, 0, 16] },
 
@@ -5074,6 +5086,7 @@ function buildQuoteSnapshot() {
     saved_at: new Date().toISOString(),
     customer_name: document.getElementById('custName').value.trim(),
     customer_contact: document.getElementById('custContact').value.trim(),
+    customer_address: document.getElementById('custAddress').value.trim(),
     customer_country: document.getElementById('custCountry').value.trim(),
     sender_office: document.getElementById('senderOffice').value,
     currency: getCurrency(),
@@ -5161,6 +5174,7 @@ function openQuote(quoteId) {
   QUOTE_ID = rec.quote_id;
   document.getElementById('custName').value = rec.customer_name || '';
   document.getElementById('custContact').value = rec.customer_contact || '';
+  document.getElementById('custAddress').value = rec.customer_address || '';
   document.getElementById('custCountry').value = rec.customer_country || '';
   document.getElementById('senderOffice').value = rec.sender_office || 'alfta';
   document.getElementById('currencySelect').value = rec.currency || 'EUR';
@@ -5204,6 +5218,7 @@ function startNewQuote() {
   nextLineId = 1;
   document.getElementById('custName').value = '';
   document.getElementById('custContact').value = '';
+  document.getElementById('custAddress').value = '';
   document.getElementById('custCountry').value = '';
   updateQuoteIdDisplay();
   closeArchivePanel();
@@ -6151,6 +6166,7 @@ function renderDoc() {
   const custName = document.getElementById('custName').value.trim();
   const custContact = document.getElementById('custContact').value.trim();
   const custCountry = document.getElementById('custCountry').value.trim();
+  const custAddress = document.getElementById('custAddress').value.trim();
   const termPayment = document.getElementById('termPayment').value;
   const incotermCode = document.getElementById('termIncoterm').value;
   const incotermLocation = document.getElementById('termIncotermLocation').value.trim();
@@ -6255,6 +6271,7 @@ function renderDoc() {
   const custBlock = `<div class="billto">
         <div class="lbl">To</div>
         <div class="name">${custName ? escapeHtml(custName) : '[Customer name not specified]'}</div>
+        ${custAddress ? `<div class="addr">${escapeHtml(custAddress)}</div>` : ''}
         ${custSubParts.length ? `<div class="sub">${custSubParts.join(' &nbsp;·&nbsp; ')}</div>` : ''}
       </div>`;
 
@@ -6445,7 +6462,7 @@ function renderPageBreaks() {
 }
 
 // ===== RE-RENDER ON FORM CHANGES =====
-['custName','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast'].forEach(id => {
+['custName','custAddress','custContact','custCountry','termPayment','termIncoterm','termIncotermLocation','termValidity','senderOffice','currencySelect','signerName','signerTitle','includeSignature','qtyHeading','vatNote','includeForecast'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
   el.addEventListener('change', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
@@ -6508,6 +6525,7 @@ function buildExportObj() {
   const custName = document.getElementById('custName').value.trim();
   const custContact = document.getElementById('custContact').value.trim();
   const custCountry = document.getElementById('custCountry').value.trim();
+  const custAddress = document.getElementById('custAddress').value.trim();
   const termPayment = document.getElementById('termPayment').value;
   const incotermCode = document.getElementById('termIncoterm').value;
   const incotermLocation = document.getElementById('termIncotermLocation').value.trim();
@@ -6554,7 +6572,7 @@ function buildExportObj() {
     currency_rate: CURRENCY_RATES[currency].rate,
     price_currency: currency, // currency in which verbatim custom volume-tier prices are entered
     qty_heading: (document.getElementById('qtyHeading').value.trim()) || 'Qty',
-    customer: { name: custName, contact: custContact, country: custCountry },
+    customer: { name: custName, address: custAddress, contact: custContact, country: custCountry },
     terms: { payment: termPayment, delivery: termDelivery, vat_note: document.getElementById('vatNote').value.trim() },
     signature: {
       include: document.getElementById('includeSignature').checked,
