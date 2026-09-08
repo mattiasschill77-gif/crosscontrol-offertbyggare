@@ -7468,17 +7468,32 @@ function buildPricelistDocDefinition(meta, groups, opts) {
 
   // ---- Column layout for product tables ----
   // PRODUCT | [LIST] | [DISC%] | NET | [MOQ] | [STATUS]
-  // ⚠️ A FRESH header row per family, not one shared array. pdfmake mutates cell
-  // objects during layout (it writes _width/_calcWidth/_span onto them), so a single
-  // `cols` array pushed by reference into every family's table rendered its labels on
-  // the FIRST family only - every family after it got a blank row of the right height
-  // and no column names. Only the widths are shared; those are plain strings.
-  const widths = [];
-  widths.push('*');
-  if (showDiscount) { widths.push('auto'); widths.push('auto'); }
-  widths.push('auto');
-  if (showMoq) widths.push('auto');
-  if (showStatus) widths.push('auto');
+  // ⚠️ A FRESH header row AND a fresh widths array per family. pdfmake mutates both
+  // during layout: it writes _width/_calcWidth/_span onto cell objects, and it
+  // REPLACES the entries of the widths array in place with annotated objects.
+  //
+  // Sharing either one silently laid every family out with the FIRST family's
+  // measurements. Two visible symptoms, both shipped in v1.7.2 and both found by
+  // rendering the PDF and looking at it rather than by any assertion:
+  //   - cols shared  -> the column labels appeared on the first family only, and
+  //                     every family after it got a blank row of the right height.
+  //   - widths shared -> every family got CCpilot VI's column widths. CCpilot VI's
+  //                     prices are ~40pt wide, CCpilot V1200's are wider, so a
+  //                     four-digit price overflowed a column sized for someone
+  //                     else's numbers and broke mid-number: "€2,438.6" then "0".
+  //
+  // ⚠️ Do NOT "optimise" either factory back into a shared constant. The strings are
+  // strings on the way in and objects on the way out.
+  const makeWidths = () => {
+    const widths = ['*'];
+    if (showDiscount) { widths.push('auto'); widths.push('auto'); }
+    widths.push('auto');
+    if (showMoq) widths.push('auto');
+    if (showStatus) widths.push('auto');
+    return widths;
+  };
+  // The column COUNT is stable, so the band's colSpan can be taken once.
+  const columnCount = makeWidths().length;
 
   const makeCols = () => {
     const cols = [{ text: 'PRODUCT', style: 'th' }];
@@ -7505,10 +7520,10 @@ function buildPricelistDocDefinition(meta, groups, opts) {
     // margin [6,…] against the table's own paddingLeft of 6 keeps the band text at
     // the same 12pt inset it had when it lived in its own table.
     const bandRow = [{
-      text: headParts, colSpan: widths.length, fillColor: PL_GREY_BG,
+      text: headParts, colSpan: columnCount, fillColor: PL_GREY_BG,
       margin: [6, 5, 6, 5], border: [false, false, false, false],
     }];
-    while (bandRow.length < widths.length) bandRow.push({});
+    while (bandRow.length < columnCount) bandRow.push({});
 
     // Product rows
     const body = [bandRow, makeCols()];
@@ -7531,7 +7546,7 @@ function buildPricelistDocDefinition(meta, groups, opts) {
       // foot of a page and start the body on the next one - measured, not assumed -
       // so the callback is what actually stops a dangling heading.
       headlineLevel: PL_FAMILY_HEADLINE,
-      table: { headerRows: 2, widths, body },
+      table: { headerRows: 2, widths: makeWidths(), body },
       layout: {
         // i is the line ABOVE row i. 0 = table top, 1 = band/column-header seam,
         // 2 = the orange rule under the column header, then hairlines.
