@@ -370,17 +370,28 @@ with open('crosscontrol-offertbyggare.html', 'w', encoding='utf-8') as f:
 ## 8. Quick-reference: what to say to pick this up cleanly in a new session
 
 *"Continue work on the CrossControl Offertbyggare — read HANDOFF.md, then
-SESSION_HANDOFF_2026-08-20.md, both in the repo."*
+SESSION_HANDOFF_2026-09-08.md, both in the repo."*
 
-`SESSION_HANDOFF_2026-08-20.md` covers the 08-14 → 08-20 stretch: what shipped,
-the decisions taken, what is still open and why, and the traps that cost time.
-This file (HANDOFF.md) stays the durable architecture reference.
+**`SESSION_HANDOFF_2026-09-08.md` is the newest** and the one to read: v1.8.0, what
+is still undelivered, and the device gate that has to run before it is. Read
+`SESSION_HANDOFF_2026-08-20.md` too if you need the 08-14 → 08-20 stretch, which is
+where the price list tab, the TG card and the cost importer came from. This file
+(HANDOFF.md) stays the durable architecture reference.
 
-**Current status (2026-08-31): v1.7.2, 91 tests.** Two items remain open —
-manufacturing cost exists for 1 of 86 products, and the 2024 workbook has a
-duplicate part number at two prices (§12). The price list archive is no longer
-one of them — see §23. ⚠️ The line this replaces still claimed `c5000ac` from
-2026-08-20 three releases later; a status line in a handoff goes stale silently.
+**Current status (2026-09-08): v1.8.0, 114 tests — BUILT, NOT DELIVERED.**
+`fix/pricelist-pdf-pagination` is merged (`9c0bf12`); `feat/v1.8-quote-changes` is
+complete and **unmerged, pending the device gate**. The three copies outside git are
+still v1.7.2. See `SESSION_HANDOFF_2026-09-08.md` §6 for the gate and §7 for the
+release steps.
+
+Open: manufacturing cost exists for 1 of 86 products; the 2024 workbook has a
+duplicate part number at two prices (§12); the price list's NET PRICE column is too
+narrow and wraps four-digit prices (§25.4, owner decision); and `generate_pdf.py`
+escapes only the quote number, leaving the other interpolated fields raw.
+
+⚠️ Two earlier versions of this line went stale — one claimed `c5000ac` three
+releases later, one claimed v1.7.2 after v1.8.0 was built. A status line in a handoff
+goes stale silently. **Update it or delete it.**
 
 **(2026-08-14, historical): there was no known open bug.** The §4 PDF-download
 bug is fixed and click-verified, and the three features Zak asked for (§9) are
@@ -1244,3 +1255,106 @@ it is an owner decision.
 
 The three exclusions of §18.2 stand: rows fragmenting across a page edge, the `§` T&C block
 splitting, and the trailing footer-only page are all untouched.
+
+## 25. The address, the optional list price and the typed unit price (v1.8.0, 2026-09-08)
+
+Three colleague requests, relayed by the owner, designed against a mockup and approved before
+any code was written. The mockup is at
+https://claude.ai/code/artifact/6f68afde-c37e-4d8c-af83-76a85fa538e5 and the spec and plan are
+in `docs/specs/` and `docs/plans/` under `2026-09-08-v1.8-…`.
+
+### 25.1 The customer address
+
+One multi-line box under Company on **both** tabs (`#custAddress`, `#plCustAddress`), bounded
+at **300 characters** with the existing counter, printing as typed.
+
+- Carried as `customer.address` in the export object, `customer_address` in the quote archive
+  record and `customerAddress` in the price list meta. ⚠️ **Three names on purpose**, the same
+  split §20.1 already documents: the record stores what restores a field, the export carries
+  what the document prints.
+- Rendered on **four** surfaces: `renderDoc()`, the pdfmake quote, `generate_pdf.py`, and the
+  price list (screen + pdfmake). Escaped on every one — an archived record carrying markup
+  executes on open, and archives move between colleagues (§20.2).
+- An empty address renders nothing at all, so a blank field leaves all four surfaces identical
+  to v1.7.2.
+
+⚠️ **The price list's `Prepared for X · attn: Y` subtitle is GONE**, replaced by the quote's TO
+block — the owner's call on 2026-09-08 was that both documents get the same treatment.
+`Prepared by` is a different field (the KAM) and did not move. The `.billto` rules are widened
+to `#plDocRoot` in the **original** CSS, not in the Tier A override block, because this is a new
+surface for an existing component and "delete the block to revert the look" must keep holding.
+
+### 25.2 The optional List Price column
+
+`#showListPrice` in the Terms section, **checked by default** — a colleague who never finds it
+sees the build they had. Off removes the column *and* the `+ N% negotiated discount` tag on the
+screen and in both PDF paths: a discount advertised off a price the customer can no longer see
+is worse than either alone.
+
+- `show_list_price` in the export and the archive record. `openQuote` restores it with
+  `rec.show_list_price !== false`, so a record written before v1.8.0 reopens as ON, which is how
+  it was sent.
+- ⚠️ **The pdfmake `widths` array must shrink with the column** or pdfmake throws.
+- ⚠️ It sits beside `#includeForecast` in Terms, **not** in the "Document options" card the
+  mockup drew. There is no such section — `#includeSignature` lives in the signature block and
+  `#includeForecast` in Terms — and inventing one would have moved two working controls.
+
+### 25.3 A typed unit price over a volume tier
+
+`unitPriceOverride` on a cart line — a number in **EUR**, or `null`. `computeLine()` returns it
+as `finalUnitPrice` when set, so margin, the line total and both PDFs follow with no further
+change. Four owner decisions, all from 2026-09-08:
+
+1. **The typed price wins.** Extra discount is cleared and `disabled` while an override is set,
+   so one number decides the price. `Use tier price` restores both.
+2. **⚠ deviation shows on ANY difference from the tier price**, above it as well as below, with
+   the signed percentage. One `deviationState()` serves the template and the computed-only path
+   so the two cannot drift.
+3. **A tier chip click keeps the typed price.** ⚠️ `setTier` deliberately does not touch
+   `unitPriceOverride` — a stray click must never destroy a negotiated number. It carries a
+   comment saying so; do not "tidy" it into clearing the override.
+4. The customer document is unchanged in shape and says nothing about an override.
+
+⚠️ **The price is typed in the DISPLAYED currency and stored in EUR**, divided by `fxOut()` on
+the way in — a new one-line accessor for the multiplier `fmtMoney` already applies on the way
+out. Without it, 245 typed under SEK would be stored as 245 EUR. A currency switch therefore
+*converts* an override rather than reinterpreting it.
+
+⚠️ **Do not re-render the row on input.** The controls are always in the markup and toggled by
+class, and `updateProductRowComputed` keeps them in step. The plan originally called for
+`renderAll()` so the disabled state and the button could appear; that rebuilds the row's
+`<input>` elements and loses the caret after one character, which is the exact thing
+`updateProductRowComputed` exists to prevent (its own comment says so). Verified by typing
+`245.00` one character at a time and asserting focus, value and caret — no `fill()`-based test
+can see this.
+
+### 25.4 Tests — 114, and every new guard proven able to fail
+
+Ten protections were broken on purpose and the guard that should catch each one was run.
+**Eight went red immediately. Two stayed green, and both were the test's fault:**
+
+1. The currency test typed the price while **EUR** was selected, where `fxOut()` is 1 and the
+   division is a no-op — it passed with the conversion deleted. It types in **SEK** now.
+2. The cost-leak probe searched the row's `inner_text()` for the cost. ⚠️ **`inner_text()` does
+   not include an `<input>`'s value**, so the cost was never in the string and the non-vacuity
+   assertion failed against correct code. It reads the field's value directly.
+
+The second matters beyond itself: a cost scan that cannot see the cost on the internal card
+would report "cost never reaches the PDF" about a page that never had a cost on it.
+
+⚠️ **One gap, named rather than hidden: there is no automated guard for the list-price flag in
+`generate_pdf.py`.** It was verified by hand — both states exported and the rendered PDF text
+read, `LIST PRICE` and `526.76` present when on and both absent when off — but nothing in the
+suite would catch a regression. The break-pass script reports it as SKIP with the reason.
+
+### 25.5 The trap that cost the most time
+
+⚠️ **`CLAUDE.md` says "Bash heredocs mangle edit scripts here. Write the script to a file, then
+run it." That is not advice.** A scripted edit written as a heredoc turned `split('\n')` into a
+real line break and broke the entire app script — every test failed, including four that had
+passed minutes earlier.
+
+The failure signature is worth remembering: **previously-green tests going red is "the app is
+broken", not "this feature is wrong".** That pointed at a page error rather than at the feature
+being built, and `node --check` on the inline script found it in one step. Syntax-check the app
+script after any scripted edit; the suite reports a parse error as a wall of unrelated failures.
