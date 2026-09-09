@@ -5790,6 +5790,15 @@ function setUnitPriceOverride(lineId, raw) {
     item.unitPriceOverride = typed / fxOut();
     item.extraDiscountPct = 0;   // the typed price wins; one number sets the price
   }
+  // ⚠️ Both of these, exactly as setQty() and setExtraDiscount() do. Without
+  // renderDoc() the live document keeps printing the tier price after a
+  // negotiated one is typed, until some unrelated control happens to re-render
+  // it; without scheduleAutoSave() the typed price is never written to the
+  // archive, so it is lost if the KAM types it and closes the tab.
+  // ⚠️ renderDoc(), NOT renderAll() - renderAll rebuilds the row's <input>
+  // elements and loses the caret after one character (§25.3).
+  renderDoc();
+  scheduleAutoSave();
 }
 
 function clearUnitPriceOverride(lineId) {
