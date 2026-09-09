@@ -6708,9 +6708,17 @@ function buildExportObj() {
       unit_price_override_eur: item.unitPriceOverride,
       tier_price_eur: round2(tierPrice),
       extra_discount_pct: item.extraDiscountPct,
-      final_unit_price_eur: round2(finalUnitPrice),
+      // ⚠️ NOT round2(). These are EUR values that both PDF paths convert to the
+      // display currency and only THEN round to cents, exactly as fmtMoney does
+      // for the screen. Rounding here rounds twice: the cent lost in EUR comes
+      // back multiplied by the rate, so the document disagreed with the screen
+      // and stopped multiplying out - 552 of 1161 product/quantity combinations
+      // in SEK, 40 in USD, 0 in EUR because at rate 1 the rounding is a no-op.
+      // A price typed in kronor is the worst case: it is stored as typed/rate,
+      // so 2,750.00 kr typed printed as 2,750.02 kr. Do not "tidy" these back.
+      final_unit_price_eur: finalUnitPrice,
       qty: item.qty,
-      line_total_eur: round2(lineTotal),
+      line_total_eur: lineTotal,
       note: item.note || '',
       // Custom volume-tier matrix (Zak-style). When custom_tiers is true, the PDF renderers
       // show volume_tiers as a per-product price matrix (prices verbatim in `price_currency`,
@@ -6746,7 +6754,10 @@ function buildExportObj() {
     tc_filename: window._tcFileName || 'CrossControl Standard Terms & Conditions 2023',
     forecast_condition: document.getElementById('includeForecast').checked,
     lines,
-    subtotal_eur: round2(subtotal),
+    // Not round2() either, and for the same reason: the totals block is printed
+    // by the same converters as the rows, so a cent rounded off here reappears
+    // multiplied and the total stops agreeing with the lines above it.
+    subtotal_eur: subtotal,
     appendices: appendices.map(a => a.name),
   };
 }
