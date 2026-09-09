@@ -13,6 +13,7 @@ What these guard, worst consequence first:
    245.00 in EUR and switching to SEK must show the SEK equivalent, not 245 kr.
 3. A tier click does not silently discard it.
 """
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
 from harness import app_page, download_quote_pdf, page_texts, serve
@@ -173,6 +174,115 @@ def test_the_override_survives_the_archive():
     line = [l for l in export["lines"] if l["part_number"] == PART][0]
     assert round(line["unit_price_override_eur"], 2) == 245.00
     assert round(restored, 2) == 245.00
+
+
+# --------------------------------------------------------------------------- #
+# Found by the v1.8.2 device gate, both from one cause.
+#
+# setUnitPriceOverride() mutated the cart and returned, calling neither
+# renderDoc() nor scheduleAutoSave() - unlike setQty() and setExtraDiscount(),
+# which both do. So typing a negotiated price left the live document showing the
+# tier price, and never wrote the price to the archive.
+#
+# ⚠️ The archive guard above could not see the second half: it calls autoSaveNow()
+# explicitly, following this repo's own "autosave is debounced, force it rather
+# than racing a timer" advice - which is right for a timing race, and here
+# bypassed the missing scheduleAutoSave() entirely. A guard that forces the save
+# cannot tell you whether anything would have saved.
+# --------------------------------------------------------------------------- #
+
+
+def _doc_row_cells(page):
+    row = page.locator("#docRoot table.quote-table tbody tr").first
+    return [t.strip() for t in row.locator("td.num").all_inner_texts()]
+
+
+def test_the_live_document_shows_a_typed_price_without_another_edit():
+    """The preview is what the KAM checks before sending. It kept printing the
+    tier price until some unrelated control happened to call renderDoc()."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.evaluate(
+                "() => { cart = []; addProductToCart(%r); cart[0].qty = 101; renderAll(); }"
+                % PART
+            )
+            page.wait_for_timeout(300)
+            before = _doc_row_cells(page)
+            page.locator('[data-action="unitprice"]').first.fill("245.00")
+            page.wait_for_timeout(600)
+            after = _doc_row_cells(page)
+            # no renderDoc(), no renderAll(), no other control touched
+
+    assert "256.96" in " ".join(before), f"the fixture did not start at the tier price: {before}"
+    joined = " ".join(after)
+    assert "245.00" in joined, (
+        f"the document still shows {after} - a typed price does not reach the preview"
+    )
+    assert "24,745.00" in joined, "the document's line total did not follow the typed price"
+
+
+def test_a_typed_price_is_autosaved_without_being_forced():
+    """⚠️ This test must NOT call autoSaveNow(). Forcing the save is exactly what
+    hid the defect: the price reached the archive only because the test put it
+    there. Type, wait past the 500ms debounce, and read what the app saved.
+
+    ⚠️ The archive record is an object keyed by quote_id holding the RAW cart
+    (`rec.cart`, `partNumber`, `unitPriceOverride`) - NOT the export object's
+    `lines` / `part_number` / `unit_price_override_eur`. HANDOFF.md §25.1: the
+    record stores what restores a field, the export carries what the document
+    prints. Reading the export's names here finds no line at all and the guard
+    stays red for the wrong reason.
+    """
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.fill("#custName", "Caudwell Marine Ltd")
+            page.evaluate(
+                "() => { cart = []; addProductToCart(%r); cart[0].qty = 101; renderAll(); }"
+                % PART
+            )
+            page.wait_for_timeout(300)
+            qid = page.evaluate("QUOTE_ID")
+            page.evaluate("autoSaveNow()")   # a baseline record, with no override on it
+            page.wait_for_timeout(300)
+
+            page.locator('[data-action="unitprice"]').first.fill("245.00")
+
+            # Condition-based, not a fixed sleep: poll until the app writes it.
+            saved = None
+            try:
+                page.wait_for_function(
+                    """(args) => {
+                        const a = JSON.parse(localStorage.getItem('cc_quote_archive_v1') || 'null');
+                        if (!a) return false;
+                        const rec = Array.isArray(a) ? a.find(r => r.quote_id === args.qid)
+                                                     : a[args.qid];
+                        if (!rec || !rec.cart) return false;
+                        const l = rec.cart.find(x => x.partNumber === args.part);
+                        return !!l && Math.abs((l.unitPriceOverride || 0) - 245) < 0.005;
+                    }""",
+                    arg={"qid": qid, "part": PART},
+                    timeout=5000,
+                )
+                saved = 245.0
+            except PlaywrightTimeout:
+                saved = page.evaluate(
+                    """(args) => {
+                        const a = JSON.parse(localStorage.getItem('cc_quote_archive_v1') || 'null');
+                        const rec = Array.isArray(a) ? a.find(r => r.quote_id === args.qid)
+                                                     : a[args.qid];
+                        const l = rec && rec.cart &&
+                                  rec.cart.find(x => x.partNumber === args.part);
+                        return l ? l.unitPriceOverride : 'no line';
+                    }""",
+                    arg={"qid": qid, "part": PART},
+                )
+            live = page.evaluate("cart.find(c => c.partNumber === %r).unitPriceOverride" % PART)
+
+    assert round(live, 2) == 245.00, "the fixture never set the override at all"
+    assert saved == 245.0, (
+        f"the archive holds {saved!r} after 5s while the cart holds 245.00 - a typed "
+        "price is lost if the KAM types it and closes the tab"
+    )
 
 
 MK_SEK = 4711.25

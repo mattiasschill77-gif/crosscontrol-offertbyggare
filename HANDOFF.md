@@ -1477,3 +1477,97 @@ which is a correctness requirement, not a security one — and it is tested.
 ⚠️ **The in-browser app was already safe** — `renderDoc()` and `plRenderDoc()` escape through
 `escapeHtml`, and the pdfmake builder passes strings as text nodes rather than markup. This
 was the WeasyPrint path only.
+
+## 29. The device gate found two defects the suite could not (v1.8.3, 2026-09-09)
+
+The v1.8.2 device gate (`SESSION_HANDOFF_2026-09-08.md` §6) was finally run, against the
+delivered build rather than the working tree. **Five of its seven checks passed. Step 1
+failed, and writing the guard for it uncovered a second, unrelated defect.**
+
+Both had shipped. Neither was found by 125 passing tests.
+
+### 29.1 Both PDF paths rounded EUR money before converting it
+
+`buildExportObj()` stored `final_unit_price_eur`, `line_total_eur` and `subtotal_eur`
+through `round2()` — snapping them to cents **while still in EUR**. Both PDF renderers
+(pdfmake `:4550`, `generate_pdf.py:172`) then multiply those figures by the exchange rate,
+so the cent lost in EUR came back **magnified by the rate**. The screen prints the
+full-precision value, so screen and document disagreed and the document stopped
+multiplying out.
+
+Measured over 1161 product/quantity combinations per currency on the delivered v1.8.2:
+
+| currency | rate | screen wrong | **PDF wrong** | worst error |
+|---|---|---|---|---|
+| EUR | 1 | 0 | **0** | — |
+| USD | 1.08 | 0 | **40** | 1 cent |
+| SEK | 11.4 | 0 | **552 (47.6%)** | **5 öre** |
+
+⚠️ **EUR is clean because at rate 1 the rounding is a no-op.** That is the whole reason
+this survived: the defect is invisible in the currency most quotes are written in.
+
+**Worst case is a typed price.** A price typed in kronor is stored as `typed / rate` and is
+therefore never a 2-decimal EUR number, so `round2()` moved it furthest: **2,750.00 kr typed
+printed as 2,750.02 kr** — a negotiated number altered in the customer's document.
+
+⚠️ **`afc61a9` (§27) fixed `computeLine`, which fixed the SCREEN only.** The `round2()` calls
+are older — `git show v1.7.2` has them, and no `lineTotalFromDisplayedUnit` at all, so in
+v1.7.2 screen and PDF were both wrong and agreed with each other. §27's "the document's own
+figures multiply out" was true of the screen and false of the document for three releases.
+
+⚠️ **Why §27's own PDF guard stayed green.** It uses 965.08 EUR × 15 at 1.08, and
+`round(1042.29 × 15, 2) / 1.08` lands on exactly 14,476.25 EUR — the rounding is a no-op for
+that one fixture. **A guard on the right surface, asserting the right thing, that cannot
+fail.** The new guard uses CCpilot VI × 15 in SEK, which does not round-trip, and says so in
+its docstring so nobody re-uses the old fixture and concludes the path is covered.
+
+⚠️ **Do not restore `round2()` on any EUR field a renderer converts.** `tier_price_eur`
+keeps its rounding (no document reads it) and `volume_tiers[].price` keeps its rounding
+(entered verbatim in the display currency, never fx-converted). Those two are correct.
+
+### 29.2 A typed unit price reached neither the document nor the archive
+
+Found because the rounding guard's own **non-vacuity check** failed: the document did not
+show the price the test had just typed.
+
+`setUnitPriceOverride()` mutated the cart and returned. Its siblings do not:
+
+```
+setExtraDiscount      -> updateProductRowComputed(); renderDoc();
+setQty                -> updateProductRowComputed(); renderDoc(); scheduleAutoSave();
+setUnitPriceOverride  -> (nothing)
+```
+
+1. **The live document kept printing the tier price.** Typing 2,750.00 left the preview at
+   2,929.34 until some unrelated control happened to call `renderDoc()`. The preview is what
+   gets checked before a quote is sent.
+2. **The price was never autosaved.** 2000 ms after typing — 4× the 500 ms debounce — the
+   archive record still held `null` while the cart held the price. Touching qty flushed it.
+   **Type a negotiated price, close the tab, and it is gone.**
+
+⚠️ **`renderDoc()`, never `renderAll()`** here — `renderAll` rebuilds the row's `<input>`
+elements and loses the caret after one character, which is exactly what §25.3 exists to
+prevent. That is why the fix is not simply "call renderAll like `setTier` does".
+
+⚠️ **The existing archive guard could not see this, and its blindness came from this file's
+own advice.** `test_the_override_survives_the_archive` calls `autoSaveNow()` explicitly,
+because §18.4 and the 09-08 handoff both say autosave is debounced and forcing it beats
+racing a timer. That is correct for a timing race — and it bypassed the missing
+`scheduleAutoSave()` completely. **A guard that forces the save cannot tell you whether
+anything would have saved.** Where the question is *does the app persist this*, the test
+must not persist it on the app's behalf.
+
+### 29.3 What the gate is for
+
+Five of the seven checks passed and would have passed in any release. The two that mattered
+were found by **rendering the document and comparing it against the screen**, and by a
+**non-vacuity assertion failing** — never by an outcome assertion going red.
+
+That is now four consecutive releases in which every customer-facing defect was found by
+looking at output and none by the suite. The suite went 125 → 130 here; it holds these fixes
+in place, and it did not find either of them.
+
+⚠️ **One caveat on this run, recorded because it is not the gate as written.** Playwright
+refuses `file://`, so the gate drove the delivered bytes over `http://127.0.0.1:8142` rather
+than by double-clicking the file. Everything about content and arithmetic is covered by that;
+**opening standalone from disk with no network, and the real Windows save dialogs, are not.**
