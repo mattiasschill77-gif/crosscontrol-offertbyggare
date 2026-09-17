@@ -96,3 +96,34 @@ def test_there_is_room_between_the_logo_and_the_title(tmp_path):
     # 24 pt, so the visible ~29 pt gap measures ~21 here. Before the change
     # this measured about -9: the old layout left 3 pt.
     assert gap >= 18, f"only {gap:.1f} pt between the logo and the title"
+
+
+def test_the_part_number_is_bold_and_in_ink(tmp_path):
+    """Marketing: the part number was too hard to see. 9 pt grey -> 10 pt bold ink."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            pdf = _one_line_pdf(page, alerts, tmp_path / "q.pdf")
+    pg = _first_page(pdf)
+    spans = _spans_containing(pg, "C000 144-05")
+    assert spans, "part number not found as a text span"
+    s = spans[0]
+    assert "Bold" in s["font"], f"part number is set in {s['font']}"
+    assert s["size"] >= 10, f"part number is {s['size']} pt"
+    assert s["color"] == 0x2B2B2A, f"part number colour is #{s['color']:06x}, expected the ink"
+
+
+def test_unit_price_heading_is_one_line_and_clear_of_qty(tmp_path):
+    """Marketing: the two headings were too close to tell apart. Cause: the
+    column was as narrow as the price, so UNIT PRICE wrapped and its second
+    line sat 12 pt from QTY."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            pdf = _one_line_pdf(page, alerts, tmp_path / "q.pdf")
+    pg = _first_page(pdf)
+    unit = pg.search_for("UNIT PRICE")
+    assert len(unit) == 1, f"UNIT PRICE found {len(unit)} times - it wraps or is missing"
+    qty = pg.search_for("QTY")
+    assert qty, "QTY heading not found"
+    gap = qty[0].x0 - unit[0].x1
+    # 6 pt on the price side + 22 pt on the qty side (was 6 + 6 = 12).
+    assert gap >= 26, f"only {gap:.1f} pt between UNIT PRICE and QTY"

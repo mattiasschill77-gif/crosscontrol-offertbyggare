@@ -4555,7 +4555,7 @@ function buildPdfDocDefinition(offer) {
   tableBody.push([
     { text: 'PRODUCT', style: 'th' },
     ...(showListPrice ? [{ text: 'LIST PRICE', style: 'thRight' }] : []),
-    { text: 'UNIT PRICE', style: 'thRight' },
+    { text: 'UNIT PRICE', style: 'thRight', noWrap: true },
     { text: qtyHeading, style: 'thRight' },
     { text: 'TOTAL', style: 'thRight' },
   ]);
@@ -4707,8 +4707,10 @@ function buildPdfDocDefinition(offer) {
         hLineColor: (i) => (i === 1 ? PDF_INK : PDF_LINE),
         paddingTop: () => 8,
         paddingBottom: () => 8,
-        paddingLeft: (i) => (i === 0 ? 0 : 6),
-        paddingRight: (i, node) => (i === node.table.widths.length - 1 ? 0 : 6),
+        // Marketing 2026-09-17: UNIT PRICE and QTY read as one heading. The qty
+        // column gets 22 pt of air on both sides; every other gap stays 6.
+        paddingLeft: (i, node) => (i === 0 ? 0 : (i === node.table.widths.length - 2 ? 22 : 6)),
+        paddingRight: (i, node) => (i === node.table.widths.length - 1 ? 0 : (i === node.table.widths.length - 2 ? 22 : 6)),
       },
       margin: [0, 0, 0, 16],
     });
@@ -4890,7 +4892,7 @@ function buildPdfDocDefinition(offer) {
       th: { fontSize: 8, bold: true, color: PDF_INK_DIM, characterSpacing: 0.5 },
       thRight: { fontSize: 8, bold: true, color: PDF_INK_DIM, alignment: 'right', characterSpacing: 0.5 },
       pname: { bold: true, fontSize: 12, color: PDF_INK },
-      psku: { fontSize: 9, color: PDF_INK_DIM, margin: [0, 1, 0, 0] },
+      psku: { fontSize: 10, bold: true, color: PDF_INK, margin: [0, 2, 0, 0] },
       tierTag: { fontSize: 9, color: PDF_INK_DIM, margin: [0, 4, 0, 0] },
       discountTag: { fontSize: 9, bold: true, color: PDF_ORANGE_DARK, margin: [0, 3, 0, 0] },
       lineNote: { fontSize: 9.5, italics: true, color: PDF_INK_DIM },
