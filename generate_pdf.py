@@ -53,11 +53,13 @@ CURRENCY_RATES = {
 }
 
 
-def fmt_money(eur_amount, currency='EUR', rate_override=None):
+def fmt_money(eur_amount, currency='EUR', rate_override=None, whole=False):
     conf = CURRENCY_RATES.get(currency, CURRENCY_RATES['EUR'])
     rate = rate_override if rate_override else conf['rate']
     converted = eur_amount * rate
-    formatted = f"{converted:,.2f}"
+    # whole: "Round prices to whole units" (v1.9.0). The app already computed the
+    # line total from the rounded unit, so this only drops the decimals.
+    formatted = f"{converted:,.0f}" if whole else f"{converted:,.2f}"
     if currency == 'SEK':
         return f"{formatted} {conf['symbol']}"
     return f"{conf['symbol']}{formatted}"
@@ -119,6 +121,8 @@ def build_html(offer, logo_path):
     qty_heading = html_escape((offer.get('qty_heading') or 'Qty').strip() or 'Qty')
     # Exports written before v1.8.0 carry no such key: default ON.
     show_list_price = offer.get('show_list_price', True) is not False
+    # Exports written before v1.9.0 carry no such key: off.
+    whole = offer.get('round_prices') is True
 
     # Split: standard lines (normal table + counted in total) vs custom volume-tier lines (own matrix)
     all_lines = offer.get('lines', [])
@@ -141,7 +145,7 @@ def build_html(offer, logo_path):
             note_html = f'<div class="line-note">{html_escape(str(line["note"]))}</div>'
         list_price_cell = ''
         if show_list_price:
-            _inner = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate)}</span>'
+            _inner = '<span class="strike">—</span>' if is_custom else f'<span class="strike">{fmt_money(line["list_price_eur"], currency, currency_rate, whole=whole)}</span>'
             list_price_cell = f'<td class="num">{_inner}</td>'
         part_number_html = f'<div class="psku">{html_escape(str(line["part_number"]))}</div>' if line.get('part_number') else ''
         rows_html += f"""
@@ -154,9 +158,9 @@ def build_html(offer, logo_path):
             {note_html}
           </td>
           {list_price_cell}
-          <td class="num finalprice">{fmt_money(line['final_unit_price_eur'], currency, currency_rate)}</td>
+          <td class="num finalprice">{fmt_money(line['final_unit_price_eur'], currency, currency_rate, whole=whole)}</td>
           <td class="num">{line['qty']}</td>
-          <td class="num finalprice">{fmt_money(line['line_total_eur'], currency, currency_rate)}</td>
+          <td class="num finalprice">{fmt_money(line['line_total_eur'], currency, currency_rate, whole=whole)}</td>
         </tr>"""
 
     # Custom volume-tier matrix blocks (Zak-style) — one per custom-tier product
@@ -271,9 +275,9 @@ def build_html(offer, logo_path):
 
       <div class="totals">
         <div class="totals-box">
-          <div class="totals-row"><span>Subtotal</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate)}</span></div>
+          <div class="totals-row"><span>Subtotal</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate, whole=whole)}</span></div>
           <div class="totals-row"><span>Shipping &amp; handling</span><span>Per terms</span></div>
-          <div class="totals-row final"><span>Total (excl. VAT)</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate)}</span></div>
+          <div class="totals-row final"><span>Total (excl. VAT)</span><span>{fmt_money(offer['subtotal_eur'], currency, currency_rate, whole=whole)}</span></div>
         </div>
       </div>"""
 

@@ -99,3 +99,34 @@ def test_a_pre_v19_record_opens_with_it_off():
             page.evaluate("(id) => openQuote(id)", qid)
             page.wait_for_timeout(300)
             assert page.is_checked("#roundPrices") is False
+
+
+def test_the_pdfmake_pdf_prints_whole_units_that_multiply_out(tmp_path):
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, alerts):
+            _sek_line(page)
+            page.check("#roundPrices")
+            page.wait_for_timeout(300)
+            assert page.evaluate("buildExportObj().round_prices") is True
+            pdf = download_quote_pdf(page, alerts, tmp_path / "whole.pdf")
+    flat = re.sub(r"\s+", " ", " ".join(page_texts(pdf)))
+    assert "2,929 kr" in flat and "43,935 kr" in flat, flat[:600]
+    assert "2,929.34" not in flat and "43,940" not in flat
+
+
+@pytest.mark.skipif(not HAVE_WEASY, reason="weasyprint not usable in this process")
+def test_the_weasyprint_pdf_prints_whole_units_that_multiply_out(tmp_path):
+    json_path, pdf_path = tmp_path / "w.json", tmp_path / "w.pdf"
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            _sek_line(page)
+            page.check("#roundPrices")
+            page.wait_for_timeout(300)
+            offer = page.evaluate("buildExportObj()")
+    json_path.write_text(json.dumps(offer), encoding="utf-8")
+    r = subprocess.run([sys.executable, "generate_pdf.py", str(json_path), "-o", str(pdf_path)],
+                       cwd=str(REPO), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    flat = re.sub(r"\s+", " ", " ".join(page_texts(pdf_path)))
+    assert "2,929 kr" in flat and "43,935 kr" in flat
+    assert "2,929.34" not in flat and "43,940" not in flat

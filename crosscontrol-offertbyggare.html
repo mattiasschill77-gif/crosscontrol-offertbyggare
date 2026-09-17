@@ -4515,12 +4515,16 @@ const PDF_PHONE = '+46 271 75 76 00';
 const PDF_EMAIL = 'info@crosscontrol.com';
 const PDF_WEB = 'www.crosscontrol.com';
 
-// Currency formatting for the PDF (uses the rate captured in the export object)
-function pdfFmtMoney(eurAmount, currency, rate) {
+// Currency formatting for the PDF (uses the rate captured in the export object).
+// whole=true prints no decimals: "Round prices to whole units" (v1.9.0). The EUR
+// figures arriving here were already computed from the rounded unit, so the
+// converted value is within float noise of a whole number.
+function pdfFmtMoney(eurAmount, currency, rate, whole) {
   const symbols = { EUR: '€', USD: '$', SEK: 'kr' };
   const sym = symbols[currency] || '€';
   const converted = (eurAmount || 0) * (rate || 1);
-  const formatted = converted.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const digits = whole ? 0 : 2;
+  const formatted = converted.toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits });
   return currency === 'SEK' ? `${formatted} ${sym}` : `${sym}${formatted}`;
 }
 
@@ -4545,6 +4549,7 @@ function buildPdfDocDefinition(offer) {
   // Records and exports written before v1.8.0 carry no such key: default ON,
   // because that is the document they were sent as.
   const showListPrice = offer.show_list_price !== false;
+  const whole = offer.round_prices === true;
 
   // The quote is set in Helvetica on every surface (v1.9.0). Only reference it if
   // registerPdfFonts actually registered it; if that failed for any reason — e.g.
@@ -4592,14 +4597,14 @@ function buildPdfDocDefinition(offer) {
 
     const listPriceCell = isCustom
       ? { text: '—', style: 'strike', alignment: 'right' }
-      : { text: pdfFmtMoney(line.list_price_eur, currency, rate), style: 'strike', alignment: 'right' };
+      : { text: pdfFmtMoney(line.list_price_eur, currency, rate, whole), style: 'strike', alignment: 'right' };
 
     tableBody.push([
       { stack: productStack },
       ...(showListPrice ? [listPriceCell] : []),
-      { text: pdfFmtMoney(line.final_unit_price_eur, currency, rate), style: 'finalPrice', alignment: 'right' },
+      { text: pdfFmtMoney(line.final_unit_price_eur, currency, rate, whole), style: 'finalPrice', alignment: 'right' },
       { text: String(line.qty), alignment: 'right', fontSize: 10 },
-      { text: pdfFmtMoney(line.line_total_eur, currency, rate), style: 'finalPrice', alignment: 'right' },
+      { text: pdfFmtMoney(line.line_total_eur, currency, rate, whole), style: 'finalPrice', alignment: 'right' },
     ]);
   });
 
@@ -4655,9 +4660,9 @@ function buildPdfDocDefinition(offer) {
     table: {
       widths: ['*', 'auto'],
       body: [
-        [{ text: 'Subtotal', style: 'totalsLabel' }, { text: pdfFmtMoney(offer.subtotal_eur, currency, rate), style: 'totalsVal', alignment: 'right' }],
+        [{ text: 'Subtotal', style: 'totalsLabel' }, { text: pdfFmtMoney(offer.subtotal_eur, currency, rate, whole), style: 'totalsVal', alignment: 'right' }],
         [{ text: 'Shipping & handling', style: 'totalsLabel' }, { text: 'Per terms', style: 'totalsVal', alignment: 'right' }],
-        [{ text: 'TOTAL (EXCL. VAT)', style: 'totalsFinalLabel' }, { text: pdfFmtMoney(offer.subtotal_eur, currency, rate), style: 'totalsFinalVal', alignment: 'right' }],
+        [{ text: 'TOTAL (EXCL. VAT)', style: 'totalsFinalLabel' }, { text: pdfFmtMoney(offer.subtotal_eur, currency, rate, whole), style: 'totalsFinalVal', alignment: 'right' }],
       ],
     },
     layout: {
@@ -6825,6 +6830,9 @@ function buildExportObj() {
     qty_heading: (document.getElementById('qtyHeading').value.trim()) || 'Qty',
     customer: { name: custName, address: custAddress, contact: custContact, country: custCountry },
     show_list_price: document.getElementById('showListPrice').checked,
+    // The line totals above were already computed from the rounded unit when
+    // this is on; the renderers only need to know to drop the decimals.
+    round_prices: roundPricesOn(),
     terms: { payment: termPayment, delivery: termDelivery, vat_note: document.getElementById('vatNote').value.trim() },
     signature: {
       include: document.getElementById('includeSignature').checked,
