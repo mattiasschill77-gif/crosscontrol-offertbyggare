@@ -712,19 +712,22 @@ if (typeof module !== 'undefined') {
     display:inline-block;width:14px;border-top:2px dashed rgba(255,255,255,0.6);
   }
 
+  /* v1.9.0: no orange rule under the header; logo 75px tall (200 pt in the PDF,
+     was 150 = 56px); 36px more above the title (+30 pt). The quote document is
+     Arial throughout - every 'Poppins' below in a quote selector went with it.
+     The price list (#plDocRoot) keeps Poppins and its rule. */
   .doc-header{
     padding:34px 48px 22px;
     display:flex;justify-content:space-between;align-items:flex-start;
-    border-bottom:4px solid var(--cc-orange);
   }
-  .doc-logo svg{height:56px;width:auto;display:block;}
+  .doc-logo svg{height:75px;width:auto;display:block;}
   .doc-header-right{text-align:right;color:var(--ink-700);font-size:11px;line-height:1.7;font-family:Arial,sans-serif;}
   .doc-header-right .doc-id{color:var(--cc-orange-dark);font-family:Arial,sans-serif;font-size:11px;font-weight:700;}
 
-  .doc-title-bar{padding:26px 48px 16px;}
+  .doc-title-bar{padding:62px 48px 16px;}
   .doc-title-bar h1{
     margin:0 0 8px;font-size:28px;color:var(--ink-900);
-    font-family:'Poppins',Arial,sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:0.01em;
+    font-family:Arial,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.01em;
   }
   .doc-title-bar .meta{font-size:12.5px;color:var(--ink-700);font-family:Arial,sans-serif;}
   .doc-title-bar .meta b{color:var(--ink-900);}
@@ -747,11 +750,13 @@ if (typeof module !== 'undefined') {
   .doc-title-bar .billto .sub, #plDocRoot .billto .sub{
     font-family:Arial,sans-serif;font-size:12px;color:var(--ink-700);margin-top:2px;
   }
+  /* The .lbl and .name rules above are shared with the price list; only the quote goes Arial. */
+  .doc-title-bar .billto .lbl, .doc-title-bar .billto .name{font-family:Arial,sans-serif;}
 
   .doc-body{padding:0 48px 6px;}
 
   .section-eyebrow{
-    font-family:'Poppins',Arial,sans-serif;
+    font-family:Arial,sans-serif;
     font-size:11px;text-transform:uppercase;letter-spacing:0.12em;
     color:var(--cc-orange-dark);font-weight:700;margin-bottom:12px;
   }
@@ -760,11 +765,17 @@ if (typeof module !== 'undefined') {
   table.quote-table th{
     text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.06em;
     color:var(--panel-text-dim);font-weight:700;padding:0 0 10px;border-bottom:2px solid var(--ink-900);
+    white-space:nowrap;
   }
   table.quote-table th.num, table.quote-table td.num{text-align:right;}
   table.quote-table td{padding:18px 0;border-bottom:1px solid var(--line);vertical-align:top;}
+  /* Marketing 2026-09-17: UNIT PRICE and QTY read as one heading. Number columns
+     get 22px of air on the left; the qty column (second to last) gets it on both
+     sides. After the td rule above so the padding wins. */
+  table.quote-table th.num, table.quote-table td.num{padding-left:22px;}
+  table.quote-table th.num:nth-last-child(2), table.quote-table td.num:nth-last-child(2){padding-left:28px;padding-right:22px;}
   table.quote-table .pname{font-weight:700;color:var(--ink-900);font-size:14px;}
-  table.quote-table .psku{font-size:11px;color:var(--panel-text-dim);font-family:Arial,sans-serif;margin-top:3px;}
+  table.quote-table .psku{font-size:12px;font-weight:700;color:var(--ink-900);font-family:Arial,sans-serif;margin-top:3px;}
   table.quote-table .tier-tag{
     display:inline-block;font-size:10.5px;background:var(--panel-bg-2);
     color:var(--ink-700);padding:3px 9px;border-radius:10px;margin-top:8px;margin-right:4px;
@@ -783,7 +794,7 @@ if (typeof module !== 'undefined') {
   .totals-row{display:flex;justify-content:space-between;padding:5px 0;color:var(--ink-700);}
   .totals-row.final{
     border-top:2px solid var(--ink-900);margin-top:6px;padding-top:11px;
-    font-family:'Poppins',Arial,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;
+    font-family:Arial,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;
     font-size:12.5px;color:var(--ink-900);
   }
   .totals-row.final span:last-child{
@@ -808,7 +819,7 @@ if (typeof module !== 'undefined') {
     display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:16px;
   }
   .signature-col .sig-role{
-    font-family:'Poppins',Arial,sans-serif;
+    font-family:Arial,sans-serif;
     font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;
     color:var(--cc-orange-dark);font-weight:700;margin-bottom:24px;
   }

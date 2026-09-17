@@ -127,3 +127,47 @@ def test_unit_price_heading_is_one_line_and_clear_of_qty(tmp_path):
     gap = qty[0].x0 - unit[0].x1
     # 6 pt on the price side + 22 pt on the qty side (was 6 + 6 = 12).
     assert gap >= 26, f"only {gap:.1f} pt between UNIT PRICE and QTY"
+
+
+def _computed(page, selector, prop):
+    return page.evaluate(
+        "([s, p]) => getComputedStyle(document.querySelector(s))[p]", [selector, prop]
+    )
+
+
+def _rect(page, selector):
+    return page.evaluate(
+        "(s) => document.querySelector(s).getBoundingClientRect().toJSON()", selector
+    )
+
+
+def test_the_screen_document_matches():
+    """The same restyle on the on-screen preview, which is what gets checked
+    before a quote is sent."""
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.evaluate("cart = []; addProductToCart('C000 144-05'); renderAll();")
+            page.wait_for_timeout(300)
+            rule = _computed(page, "#docRoot .doc-header", "borderBottomWidth")
+            logo = _rect(page, "#docRoot .doc-logo svg")
+            title = _rect(page, "#docRoot .doc-title-bar h1")
+            h1_font = _computed(page, "#docRoot .doc-title-bar h1", "fontFamily")
+            sku_weight = _computed(page, "#docRoot table.quote-table .psku", "fontWeight")
+            sku_color = _computed(page, "#docRoot table.quote-table .psku", "color")
+            name_color = _computed(page, "#docRoot table.quote-table .pname", "color")
+            # The TEXT extent of each heading (a Range), not the cell: adjacent
+            # cells touch, so the cell boxes would always report a 0 gap.
+            boxes = page.evaluate("""() => [...document.querySelectorAll('#docRoot table.quote-table th')].map(th => {
+                const r = document.createRange(); r.selectNodeContents(th);
+                return r.getBoundingClientRect().toJSON();
+            })""")
+    assert rule == "0px", f"the screen header still has a {rule} rule"
+    assert abs(logo["height"] - 75) < 1, f"screen logo is {logo['height']}px tall, expected 75"
+    assert "Poppins" not in h1_font, h1_font
+    assert int(sku_weight) >= 700, f"part number weight {sku_weight}"
+    assert sku_color == name_color, f"part number {sku_color} vs product name {name_color}"
+    unit, qty = boxes[-3], boxes[-2]
+    # PRODUCT is one line; a wrapped UNIT PRICE is a line taller than it.
+    assert abs(unit["height"] - boxes[0]["height"]) < 2, "UNIT PRICE wraps on screen"
+    assert qty["x"] - (unit["x"] + unit["width"]) >= 24, "UNIT PRICE and QTY are too close"
+    assert title["y"] - (logo["y"] + logo["height"]) >= 36, "not enough room above the title"
