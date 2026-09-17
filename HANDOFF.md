@@ -378,10 +378,11 @@ is still undelivered, and the device gate that has to run before it is. Read
 where the price list tab, the TG card and the cost importer came from. This file
 (HANDOFF.md) stays the durable architecture reference.
 
-**Current status (2026-09-17): v1.9.0, 144 tests — BUILT on
-`feat/v1.9-quote-restyle`, NOT MERGED, NOT DELIVERED.** The copies outside git are
-v1.8.3. §30 has what changed; the release steps are `SESSION_HANDOFF_2026-09-08.md`
-§7, with one difference — the delivery folder no longer needs the Poppins files.
+**Current status (2026-09-17): v1.9.0, 144 tests — MERGED (`d6eef86`), TAGGED,
+DELIVERED.** `v1.9.0\` exists in Delivery and the Demo kit (app, `generate_pdf.py`,
+`cc-logo.svg` — no Poppins files, see §30), the Prototypes mirror is refreshed and
+`START HERE.txt` points at it; every copy verified at md5 `801aa0de…`. §30 has what
+changed. The device gate (§29.3 caveat) has NOT been run on the delivered file.
 
 Open: manufacturing cost exists for 1 of 86 products; the 2024 workbook has a
 duplicate part number at two prices (§12); no automated guard for the list-price
