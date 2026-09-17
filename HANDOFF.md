@@ -171,7 +171,7 @@ So **`buildExportObj()`'s output shape is the contract** between the web app and
 | File | Role |
 |---|---|
 | `crosscontrol-offertbyggare.html` | The whole app. Structure: `<style>` (all CSS), body markup (topbar, left control panel, right live-preview pane, archive slide-in panel), then a big inline `<script>` at the end containing (in order) the Excel parser, the pdfmake PDF builder, and the main app logic. **No external dependencies:** SheetJS (`xlsx`), `pdfmake` 0.3.11 and `vfs_fonts` are all inlined into the file — there are no `<script src>` tags and the app needs no network at all. It used to load those three from cdnjs; see §4 for why that was removed. |
-| `generate_pdf.py` | Standalone Python script. Takes an exported quote JSON, renders an HTML string with the same CSS/layout logic as the web app (duplicated, not shared — see §6), and rasterizes it to PDF via WeasyPrint. Needs `cc-logo.svg`, `poppins-700-b64.txt`, `poppins-800-b64.txt` in the same folder (reads them by relative path). |
+| `generate_pdf.py` | Standalone Python script. Takes an exported quote JSON, renders an HTML string with the same CSS/layout logic as the web app (duplicated, not shared — see §6), and rasterizes it to PDF via WeasyPrint. Needs `cc-logo.svg` in the same folder (read by relative path). **Since v1.9.0 it needs no font files** — the quote is Arial, taken from the system (§30). |
 | `cc-logo.svg` | CrossControl logo, vector, brand-correct colors baked in. Used by both the web app (inlined) and `generate_pdf.py` (read from disk). |
 | `poppins-700-b64.txt` / `poppins-800-b64.txt` | Base64-encoded Poppins TTF (Bold / ExtraBold), used to embed the brand's headline font into both the web app's CSS (`@font-face`) and the PDF outputs, so nothing depends on Google Fonts being reachable. |
 | `xlsx_parser.js` | Reference copy of the in-browser Excel-parsing logic. Already inlined into the HTML — this standalone file is just kept for reference/editing convenience, not loaded separately. |
@@ -378,16 +378,15 @@ is still undelivered, and the device gate that has to run before it is. Read
 where the price list tab, the TG card and the cost importer came from. This file
 (HANDOFF.md) stays the durable architecture reference.
 
-**Current status (2026-09-08): v1.8.0, 114 tests — BUILT, NOT DELIVERED.**
-`fix/pricelist-pdf-pagination` is merged (`9c0bf12`); `feat/v1.8-quote-changes` is
-complete and **unmerged, pending the device gate**. The three copies outside git are
-still v1.7.2. See `SESSION_HANDOFF_2026-09-08.md` §6 for the gate and §7 for the
-release steps.
+**Current status (2026-09-17): v1.9.0, 144 tests — BUILT on
+`feat/v1.9-quote-restyle`, NOT MERGED, NOT DELIVERED.** The copies outside git are
+v1.8.3. §30 has what changed; the release steps are `SESSION_HANDOFF_2026-09-08.md`
+§7, with one difference — the delivery folder no longer needs the Poppins files.
 
 Open: manufacturing cost exists for 1 of 86 products; the 2024 workbook has a
-duplicate part number at two prices (§12); the price list's NET PRICE column is too
-narrow and wraps four-digit prices (§25.4, owner decision); and `generate_pdf.py`
-escapes only the quote number, leaving the other interpolated fields raw.
+duplicate part number at two prices (§12); no automated guard for the list-price
+flag in `generate_pdf.py`; the custom-line total in `computeLine` does not go
+through `lineTotalFromDisplayedUnit` (§30, pre-existing, noted).
 
 ⚠️ Two earlier versions of this line went stale — one claimed `c5000ac` three
 releases later, one claimed v1.7.2 after v1.8.0 was built. A status line in a handoff
@@ -1571,3 +1570,97 @@ in place, and it did not find either of them.
 refuses `file://`, so the gate drove the delivered bytes over `http://127.0.0.1:8142` rather
 than by double-clicking the file. Everything about content and arithmetic is covered by that;
 **opening standalone from disk with no network, and the real Windows save dialogs, are not.**
+
+---
+
+## 30. The quote restyle and whole-unit prices (v1.9.0, 2026-09-17)
+
+Approved on a mockup before any code — https://claude.ai/artifact/5u1rWtVmQocJN3C23s4hds
+(version 3), owner's decisions 2026-09-17. Spec and plan:
+`docs/specs/2026-09-17-v1.9-quote-restyle-and-whole-unit-prices.md` and the matching
+`docs/plans/` file. **Quote document only.** The price list keeps Poppins/Roboto, its
+orange rule and its columns — `#plDocRoot`, `buildPricelistDocDefinition` and
+`plFmtMoney` are untouched, and `registerPdfFonts` still registers Poppins for it.
+
+### 30.1 What changed, on all three surfaces
+
+| | screen `<style>` | pdfmake | `generate_pdf.py` |
+|---|---|---|---|
+| orange rule under the header | `border-bottom` removed | header `canvas` removed | `border-bottom` removed |
+| logo | 56 → **75 px** | 150 → **200 pt** | 64 → **85 px** |
+| room above PRICE QUOTE | `.doc-title-bar` padding-top 26 → **62 px** | `pageMargins` top 92 → **122** | `@page` top **stays 3.0 cm** — the taller logo eats the slack the old margin had; 3.5 cm measured at twice the pdfmake gap |
+| font | every `'Poppins'` in a quote selector → **Arial**, 800 → 700 | `defaultStyle` and `HEAD_FONT` → **Helvetica** | every `'Poppins'` → **Arial**; the two `@font-face` blocks and the `poppins-*-b64.txt` reads deleted |
+| part number `.psku` | 11 px grey → **12 px bold ink** | 9 pt grey → **10 pt bold ink** | 9.5 px grey → **10.5 px bold ink** |
+| UNIT PRICE / QTY | `th` `white-space:nowrap`; number columns 22 px left, qty column 28/22 | `noWrap` on the heading; qty column padding 22 pt both sides (was 6) | `nowrap`; qty column 22 px both sides |
+
+⚠️ **The two headings were too close because the column was as narrow as the price.**
+The columns are `auto` width, so UNIT PRICE wrapped to two lines and "PRICE" sat 12 pt
+from "QTY". Widening the gap alone would have left the wrap; `noWrap` alone would have
+left a 12 pt gap.
+
+### 30.2 Helvetica, and the file that had to be inlined for it
+
+Owner's call: **pdfmake's built-in Helvetica, not an embedded Arial.** Nothing new is
+embedded (the quote PDF went from 59 KB to 24 KB), there is no font-licensing question,
+and Windows / Adobe Reader substitute Arial for a non-embedded Helvetica because Arial
+was designed metrically identical to it.
+
+⚠️ **Naming the standard font is not enough in the browser build.** `fonts.Helvetica =
+{ normal: 'Helvetica', ... }` failed with `File 'data/Helvetica-Bold.afm' not found in
+virtual file system`: pdfkit needs the AFM metric files, and the inlined pdfmake bundle
+does not carry them. pdfmake ships them as `build/standard-fonts/Helvetica.js` (300 KB,
+the four AFM files plus the family definition, self-registering through
+`pdfMake.addFontContainer`). That file is now inlined verbatim as its own `<script>`
+block right after the Roboto vfs, taken from the `pdfmake@0.3.11` npm tarball. **It is
+the one place Helvetica is registered** — `registerPdfFonts` deliberately does not
+repeat it.
+
+`HEAD_FONT` keeps its fallback: if `pdfMake.fonts.Helvetica` is missing the builder uses
+Roboto rather than throwing "Font not defined". Every `HEAD_FONT` use already carries
+`bold: true`, which is what maps to `Helvetica-Bold`.
+
+`generate_pdf.py` asks for Arial and WeasyPrint takes it from the system — on this
+machine that is a real embedded `Arial-Bold` etc. The delivery folder no longer needs
+`poppins-700-b64.txt` / `poppins-800-b64.txt` beside the script.
+
+### 30.3 Round prices to whole units
+
+A checkbox in the Terms card, under "Show list price column" and "State the 12-month
+forecast condition". **Off by default**, for a new quote and for every archive record
+written before it existed (`rec.round_prices === true`, so a missing key is off).
+
+**The rule is unit-first, and it is load-bearing.** The unit price is rounded to a whole
+unit of the display currency and the line total is that rounded unit × qty. Rounding
+each printed figure on its own gives 2,929.34 kr × 15 → 2,929 kr and 43,940 kr, which
+does not multiply out — the §27 / §29 defect reintroduced by a feature. With the rule:
+2,929 kr × 15 = 43,935 kr. The subtotal is the sum of the rounded line totals, so it can
+differ from round(old subtotal) by a few units. That is correct and was on the mockup.
+
+One reader, `roundPricesOn()`. `fmtMoney` takes its decimals from it (0 or 2);
+`lineTotalFromDisplayedUnit` takes what the unit is rounded to from it. The export
+carries `round_prices`; both PDF renderers only drop the decimals, because the EUR
+totals they receive were already computed from the rounded unit (`pdfFmtMoney(...,
+whole)` and `fmt_money(..., whole=whole)`). `tests/test_round_prices.py` proves the rule
+is load-bearing: with the total rounded on its own it goes red at 43,940 kr.
+
+⚠️ The checkbox listener calls **`renderAll()`**, not `renderDoc()`: the panel's
+per-line totals use `fmtMoney` too and must change decimals with the document. A
+checkbox has no caret to lose, so §25.3 does not apply. `renderAll` schedules the
+autosave, which is why the archive guard does not call `autoSaveNow()` — the question
+is whether the app saves it, and a test that forces the save cannot answer that (§29.2).
+
+Pre-existing, noted, not touched: custom lines in `computeLine` compute
+`lineTotal = finalUnitPrice * qty` without going through
+`lineTotalFromDisplayedUnit`, so a custom line ignores the rounding rule on the total.
+
+### 30.4 Two things the tests taught
+
+- PyMuPDF `search_for` rects include the font's ascender padding — ~8 pt above the caps
+  at 24 pt Helvetica. A visible 29 pt gap measures 21. Calibrate thresholds against a
+  render, not against the design number.
+- On screen, adjacent `th` boxes touch, so a cell-box gap is always 0. Measure the text
+  with a `Range` over the cell's contents.
+
+⚠️ **`git checkout <file>` to undo a deliberate sabotage also undoes every uncommitted
+edit in that file.** Task 5's edits had to be re-applied because of it. Commit first,
+then break, then `git checkout`; or revert the sabotage by hand.

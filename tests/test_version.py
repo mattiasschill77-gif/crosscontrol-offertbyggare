@@ -7,8 +7,8 @@ from harness import app_page, serve
 # names). These three tests pin the literal deliberately - they are what catches
 # a bump that was made in one place and forgotten in another - so they go red on
 # every release until this is updated. That is the point, not a defect.
-VERSION = "1.8.3"
-BUILD_DATE = "2026-09-09"
+VERSION = "1.9.0"
+BUILD_DATE = "2026-09-17"
 
 
 def test_version_constants_exist():
