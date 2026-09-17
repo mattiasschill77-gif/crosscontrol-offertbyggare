@@ -1479,6 +1479,13 @@ if (typeof module !== 'undefined') {
           </label>
           <div class="price-list-hint" style="margin-top:5px;">Adds a sentence to the § block making the quote conditional on a rolling 12-month forecast.</div>
         </div>
+        <div class="term-row">
+          <label class="pl-toggle-row" style="margin-top:0;">
+            <input type="checkbox" id="roundPrices">
+            Round prices to whole units <span style="color:var(--panel-text-dim)">(€1,256.72 → €1,257)</span>
+          </label>
+          <div class="price-list-hint" style="margin-top:5px;">The unit price is rounded and the line total is that rounded unit × qty, so the figures still multiply out.</div>
+        </div>
       </div>
 
       <div class="panel-section">
@@ -5173,6 +5180,7 @@ function buildQuoteSnapshot() {
     customer_contact: document.getElementById('custContact').value.trim(),
     customer_address: document.getElementById('custAddress').value.trim(),
     show_list_price: document.getElementById('showListPrice').checked,
+    round_prices: roundPricesOn(),
     customer_country: document.getElementById('custCountry').value.trim(),
     sender_office: document.getElementById('senderOffice').value,
     currency: getCurrency(),
@@ -5262,6 +5270,8 @@ function openQuote(quoteId) {
   document.getElementById('custContact').value = rec.customer_contact || '';
   document.getElementById('custAddress').value = rec.customer_address || '';
   document.getElementById('showListPrice').checked = rec.show_list_price !== false;
+  // Records written before v1.9.0 carry no such key: off, as they were sent.
+  document.getElementById('roundPrices').checked = rec.round_prices === true;
   document.getElementById('custCountry').value = rec.customer_country || '';
   document.getElementById('senderOffice').value = rec.sender_office || 'alfta';
   document.getElementById('currencySelect').value = rec.currency || 'EUR';
@@ -5307,6 +5317,7 @@ function startNewQuote() {
   document.getElementById('custContact').value = '';
   document.getElementById('custAddress').value = '';
   document.getElementById('showListPrice').checked = true;
+  document.getElementById('roundPrices').checked = false;
   document.getElementById('custCountry').value = '';
   updateQuoteIdDisplay();
   closeArchivePanel();
@@ -5651,11 +5662,19 @@ function setCurrencyRate(code, value) {
   CURRENCY_RATES[code].rate = v;
   renderAll();
 }
+// Round prices to whole units (v1.9.0). One reader; fmtMoney decides the decimals
+// from it and lineTotalFromDisplayedUnit decides what the unit is rounded to,
+// so the document's figures still multiply out with it on.
+function roundPricesOn() {
+  const el = document.getElementById('roundPrices');
+  return !!(el && el.checked);
+}
 function fmtMoney(eurAmount){
   const cur = getCurrency();
   const conf = CURRENCY_RATES[cur] || CURRENCY_RATES.EUR;
   const converted = eurAmount * conf.rate;
-  const formatted = converted.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const digits = roundPricesOn() ? 0 : 2;
+  const formatted = converted.toLocaleString('en-GB', {minimumFractionDigits:digits, maximumFractionDigits:digits});
   return cur === 'SEK' ? `${formatted} ${conf.symbol}` : `${conf.symbol}${formatted}`;
 }
 // Backward-compatible alias used throughout the codebase.
@@ -5992,8 +6011,11 @@ function centsInDisplayCurrency(eur) {
 // can actually read, not times the unrounded one behind it.
 function lineTotalFromDisplayedUnit(unitEur, qty) {
   const rate = fxOut();
-  const unitCents = Math.round(unitEur * rate * 100) / 100;
-  return Math.round(unitCents * qty * 100) / 100 / rate;
+  // The unit AS PRINTED: whole units when "Round prices" is on, cents otherwise.
+  const unitShown = roundPricesOn()
+    ? Math.round(unitEur * rate)
+    : Math.round(unitEur * rate * 100) / 100;
+  return Math.round(unitShown * qty * 100) / 100 / rate;
 }
 
 function computeLine(item) {
@@ -6683,6 +6705,11 @@ function renderPageBreaks() {
   el.addEventListener('change', () => { renderDoc(); scheduleAutoSave(); updateCharCount(el); });
   updateCharCount(el); // sets the initial "N / MAX" state (no-op for fields with no counter)
 });
+
+// renderAll, not renderDoc: the panel's per-line totals use fmtMoney too and must
+// change decimals with the document. A checkbox has no caret to lose (§25.3).
+// renderAll schedules the autosave itself.
+document.getElementById('roundPrices').addEventListener('change', () => renderAll());
 
 document.getElementById('fxRateUSD').addEventListener('input', (e) => setCurrencyRate('USD', e.target.value));
 document.getElementById('fxRateSEK').addEventListener('input', (e) => setCurrencyRate('SEK', e.target.value));
