@@ -171,3 +171,29 @@ def test_the_screen_document_matches():
     assert abs(unit["height"] - boxes[0]["height"]) < 2, "UNIT PRICE wraps on screen"
     assert qty["x"] - (unit["x"] + unit["width"]) >= 24, "UNIT PRICE and QTY are too close"
     assert title["y"] - (logo["y"] + logo["height"]) >= 36, "not enough room above the title"
+
+
+@pytest.mark.skipif(not HAVE_WEASY, reason="weasyprint not usable in this process")
+def test_the_weasyprint_pdf_matches(tmp_path):
+    """The third surface. generate_pdf.py duplicates the CSS by hand (HANDOFF §6)."""
+    json_path, pdf_path = tmp_path / "q.json", tmp_path / "q.pdf"
+    with serve() as url, sync_playwright() as p:
+        with app_page(p, url) as (page, _alerts):
+            page.evaluate("cart = []; addProductToCart('C000 144-05'); renderAll();")
+            offer = page.evaluate("buildExportObj()")
+    json_path.write_text(json.dumps(offer), encoding="utf-8")
+    r = subprocess.run([sys.executable, "generate_pdf.py", str(json_path), "-o", str(pdf_path)],
+                       cwd=str(REPO), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    doc = fitz.open(pdf_path)
+    names = {f[3] for pg in doc for f in pg.get_fonts()}
+    assert not any("Poppins" in n for n in names), names
+    pg = doc[0]
+    rules = [d for d in pg.get_drawings()
+             if d.get("fill") and all(abs(a - b) < 0.02 for a, b in zip(d["fill"], ORANGE))
+             and d["rect"].width > 400 and d["rect"].y1 < 120]
+    assert not rules, "the orange header rule is still drawn on the WeasyPrint path"
+    unit = pg.search_for("UNIT PRICE")
+    assert len(unit) == 1, "UNIT PRICE wraps on the WeasyPrint path"
+    spans = _spans_containing(pg, "C000 144-05")
+    assert spans and "Bold" in spans[0]["font"], "part number is not bold on the WeasyPrint path"

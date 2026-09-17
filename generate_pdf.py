@@ -11,7 +11,8 @@ Usage:
 
 Requires: pip install weasyprint --break-system-packages
 The logo (cc-logo.svg) must be in the same folder as this script,
-or specified with --logo.
+or specified with --logo. No font files are needed: since v1.9.0 the quote
+is set in Arial, which WeasyPrint takes from the system.
 """
 import argparse
 import json
@@ -34,20 +35,6 @@ INK_DIM = '#646363'
 LINE = '#e4e2dc'
 BG_SOFT = '#f7f6f2'
 
-
-def load_font_b64(filename):
-    """Load a font file from the script directory and return its base64 content,
-    for embedding via a data: URI in @font-face. Returns '' if the file is missing
-    (the PDF will then fall back to Arial, per the brand guide's own fallback rule)."""
-    path = os.path.join(SCRIPT_DIR, filename)
-    if os.path.exists(path):
-        with open(path, encoding='utf-8') as f:
-            return f.read().strip()
-    return ''
-
-
-POPPINS_700_B64 = load_font_b64('poppins-700-b64.txt')
-POPPINS_800_B64 = load_font_b64('poppins-800-b64.txt')
 
 OFFICES = {
     'alfta':    {'name': 'CrossControl', 'line1': 'Box 83, SE-822 22 Alfta', 'fax': '+46 271 75 76 89'},
@@ -322,22 +309,12 @@ def build_html(offer, logo_path):
 
     html = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><style>
-  @font-face {{
-    font-family: 'Poppins';
-    font-weight: 700;
-    font-style: normal;
-    src: url(data:font/ttf;base64,{POPPINS_700_B64}) format('truetype');
-  }}
-  @font-face {{
-    font-family: 'Poppins';
-    font-weight: 800;
-    font-style: normal;
-    src: url(data:font/ttf;base64,{POPPINS_800_B64}) format('truetype');
-  }}
   @page {{
     /* A4. Side margins 1.5cm. Top and bottom margins are enlarged to reserve room
        for the running header and the 3-column running footer, which both repeat
-       on every page. */
+       on every page. The 3.0cm top holds the 85px logo (v1.9.0, was 64px) with
+       ~10pt to spare and leaves the same ~30pt above the title as the pdfmake
+       page - measured, not assumed; 3.5cm gave twice the gap. */
     size: A4;
     margin: 3.0cm 1.5cm 3.4cm 1.5cm;
     @top-center {{
@@ -352,35 +329,36 @@ def build_html(offer, logo_path):
   }}
   * {{ box-sizing: border-box; }}
   body {{ font-family: Arial, 'DejaVu Sans', sans-serif; margin:0; padding:0; color:{INK}; font-size:11.5px; }}
+  /* v1.9.0: no orange rule under the header, logo 85px (was 64), Arial throughout -
+     mirrors the pdfmake builder and the screen. */
   .doc-header {{
     padding: 0 0 14px; display:flex; justify-content:space-between; align-items:flex-start;
-    border-bottom: 4px solid {CC_ORANGE};
     position: running(pageheader);
     width: 100%;
   }}
-  .doc-logo svg {{ height: 64px; width:auto; display:block; }}
+  .doc-logo svg {{ height: 85px; width:auto; display:block; }}
   .doc-header-right {{ text-align:right; color:{INK_DIM}; font-size:10.5px; line-height:1.6; }}
   .doc-header-right .doc-id {{ color:{CC_ORANGE_DARK}; font-weight:700; font-size:10.5px; }}
   .doc-title-bar {{ padding: 8px 0 14px; }}
   .doc-title-bar h1 {{
-    margin:0 0 6px; font-size:24px; font-weight:800; color:{INK};
-    font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; letter-spacing:0.01em;
+    margin:0 0 6px; font-size:24px; font-weight:700; color:{INK};
+    font-family:Arial,sans-serif; text-transform:uppercase; letter-spacing:0.01em;
   }}
   .doc-title-bar .meta {{ font-size:11.5px; color:{INK_DIM}; }}
   .doc-title-bar .billto {{ margin: 0 0 9px; }}
   .doc-title-bar .billto .lbl {{
-    font-family:'Poppins',Arial,sans-serif; font-size:8.5px; font-weight:700;
+    font-family:Arial,sans-serif; font-size:8.5px; font-weight:700;
     text-transform:uppercase; letter-spacing:0.14em; color:{CC_ORANGE_DARK}; margin-bottom:3px;
   }}
   .doc-title-bar .billto .name {{
-    font-family:'Poppins',Arial,sans-serif; font-weight:700; font-size:15px; color:{INK}; line-height:1.25;
+    font-family:Arial,sans-serif; font-weight:700; font-size:15px; color:{INK}; line-height:1.25;
   }}
   .doc-title-bar .billto .addr {{ font-size:11px; color:{INK_DIM}; line-height:1.45;
                                   margin-top:3px; white-space:pre-line; }}
   .doc-title-bar .billto .sub {{ font-size:11px; color:{INK_DIM}; margin-top:2px; }}
   .doc-body {{ padding: 0; }}
   .section-eyebrow {{
-    font-family:'Poppins',Arial,sans-serif;
+    font-family:Arial,sans-serif;
     font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:{CC_ORANGE_DARK}; font-weight:700;
     margin-bottom:10px;
   }}
@@ -388,11 +366,15 @@ def build_html(offer, logo_path):
   table.quote-table th {{
     text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:0.5px;
     color:{INK_DIM}; padding:0 6px 8px; border-bottom:2px solid {INK};
+    white-space:nowrap;
   }}
   table.quote-table th.num, table.quote-table td.num {{ text-align:right; }}
   table.quote-table td {{ padding:12px 6px; border-bottom:1px solid {LINE}; vertical-align:top; }}
+  /* Marketing 2026-09-17: UNIT PRICE and QTY read as one heading. The qty column
+     (second to last) gets 22px of air on both sides; every other gap stays 6. */
+  table.quote-table th.num:nth-last-child(2), table.quote-table td.num:nth-last-child(2) {{ padding-left:22px; padding-right:22px; }}
   .pname {{ font-weight:700; color:{INK}; font-size:12px; }}
-  .psku {{ font-size:9.5px; color:{INK_DIM}; margin-top:1px; }}
+  .psku {{ font-size:10.5px; font-weight:700; color:{INK}; margin-top:2px; }}
   .tier-tag {{
     display:inline-block; font-size:9px; background:{BG_SOFT}; color:{INK_DIM};
     padding:2px 7px; border-radius:9px; margin-top:6px; margin-right:4px;
@@ -410,7 +392,7 @@ def build_html(offer, logo_path):
   .totals-row {{ display:flex; justify-content:space-between; padding:5px 0; color:{INK_DIM}; gap:16px; white-space:nowrap; }}
   .totals-row.final {{
     border-top:2px solid {INK}; margin-top:6px; padding-top:10px;
-    font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; letter-spacing:0.02em;
+    font-family:Arial,sans-serif; text-transform:uppercase; letter-spacing:0.02em;
     font-size:12px; font-weight:700; color:{INK};
     white-space:nowrap;
   }}
@@ -422,7 +404,7 @@ def build_html(offer, logo_path):
   .term-item {{ width:45%; }}
   .term-item b {{ display:block; color:{INK}; font-size:10.5px; margin-bottom:2px; }}
   .volume-matrix {{ border-left:3px solid {CC_ORANGE}; background:{BG_SOFT}; padding:11px 15px; margin:0 0 14px; }}
-  .volume-matrix .vm-head {{ font-family:'Poppins',Arial,sans-serif; font-weight:700; font-size:12.5px; color:{INK}; }}
+  .volume-matrix .vm-head {{ font-family:Arial,sans-serif; font-weight:700; font-size:12.5px; color:{INK}; }}
   .volume-matrix .vm-sku {{ font-size:10.5px; color:#8a8880; font-weight:400; }}
   .volume-matrix table {{ width:100%; border-collapse:collapse; margin-top:8px; }}
   .volume-matrix th, .volume-matrix td {{ padding:5px 10px; font-size:11.5px; }}
@@ -454,7 +436,7 @@ def build_html(offer, logo_path):
   .signature-grid {{ display:flex; gap:36px; margin-top:12px; }}
   .signature-col {{ width:48%; }}
   .signature-col .sig-role {{
-    font-family:'Poppins',Arial,sans-serif;
+    font-family:Arial,sans-serif;
     font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em;
     color:{CC_ORANGE_DARK}; font-weight:700; margin-bottom:16px;
   }}
