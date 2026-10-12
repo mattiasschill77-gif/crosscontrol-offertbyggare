@@ -5996,7 +5996,10 @@ function setCustomField(lineId, field, value) {
   if (field === 'unitPrice') {
     let v = parseFloat(String(value).replace(',', '.'));
     if (isNaN(v) || v < 0) v = 0;
-    item.customUnitPrice = v;
+    // ⚠️ TYPED IN THE DISPLAYED CURRENCY, STORED IN EUR - same contract as the
+    // tier-override price (§25.3). Without the divide, 9500 typed under SEK was
+    // kept as 9500 EUR and printed 108,300.00 kr to the customer.
+    item.customUnitPrice = v / fxOut();
   }
   updateProductRowComputed(lineId);
   renderDoc();
@@ -6027,7 +6030,9 @@ function computeLine(item) {
   if (item.isCustom) {
     const unitPrice = item.customUnitPrice || 0;
     const finalUnitPrice = unitPrice * (1 - item.extraDiscountPct / 100);
-    const lineTotal = finalUnitPrice * item.qty;
+    // Same rule as a catalogue line (§27): the total is quantity times the unit
+    // price the CUSTOMER SEES, so the printed figures multiply out.
+    const lineTotal = lineTotalFromDisplayedUnit(finalUnitPrice, item.qty);
     return { tierPrice: unitPrice, finalUnitPrice, lineTotal };
   }
   const tierPrice = item.tierLabels.length
@@ -6256,8 +6261,9 @@ function renderCustomLineRow(item) {
         <input type="text" inputmode="numeric" value="${item.qty}" data-line-id="${item.lineId}" data-action="qty"
                aria-label="Quantity for this custom item">
         <label style="margin-left:auto;color:var(--panel-text-dim)">Unit price</label>
-        <input type="text" inputmode="decimal" class="custom-price-input" value="${item.customUnitPrice}" data-line-id="${item.lineId}" data-action="custom-price"
+        <input type="text" inputmode="decimal" class="custom-price-input" value="${item.customUnitPrice ? (item.customUnitPrice * fxOut()).toFixed(2) : ''}" data-line-id="${item.lineId}" data-action="custom-price"
                aria-label="Unit price for this custom item">
+        <span style="color:var(--panel-text-dim);font-size:11px;">${(CURRENCY_RATES[getCurrency()] || CURRENCY_RATES.EUR).symbol}</span>
       </div>
 
       <div class="extra-discount-row">
