@@ -1665,3 +1665,57 @@ Pre-existing, noted, not touched: custom lines in `computeLine` compute
 ⚠️ **`git checkout <file>` to undo a deliberate sabotage also undoes every uncommitted
 edit in that file.** Task 5's edits had to be re-applied because of it. Commit first,
 then break, then `git checkout`; or revert the sabotage by hand.
+
+## 31. A custom item's price was converted as if it were euros (v1.9.1, 2026-10-12)
+
+Found by the owner, by asking the question — *"when I add a custom item, is the price
+calculated in dollars or euro, not the chosen currency?"* Measured on the delivered v1.9.0,
+typing **9500** into a custom item's price box:
+
+| currency | document printed | |
+|---|---|---|
+| EUR | €9,500.00 | correct |
+| USD | **$10,260.00** | 9500 × 1.08 |
+| SEK | **108,300.00 kr** | 9500 × 11.4 |
+
+A 9 500 kr engineering line quoted the customer **108 300 kr**.
+
+⚠️ **Pre-existing** — `computeLine`'s custom branch is identical on the v1.7.2 tag.
+
+⚠️ **Nothing looked wrong, which is why it lasted.** The arithmetic was self-consistent
+(3 × 10,260 = 30,780), the total matched the row, and the only wrong figure was the unit
+price — wrong solely against what had been typed, which no rendered document can show.
+
+**Fix:** the same contract as the typed tier-override price (§25.3) — divide by `fxOut()` on
+entry, store EUR, multiply back on render. A currency switch now converts a custom price
+instead of reinterpreting it.
+
+⚠️ **The field showed no currency symbol at all.** Every other price control in the card names
+its currency — the tier-override shows `$`, Mfg. cost shows `SEK`. This one showed nothing, so
+there was no hint you were typing euros. It shows the symbol now, and that is as much of the
+fix as the arithmetic is.
+
+**This also closes the open item recorded at the end of §30.3:** the custom branch now goes
+through `lineTotalFromDisplayedUnit`, so a custom line obeys the whole-unit rounding rule on
+its total. Verified both ways in SEK: `9,499.50 × 3 = 28,498.50` with rounding off,
+`9,500 × 3 = 28,500` with it on.
+
+⚠️ **No migration of archived quotes.** A stored `customUnitPrice` keeps printing the figure
+that was actually sent to that customer. Reinterpreting old records would rewrite history.
+
+⚠️ **The guards type through the REAL input and read the figure back off the rendered
+document**, because that is the pair that disagreed. `customUnitPrice` was always "the number
+typed" — asserting on cart state would have passed throughout. Proven able to fail: reverting
+the divide turns three of the four red.
+
+**That is five consecutive releases in which every customer-facing defect was found by looking
+at output or by the owner asking about it, and none by the suite** (148 tests here).
+
+### 31.1 A note for whoever picks this up next
+
+`CHANGES.txt` is new — a plain-language change note for colleagues, kept in the repo root and
+copied into the Delivery and Demo kit folders, listed in `START HERE.txt`. It covers v1.8.0
+onwards in user terms and ends with which older quotes are worth re-checking, because several
+of these fixes changed printed figures and **every one of them only affected USD and SEK — a
+quote written in EUR was correct in every build.** Keep it updated with each release; it is
+the only document in this project written for someone who did not build the tool.

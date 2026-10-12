@@ -1,0 +1,111 @@
+CC QUOTE BUILDER — WHAT'S CHANGED
+=================================
+Current build: v1.9.1 (12 October 2026)
+
+Open the folder named for the version, and double-click the .html file inside it.
+The version is shown in the top bar of the tool, so you can always tell which
+build you have open.
+
+
+v1.9.1 — 12 October 2026
+------------------------
+FIXED: a custom item's price was treated as euros, whatever currency you had
+chosen.
+
+If you added a custom item (for example bespoke engineering work) while the quote
+was set to USD or SEK, the price you typed was converted again on its way to the
+document:
+
+    typed 9500 with SEK chosen   ->  the quote said 108 300 kr
+    typed 9500 with USD chosen   ->  the quote said $10 260
+
+The price now stays exactly what you type, in the currency you have chosen, and
+the box shows the currency symbol so you can see which one you are typing in.
+Switching currency afterwards converts the price instead of re-reading it.
+
+Quotes in EUR were never affected.
+
+
+v1.9.0 — 17 September 2026
+--------------------------
+NEW: a cleaner quote document. Larger logo, more room above the heading, no rule
+under the header, Arial throughout, and the part number is easier to read. The
+price list document is unchanged.
+
+NEW: "Round prices to whole units" — a checkbox under Terms. Off by default. With
+it on, prices print without decimals, and the line total is the rounded unit price
+times the quantity, so the figures on the page still multiply out.
+
+
+v1.8.3 — 9 September 2026
+-------------------------
+FIXED: prices in the PDF could be a fraction off in USD and SEK.
+
+The PDF rounded amounts before converting them to your chosen currency, so a
+small difference came back multiplied by the exchange rate. The screen was right
+and the PDF was not — so the two disagreed. Worst case seen: a price typed as
+2 750,00 kr printed as 2 750,02 kr.
+
+FIXED: a unit price typed over a volume tier did not reach the document or get
+saved. The preview kept showing the tier price until you touched another field,
+and if you closed the tab the typed price was lost.
+
+Quotes in EUR were never affected by the rounding.
+
+
+v1.8.2 — 8 September 2026
+-------------------------
+FIXED: the Unit price box sat on top of the volume-tier buttons.
+
+
+v1.8.1 — 8 September 2026
+-------------------------
+FIXED: special characters in a customer name, product description or note could
+come out wrong in the PDF produced by the separate Python script. A name such as
+"Wilson & Sons" now prints correctly.
+
+
+v1.8.0 — 8 September 2026
+-------------------------
+NEW: the customer's address on the quote, under the company name — and on the
+price list, which now uses the same addressee block.
+
+NEW: "Show list price column" — a checkbox under Terms, on by default. Turn it off
+and the customer sees the unit price only, with no list price and no discount note.
+
+NEW: type a unit price directly over a volume tier. The typed price wins, the
+extra discount is cleared while it is set, and a warning shows whenever the price
+differs from the tier price — above it as well as below. "Use tier price" puts it
+back. Clicking a different tier keeps the price you typed.
+
+FIXED, price list PDF: a family heading could print at the foot of a page with its
+products starting on the next one.
+
+FIXED, price list PDF: the column headings (PRODUCT / NET PRICE / MOQ) appeared
+above the first product family only.
+
+FIXED, price list PDF: prices could break across two lines — "2 438,6" on one line
+and "0" on the next. This affected most four-figure prices.
+
+FIXED, quote: the unit price times the quantity did not equal the printed total in
+USD or SEK. A quote showing 1 042,29 x 15 printed a total of 15 634,30 when the
+multiplication gives 15 634,35.
+
+
+IF YOU HAVE SENT QUOTES FROM AN OLDER BUILD
+-------------------------------------------
+Several of the fixes above changed printed figures, and all of them only affected
+quotes in USD or SEK — a quote written in EUR was correct in every build.
+
+Worth a look if you sent non-EUR quotes from a build older than this one:
+
+  - custom items priced before v1.9.1 (the price was converted twice)
+  - totals and prices before v1.8.3 (small rounding differences)
+  - line totals before v1.8.0 (unit price x quantity did not match the total)
+
+The archive keeps every quote, so you can reopen one and compare.
+
+
+QUESTIONS
+---------
+Mattias Schill — mattias.schill@crosscontrol.com
